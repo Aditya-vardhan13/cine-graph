@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CorpusQuality, Film, FilmComparison, Health, year } from "../lib/api";
+import { CorpusQuality, Film, FilmLineage, Health, year } from "../lib/api";
 
 type Props = { health: Health | null; corpusQuality: CorpusQuality | null; initialFilms: Film[]; initialError: string | null };
 
@@ -17,9 +17,8 @@ export function Explorer({ health, corpusQuality, initialFilms, initialError }: 
   const [searchedQuery, setSearchedQuery] = useState("");
   const [message, setMessage] = useState(initialError);
   const [firstFilm, setFirstFilm] = useState<Film | null>(null);
-  const [secondFilm, setSecondFilm] = useState<Film | null>(null);
-  const [comparison, setComparison] = useState<FilmComparison | null>(null);
-  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [lineage, setLineage] = useState<FilmLineage | null>(null);
+  const [lineageLoading, setLineageLoading] = useState(false);
   const apiUrl = "/api/v1";
 
   useEffect(() => {
@@ -46,37 +45,36 @@ export function Explorer({ health, corpusQuality, initialFilms, initialError }: 
     return () => { active = false; window.clearTimeout(timer); };
   }, [apiUrl, query]);
 
-  const readyToCompare = Boolean(firstFilm && secondFilm && firstFilm.id !== secondFilm.id);
-  const remainingSlot = firstFilm ? "second" : "first";
+  const readyToTrace = Boolean(firstFilm);
 
   async function chooseFilm(film: Film) {
-    if (!firstFilm) setFirstFilm(film);
-    else if (!secondFilm || secondFilm.id !== film.id) setSecondFilm(film);
+    setFirstFilm(film);
     setQuery("");
     setSuggestions([]);
     setSearchedQuery("");
+    setLineage(null);
     setMessage(null);
   }
 
-  async function compare() {
-    if (!readyToCompare || !firstFilm || !secondFilm) return;
-    setComparisonLoading(true);
+  async function traceLineage() {
+    if (!firstFilm) return;
+    setLineageLoading(true);
     setMessage(null);
     try {
-      const response = await fetch(`${apiUrl}/films/compare?first_id=${firstFilm.id}&second_id=${secondFilm.id}`);
+      const response = await fetch(`${apiUrl}/films/${firstFilm.id}/lineage`);
       if (!response.ok) {
-        if (response.status === 404 || response.status === 422) {
+        if (response.status === 404) {
           throw new Error("stale-api");
         }
-        throw new Error("comparison-failed");
+        throw new Error("lineage-failed");
       }
-      setComparison(await response.json());
+      setLineage(await response.json());
     } catch (error) {
       setMessage(error instanceof Error && error.message === "stale-api"
-        ? "Connection Lens needs the updated API. Rebuild or restart the FastAPI service, then try again."
-        : "The connection analysis could not reach the catalog. Please try again.");
+        ? "Story Lineage needs the updated API. Rebuild or restart the FastAPI service, then try again."
+        : "The lineage analysis could not reach the catalog. Please try again.");
     } finally {
-      setComparisonLoading(false);
+      setLineageLoading(false);
     }
   }
 
@@ -90,8 +88,8 @@ export function Explorer({ health, corpusQuality, initialFilms, initialError }: 
       <section className="hero">
         <div>
           <p className="eyebrow">English-language catalog</p>
-          <h1>What connects<br />these films?</h1>
-          <p className="intro">A cinema rabbit hole with receipts. Trace the collaborators, genre DNA and release-era context that actually link two films.</p>
+          <h1>Trace a story<br />to its roots.</h1>
+          <p className="intro">A cinema rabbit hole with receipts. Follow only the direct installment, adaptation and source-material routes the catalog can prove.</p>
         </div>
         <aside className="source-card">
           <span className="signal" />
@@ -114,15 +112,15 @@ export function Explorer({ health, corpusQuality, initialFilms, initialError }: 
       </section>}
 
       <section className="connection-lens">
-        <div className="lens-copy"><p className="eyebrow">Connection lens</p><h2>Put two films on the table.</h2><p>Start with any title. CineGraph shows only the links it can prove from the current catalog.</p></div>
+        <div className="lens-copy"><p className="eyebrow">Story lineage</p><h2>Start with one film.</h2><p>Trace its direct installment, adaptation and source-material routes. Similarity never becomes a claim.</p></div>
         <div className="lens-workspace">
-          <div className="film-slots"><FilmSlot film={firstFilm} label="First film" onClear={() => { setFirstFilm(null); setComparison(null); }} /><span className="versus">×</span><FilmSlot film={secondFilm} label="Second film" onClear={() => { setSecondFilm(null); setComparison(null); }} /></div>
-          <div className="live-search"><span className="search-glyph">⌕</span><input autoComplete="off" aria-label={`Search for ${remainingSlot} film`} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={firstFilm ? "Replace or add a second film…" : "Start typing a film title…"} /><span className="search-state">{searching ? "Searching" : "Live"}</span>{(suggestions.length > 0 || searchError || (searchedQuery === query.trim() && query.trim().length >= 2 && !searching)) && <div className="suggestions">{searchError ? <p className="search-feedback error">{searchError}</p> : suggestions.length ? suggestions.map((film) => <button key={film.id} onClick={() => chooseFilm(film)}><span><b>{film.title}</b><small>{year(film.release_date)} · {film.genres.slice(0, 2).join(", ") || "Metadata only"}</small></span><i>add ↗</i></button>) : <p className="search-feedback">No title matches “{query.trim()}”. Try fewer words.</p>}</div>}</div>
-          <button className="compare-button" onClick={compare} disabled={!readyToCompare || comparisonLoading}>{comparisonLoading ? "Tracing connections…" : "Reveal the connection"}</button>
+          <div className="film-slots single"><FilmSlot film={firstFilm} label="Selected film" onClear={() => { setFirstFilm(null); setLineage(null); }} /></div>
+          <div className="live-search"><span className="search-glyph">⌕</span><input autoComplete="off" aria-label="Search for a film" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={firstFilm ? "Replace this film…" : "Start typing a film title…"} /><span className="search-state">{searching ? "Searching" : "Live"}</span>{(suggestions.length > 0 || searchError || (searchedQuery === query.trim() && query.trim().length >= 2 && !searching)) && <div className="suggestions">{searchError ? <p className="search-feedback error">{searchError}</p> : suggestions.length ? suggestions.map((film) => <button key={film.id} onClick={() => chooseFilm(film)}><span><b>{film.title}</b><small>{year(film.release_date)} · {film.genres.slice(0, 2).join(", ") || "Metadata only"}</small></span><i>trace ↗</i></button>) : <p className="search-feedback">No title matches “{query.trim()}”. Try fewer words.</p>}</div>}</div>
+          <button className="compare-button" onClick={traceLineage} disabled={!readyToTrace || lineageLoading}>{lineageLoading ? "Tracing lineage…" : "Trace story lineage"}</button>
         </div>
       </section>
 
-      {(comparison || message) && <section className="connection-result">{message && <p className="notice">{message}</p>}{comparison && <><div><p className="eyebrow">Connection report</p><h2>{comparison.summary}</h2><p>{comparison.first.title} <i>×</i> {comparison.second.title}</p></div><div className="signal-list">{comparison.signals.length ? comparison.signals.map((signal) => <article key={signal.label}><span>{signal.label}</span><b>{signal.evidence}</b><small>Source-backed catalog signal</small></article>) : <article><span>No hidden match</span><b>These films may still be creatively interesting together—but the current metadata cannot prove a direct connection.</b><small>Screenplay and scene-level evidence arrives in a later phase.</small></article>}</div></>}</section>}
+      {(lineage || message) && <section className="connection-result">{message && <p className="notice">{message}</p>}{lineage && <><div><p className="eyebrow">Lineage report</p><h2>{lineage.summary}</h2><p>{lineage.film.title}</p></div><div className="signal-list">{lineage.edges.length ? lineage.edges.map((edge) => <article key={edge.assertion_id}><span>{edge.relation_label} <i>·</i> {edge.direction}</span><b>{edge.target_film?.title ?? edge.target_title}</b><p className="writer-question">{edge.writer_question}</p><small>{edge.target_kind} <i>·</i> {edge.assertion_kind === "source_fact" ? "Source-backed fact" : edge.assertion_kind}</small>{edge.evidence_url && <a href={edge.evidence_url} target="_blank">View evidence ↗</a>}</article>) : <article><span>No typed route yet</span><b>The catalog has not proved a direct lineage route for this film.</b><small>It will not substitute genre, era or cast overlap for a relationship.</small></article>}</div></>}</section>}
 
       <section className="catalog">
         <div className="catalog-heading">

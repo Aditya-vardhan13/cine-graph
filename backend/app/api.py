@@ -9,12 +9,12 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db import get_db
 from app.models import (
-    CorpusRecord, DataSource, ExternalWorkRelationship, Film, FilmCredit, FilmGenre, FilmProvenance,
+    Assertion, CanonicalEntity, CorpusRecord, DataSource, ExternalWorkRelationship, Film, FilmCredit, FilmGenre, FilmProvenance,
     FilmReleaseEvent, Genre, IngestionBatch, LanguageEdition, NarrativeDocument, Person, PersonProvenance,
 )
 from app.schemas import (
     CreditOut, FilmDetail, FilmListItem, GraphEdge, GraphNode, GraphOut, HealthOut,
-    CorpusQualityOut, CorpusSourceQuality, FilmComparison, LanguageEditionOut, PersonDetail, ProvenanceOut,
+    CorpusQualityOut, CorpusSourceQuality, FilmComparison, FilmLineageOut, LanguageEditionOut, LineageEdgeOut, PersonDetail, ProvenanceOut,
     SimilarFilmOut, SimilarityFactor,
 )
 
@@ -83,6 +83,77 @@ def load_film_with_connection_data(db: Session, film_id: UUID) -> Film | None:
         selectinload(Film.genres).selectinload(FilmGenre.genre),
         selectinload(Film.credits).selectinload(FilmCredit.person),
     ).where(Film.id == film_id))
+
+
+LINEAGE_PREDICATES = {"based_on", "follows", "followed_by", "part_of_series"}
+
+
+def lineage_copy(predicate: str, direction: str, target_kind: str) -> tuple[str, str]:
+    if predicate == "based_on":
+        label = "Film adaptation" if target_kind == "film" else "Source material"
+        return label, "Which premise, character engine, or pressure system is carried across this adaptation?"
+    if predicate in {"follows", "followed_by"}:
+        is_next = (predicate == "followed_by" and direction == "outgoing") or (
+            predicate == "follows" and direction == "incoming"
+        )
+        if is_next:
+            return "Next installment", "What promise does this ending leave open, and how could the next story escalate it?"
+        return "Previous installment", "What story engine does this installment inherit, and what must it transform?"
+    if predicate == "part_of_series":
+        return "Series membership", "What is the repeatable story promise that holds this work inside the wider series?"
+    return "Related work", "What should a writer inspect in this source-backed relationship?"
+
+
+def film_lineage(db: Session, film: Film, limit: int) -> FilmLineageOut:
+    if not film.entity_id:
+        return FilmLineageOut(film=film_item(film), summary="This film has not yet been linked to the evidence core.", edges=[])
+    outgoing = db.execute(select(Assertion, CanonicalEntity).join(
+        CanonicalEntity, Assertion.object_entity_id == CanonicalEntity.id
+    ).where(
+        Assertion.subject_entity_id == film.entity_id,
+        Assertion.predicate.in_(LINEAGE_PREDICATES),
+        Assertion.review_status.in_(("resolved", "published")),
+    )).all()
+    incoming = db.execute(select(Assertion, CanonicalEntity).join(
+        CanonicalEntity, Assertion.subject_entity_id == CanonicalEntity.id
+    ).where(
+        Assertion.object_entity_id == film.entity_id,
+        Assertion.predicate.in_(LINEAGE_PREDICATES),
+        Assertion.review_status.in_(("resolved", "published")),
+    )).all()
+    rows = [(assertion, target, "outgoing") for assertion, target in outgoing] + [
+        (assertion, source, "incoming") for assertion, source in incoming
+    ]
+    target_ids = [target.id for _, target, _ in rows if target.entity_kind == "film"]
+    target_films = {
+        item.entity_id: item
+        for item in db.scalars(select(Film).options(
+            selectinload(Film.genres).selectinload(FilmGenre.genre)
+        ).where(Film.entity_id.in_(target_ids))).unique()
+    }
+    edges: list[LineageEdgeOut] = []
+    seen: set[tuple[UUID, str]] = set()
+    for assertion, target, direction in rows:
+        label, question = lineage_copy(assertion.predicate, direction, target.entity_kind)
+        key = (target.id, label)
+        if key in seen:
+            continue
+        seen.add(key)
+        target_film = target_films.get(target.id)
+        edges.append(LineageEdgeOut(
+            assertion_id=assertion.id, predicate=assertion.predicate, relation_label=label,
+            direction=direction, target_id=target.id, target_title=target.canonical_label,
+            target_kind=target.entity_kind, target_film=film_item(target_film) if target_film else None,
+            writer_question=question, evidence_url=assertion.source_reference,
+            assertion_kind=assertion.assertion_kind,
+        ))
+    edges.sort(key=lambda edge: (edge.relation_label, edge.target_title))
+    visible = edges[:limit]
+    summary = (
+        f"{len(visible)} source-backed lineage route{'s' if len(visible) != 1 else ''} found."
+        if visible else "No typed lineage route is available for this film yet."
+    )
+    return FilmLineageOut(film=film_item(film), summary=summary, edges=visible)
 
 
 @router.get("/health", response_model=HealthOut)
@@ -162,6 +233,20 @@ def compare_films(first_id: UUID, second_id: UUID, db: Session = Depends(get_db)
         if signals else "No direct metadata connection was found in the current catalog."
     )
     return FilmComparison(first=film_item(first), second=film_item(second), summary=summary, signals=signals)
+
+
+@router.get("/films/{film_id}/lineage", response_model=FilmLineageOut)
+def get_film_lineage(
+    film_id: UUID,
+    limit: int = Query(default=12, ge=1, le=30),
+    db: Session = Depends(get_db),
+) -> FilmLineageOut:
+    film = db.scalar(select(Film).options(
+        selectinload(Film.genres).selectinload(FilmGenre.genre)
+    ).where(Film.id == film_id))
+    if not film:
+        raise HTTPException(status_code=404, detail="Film not found")
+    return film_lineage(db, film, limit)
 
 
 @router.get("/films/{film_id}", response_model=FilmDetail)

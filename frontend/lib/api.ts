@@ -60,6 +60,26 @@ export type FilmComparison = {
   signals: ConnectionSignal[];
 };
 
+export type LineageEdge = {
+  assertion_id: string;
+  predicate: string;
+  relation_label: string;
+  direction: string;
+  target_id: string;
+  target_title: string;
+  target_kind: string;
+  target_film: Film | null;
+  writer_question: string;
+  evidence_url: string | null;
+  assertion_kind: string;
+};
+
+export type FilmLineage = {
+  film: Film;
+  summary: string;
+  edges: LineageEdge[];
+};
+
 export type Graph = {
   center_id: string;
   nodes: Array<{ id: string; label: string; type: string }>;

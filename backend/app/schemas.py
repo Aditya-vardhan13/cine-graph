@@ -84,6 +84,26 @@ class FilmComparison(BaseModel):
     signals: list[SimilarityFactor]
 
 
+class LineageEdgeOut(BaseModel):
+    assertion_id: UUID
+    predicate: str
+    relation_label: str
+    direction: str
+    target_id: UUID
+    target_title: str
+    target_kind: str
+    target_film: FilmListItem | None = None
+    writer_question: str
+    evidence_url: str | None
+    assertion_kind: str
+
+
+class FilmLineageOut(BaseModel):
+    film: FilmListItem
+    summary: str
+    edges: list[LineageEdgeOut]
+
+
 class LanguageEditionOut(BaseModel):
     code: str
     display_name: str
