@@ -47,3 +47,21 @@ def test_genre_projection_reuses_an_existing_label_for_a_second_wikidata_item() 
         second = upsert_genre(db, "Q101", "melodrama")
         db.commit()
         assert first.id == second.id
+
+
+def test_empty_classification_retries_already_typed_film_targets() -> None:
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        source_film = CanonicalEntity(entity_kind="film", canonical_label="Source", wikidata_id="Q1")
+        target_film = CanonicalEntity(entity_kind="film", canonical_label="Target", wikidata_id="Q2")
+        db.add_all([source_film, target_film])
+        db.flush()
+        db.add(Assertion(
+            subject_entity_id=source_film.id, predicate="follows", object_entity_id=target_film.id,
+            object_entity_kind="film", assertion_kind="source_fact", review_status="resolved",
+        ))
+        db.commit()
+
+        stats = apply_classifications(db, {}, fetcher=lambda _qids: [])
+        assert stats == {"classified": 0, "films_imported": 0, "remaining_unknown": 0}

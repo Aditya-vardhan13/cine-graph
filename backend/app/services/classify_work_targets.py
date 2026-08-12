@@ -67,9 +67,6 @@ def apply_classifications(
 ) -> dict[str, int]:
     """Apply typed targets; import only classified film targets into the film projection."""
     stats = {"classified": 0, "films_imported": 0, "remaining_unknown": 0}
-    if not classifications:
-        stats["remaining_unknown"] = db.scalar(select(func.count()).select_from(CanonicalEntity).where(CanonicalEntity.entity_kind == "unknown_work")) or 0
-        return stats
     entities = {
         entity.wikidata_id: entity
         for entity in db.scalars(select(CanonicalEntity).where(CanonicalEntity.wikidata_id.in_(classifications)))
