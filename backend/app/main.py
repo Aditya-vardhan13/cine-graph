@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router
 from app.core.config import get_settings
-from app.db import Base, engine
-import app.models  # noqa: F401 -- registers ORM models before create_all
+from app.migrations import run_migrations
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
@@ -14,7 +13,7 @@ app.include_router(router)
 
 @app.on_event("startup")
 def startup() -> None:
-    Base.metadata.create_all(bind=engine)
+    run_migrations()
 
 
 @app.get("/health")

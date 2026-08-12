@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -34,6 +34,167 @@ class DataSource(Base):
     batches: Mapped[list[IngestionBatch]] = relationship(back_populates="source")
 
 
+class CanonicalEntity(Base):
+    """Stable identity for any work or person, independent of source and language."""
+
+    __tablename__ = "canonical_entities"
+    __table_args__ = (
+        CheckConstraint(
+            "entity_kind IN ('film', 'person', 'book', 'play', 'comic', 'series', 'episode', 'game', 'organisation', 'unknown_work')",
+            name="ck_canonical_entity_kind",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    entity_kind: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    canonical_label: Mapped[str] = mapped_column(String(300), nullable=False, index=True)
+    wikidata_id: Mapped[str | None] = mapped_column(String(30), unique=True, index=True)
+    lifecycle_status: Mapped[str] = mapped_column(String(30), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    aliases: Mapped[list[EntityAlias]] = relationship(back_populates="entity", cascade="all, delete-orphan")
+    film_profile: Mapped[Film | None] = relationship(back_populates="entity")
+    person_profile: Mapped[Person | None] = relationship(back_populates="entity")
+    subject_assertions: Mapped[list[Assertion]] = relationship(
+        back_populates="subject_entity", foreign_keys="Assertion.subject_entity_id", cascade="all, delete-orphan"
+    )
+    object_assertions: Mapped[list[Assertion]] = relationship(
+        back_populates="object_entity", foreign_keys="Assertion.object_entity_id"
+    )
+
+
+class EntityAlias(Base):
+    """A source-backed name or title, including future language editions."""
+
+    __tablename__ = "entity_aliases"
+    __table_args__ = (UniqueConstraint("entity_id", "value", "language_code", "alias_kind", name="uq_entity_alias"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    value: Mapped[str] = mapped_column(String(300), nullable=False)
+    normalized_value: Mapped[str] = mapped_column(String(300), nullable=False, index=True)
+    language_code: Mapped[str | None] = mapped_column(String(35), index=True)
+    script: Mapped[str | None] = mapped_column(String(50))
+    alias_kind: Mapped[str] = mapped_column(String(50), nullable=False, default="title")
+    source_id: Mapped[UUID | None] = mapped_column(ForeignKey("data_sources.id"))
+    source_reference: Mapped[str | None] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="published")
+    entity: Mapped[CanonicalEntity] = relationship(back_populates="aliases")
+
+
+class SourceRecord(Base):
+    """Immutable source payload descriptor, separate from canonical interpretation."""
+
+    __tablename__ = "source_records"
+    __table_args__ = (UniqueConstraint("source_id", "external_id", name="uq_source_record_source_external"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_id: Mapped[UUID] = mapped_column(ForeignKey("data_sources.id"), nullable=False, index=True)
+    batch_id: Mapped[UUID | None] = mapped_column(ForeignKey("ingestion_batches.id"), index=True)
+    external_id: Mapped[str] = mapped_column(String(300), nullable=False, index=True)
+    source_revision: Mapped[str | None] = mapped_column(String(150))
+    payload_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    rights_scope: Mapped[str] = mapped_column(String(80), nullable=False, default="open")
+    source_reference: Mapped[str] = mapped_column(String(500), nullable=False)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    assertions: Mapped[list[Assertion]] = relationship(back_populates="source_record")
+
+
+class Assertion(Base):
+    """An inspectable source fact, derivation, or editorial statement."""
+
+    __tablename__ = "assertions"
+    __table_args__ = (
+        CheckConstraint(
+            "assertion_kind IN ('source_fact', 'derived', 'editorial')",
+            name="ck_assertion_kind",
+        ),
+        CheckConstraint(
+            "review_status IN ('raw', 'resolved', 'review_required', 'published', 'retracted')",
+            name="ck_assertion_review_status",
+        ),
+        CheckConstraint(
+            "object_entity_id IS NOT NULL OR value_json IS NOT NULL",
+            name="ck_assertion_has_target",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    subject_entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    predicate: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    source_property: Mapped[str | None] = mapped_column(String(80), index=True)
+    object_entity_id: Mapped[UUID | None] = mapped_column(ForeignKey("canonical_entities.id"), index=True)
+    object_entity_kind: Mapped[str | None] = mapped_column(String(40), index=True)
+    value_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    qualifiers: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    rank: Mapped[str | None] = mapped_column(String(30))
+    assertion_kind: Mapped[str] = mapped_column(String(30), nullable=False, default="source_fact", index=True)
+    source_id: Mapped[UUID | None] = mapped_column(ForeignKey("data_sources.id"), index=True)
+    source_record_id: Mapped[UUID | None] = mapped_column(ForeignKey("source_records.id"), index=True)
+    batch_id: Mapped[UUID | None] = mapped_column(ForeignKey("ingestion_batches.id"), index=True)
+    source_reference: Mapped[str | None] = mapped_column(String(500))
+    source_revision: Mapped[str | None] = mapped_column(String(150))
+    derivation_version: Mapped[str | None] = mapped_column(String(100))
+    review_status: Mapped[str] = mapped_column(String(30), nullable=False, default="raw", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    subject_entity: Mapped[CanonicalEntity] = relationship(back_populates="subject_assertions", foreign_keys=[subject_entity_id])
+    object_entity: Mapped[CanonicalEntity | None] = relationship(back_populates="object_assertions", foreign_keys=[object_entity_id])
+    source_record: Mapped[SourceRecord | None] = relationship(back_populates="assertions")
+    evidence: Mapped[list[AssertionEvidence]] = relationship(back_populates="assertion", cascade="all, delete-orphan")
+
+
+class AssertionEvidence(Base):
+    """Additional evidence references for an assertion, including source snippets or documents."""
+
+    __tablename__ = "assertion_evidence"
+    __table_args__ = (UniqueConstraint("assertion_id", "evidence_type", "reference", name="uq_assertion_evidence"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    assertion_id: Mapped[UUID] = mapped_column(ForeignKey("assertions.id"), nullable=False, index=True)
+    evidence_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    reference: Mapped[str] = mapped_column(String(500), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    assertion: Mapped[Assertion] = relationship(back_populates="evidence")
+
+
+class InsightCard(Base):
+    """A writer-facing observation with explicit evidence and a derivation policy."""
+
+    __tablename__ = "insight_cards"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'review_required', 'published', 'retracted')",
+            name="ck_insight_card_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    kind: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    writer_question: Mapped[str] = mapped_column(Text, nullable=False)
+    explanation: Mapped[str] = mapped_column(Text, nullable=False)
+    subject_entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    comparison_entity_id: Mapped[UUID | None] = mapped_column(ForeignKey("canonical_entities.id"), index=True)
+    assertion_kind: Mapped[str] = mapped_column(String(30), nullable=False, default="derived")
+    derivation_version: Mapped[str | None] = mapped_column(String(100))
+    reviewer: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    evidence: Mapped[list[InsightEvidence]] = relationship(back_populates="insight", cascade="all, delete-orphan")
+
+
+class InsightEvidence(Base):
+    """An insight cannot be published without retained evidence links."""
+
+    __tablename__ = "insight_evidence"
+    __table_args__ = (
+        CheckConstraint(
+            "assertion_id IS NOT NULL OR narrative_document_id IS NOT NULL",
+            name="ck_insight_evidence_has_target",
+        ),
+        UniqueConstraint("insight_id", "assertion_id", "narrative_document_id", name="uq_insight_evidence"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    insight_id: Mapped[UUID] = mapped_column(ForeignKey("insight_cards.id"), nullable=False, index=True)
+    assertion_id: Mapped[UUID | None] = mapped_column(ForeignKey("assertions.id"), index=True)
+    narrative_document_id: Mapped[UUID | None] = mapped_column(ForeignKey("narrative_documents.id"), index=True)
+    note: Mapped[str | None] = mapped_column(Text)
+    insight: Mapped[InsightCard] = relationship(back_populates="evidence")
+
+
 class IngestionBatch(Base):
     __tablename__ = "ingestion_batches"
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -57,6 +218,7 @@ class Film(Base):
     original_language_code: Mapped[str] = mapped_column(ForeignKey("language_editions.code"), nullable=False, index=True)
     country_codes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     wikidata_id: Mapped[str | None] = mapped_column(String(30), unique=True, index=True)
+    entity_id: Mapped[UUID | None] = mapped_column(ForeignKey("canonical_entities.id"), unique=True, index=True)
     merge_confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     review_status: Mapped[str] = mapped_column(String(30), nullable=False, default="published")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -66,6 +228,7 @@ class Film(Base):
     provenance: Mapped[list[FilmProvenance]] = relationship(back_populates="film", cascade="all, delete-orphan")
     release_events: Mapped[list[FilmReleaseEvent]] = relationship(back_populates="film", cascade="all, delete-orphan")
     corpus_records: Mapped[list[CorpusRecord]] = relationship(back_populates="film")
+    entity: Mapped[CanonicalEntity | None] = relationship(back_populates="film_profile")
 
 
 class FilmAlias(Base):
@@ -84,11 +247,13 @@ class Person(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     canonical_name: Mapped[str] = mapped_column(String(300), nullable=False, index=True)
     wikidata_id: Mapped[str | None] = mapped_column(String(30), unique=True, index=True)
+    entity_id: Mapped[UUID | None] = mapped_column(ForeignKey("canonical_entities.id"), unique=True, index=True)
     merge_confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     review_status: Mapped[str] = mapped_column(String(30), nullable=False, default="published")
     aliases: Mapped[list[PersonAlias]] = relationship(back_populates="person", cascade="all, delete-orphan")
     credits: Mapped[list[FilmCredit]] = relationship(back_populates="person", cascade="all, delete-orphan")
     provenance: Mapped[list[PersonProvenance]] = relationship(back_populates="person", cascade="all, delete-orphan")
+    entity: Mapped[CanonicalEntity | None] = relationship(back_populates="person_profile")
 
 
 class PersonAlias(Base):
