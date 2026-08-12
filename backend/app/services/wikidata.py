@@ -370,7 +370,13 @@ def _ingest_locked(
             film.release_date = selected_release_date or film.release_date
             film.runtime_minutes = runtime or film.runtime_minutes
             film.country_codes = sorted(record["countries"]) or film.country_codes
+        release_places_by_date: dict[date, set[str]] = defaultdict(set)
         for release_date, release_place in record["release_events"]:
+            if release_place:
+                release_places_by_date[release_date].add(release_place)
+            else:
+                release_places_by_date.setdefault(release_date, set())
+        for release_date, release_places in release_places_by_date.items():
             exists = db.scalar(select(FilmReleaseEvent).where(
                 FilmReleaseEvent.film_id == film.id,
                 FilmReleaseEvent.release_date == release_date,
@@ -379,7 +385,7 @@ def _ingest_locked(
             ))
             if not exists:
                 db.add(FilmReleaseEvent(
-                    film_id=film.id, release_date=release_date, location_ids=[release_place] if release_place else [],
+                    film_id=film.id, release_date=release_date, location_ids=sorted(release_places),
                     source_id=source.id, batch_id=batch.id, source_reference=f"https://www.wikidata.org/wiki/{film_qid}",
                 ))
         for related_work, relationship_type in record["relationships"]:

@@ -2,9 +2,10 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.db import Base
-from app.models import CorpusRecord, Film
+from app.models import CorpusRecord, Film, FilmReleaseEvent
 from app.services.cmu_movie_summaries import source_for_cmu
 from app.services.cmu_wikidata_reconcile import reconcile_cmu_records
+from app.services.wikidata import ingest
 
 
 def test_reconciles_only_an_exact_freebase_identifier_match() -> None:
@@ -69,3 +70,23 @@ def test_marks_ambiguous_freebase_mappings_for_review() -> None:
         assert record is not None
         assert record.film_id is None
         assert record.match_status == "review_required"
+
+
+def test_merges_release_places_for_the_same_source_date() -> None:
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        base = {
+            "film": {"value": "http://www.wikidata.org/entity/Q99"},
+            "filmLabel": {"value": "Release Fixture"},
+            "runtime": {"value": "90"},
+            "releaseDate": {"value": "2000-01-01T00:00:00Z"},
+        }
+        ingest(db, rows=[
+            {**base, "releasePlace": {"value": "http://www.wikidata.org/entity/Q30"}},
+            {**base, "releasePlace": {"value": "http://www.wikidata.org/entity/Q145"}},
+        ])
+
+        events = list(db.scalars(select(FilmReleaseEvent)))
+        assert len(events) == 1
+        assert events[0].location_ids == ["Q145", "Q30"]
