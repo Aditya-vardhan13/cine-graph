@@ -64,6 +64,8 @@ class Film(Base):
     credits: Mapped[list[FilmCredit]] = relationship(back_populates="film", cascade="all, delete-orphan")
     genres: Mapped[list[FilmGenre]] = relationship(back_populates="film", cascade="all, delete-orphan")
     provenance: Mapped[list[FilmProvenance]] = relationship(back_populates="film", cascade="all, delete-orphan")
+    release_events: Mapped[list[FilmReleaseEvent]] = relationship(back_populates="film", cascade="all, delete-orphan")
+    corpus_records: Mapped[list[CorpusRecord]] = relationship(back_populates="film")
 
 
 class FilmAlias(Base):
@@ -143,6 +145,77 @@ class FilmRelationship(Base):
     relationship_type: Mapped[str] = mapped_column(String(60), nullable=False)
     source_id: Mapped[UUID] = mapped_column(ForeignKey("data_sources.id"), nullable=False)
     source_reference: Mapped[str] = mapped_column(String(500), nullable=False)
+
+
+class FilmReleaseEvent(Base):
+    """One source-backed release assertion; Film.release_date is only a display selection."""
+
+    __tablename__ = "film_release_events"
+    __table_args__ = (UniqueConstraint("film_id", "release_date", "source_id", "source_reference", name="uq_film_release_event"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    film_id: Mapped[UUID] = mapped_column(ForeignKey("films.id"), nullable=False, index=True)
+    release_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    location_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False, default="release")
+    source_id: Mapped[UUID] = mapped_column(ForeignKey("data_sources.id"), nullable=False)
+    batch_id: Mapped[UUID | None] = mapped_column(ForeignKey("ingestion_batches.id"))
+    source_reference: Mapped[str] = mapped_column(String(500), nullable=False)
+    film: Mapped[Film] = relationship(back_populates="release_events")
+
+
+class ExternalWorkRelationship(Base):
+    """Explicit source relationship retained even when its other film is not in the local catalog yet."""
+
+    __tablename__ = "external_work_relationships"
+    __table_args__ = (UniqueConstraint("from_film_id", "to_wikidata_id", "relationship_type", "source_id", name="uq_external_work_relationship"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    from_film_id: Mapped[UUID] = mapped_column(ForeignKey("films.id"), nullable=False, index=True)
+    to_wikidata_id: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    relationship_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    source_id: Mapped[UUID] = mapped_column(ForeignKey("data_sources.id"), nullable=False)
+    source_reference: Mapped[str] = mapped_column(String(500), nullable=False)
+
+
+class CorpusRecord(Base):
+    """A source record that may be reconciled to a canonical film without changing its source meaning."""
+
+    __tablename__ = "corpus_records"
+    __table_args__ = (UniqueConstraint("source_id", "external_id", name="uq_corpus_record_source_external"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_id: Mapped[UUID] = mapped_column(ForeignKey("data_sources.id"), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    release_date: Mapped[date | None] = mapped_column(Date)
+    language_codes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    country_codes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    genres: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    source_revision: Mapped[str | None] = mapped_column(String(100))
+    raw_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    film_id: Mapped[UUID | None] = mapped_column(ForeignKey("films.id"), index=True)
+    match_status: Mapped[str] = mapped_column(String(30), nullable=False, default="unresolved", index=True)
+    match_method: Mapped[str | None] = mapped_column(String(50))
+    match_confidence: Mapped[float | None] = mapped_column(Float)
+    reviewer: Mapped[str | None] = mapped_column(String(120))
+    film: Mapped[Film | None] = relationship(back_populates="corpus_records")
+    documents: Mapped[list[NarrativeDocument]] = relationship(back_populates="corpus_record", cascade="all, delete-orphan")
+
+
+class NarrativeDocument(Base):
+    """License-separated narrative material. It is never a substitute for canonical facts."""
+
+    __tablename__ = "narrative_documents"
+    __table_args__ = (UniqueConstraint("corpus_record_id", "document_type", "content_hash", name="uq_narrative_document"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    corpus_record_id: Mapped[UUID] = mapped_column(ForeignKey("corpus_records.id"), nullable=False, index=True)
+    document_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    language_code: Mapped[str] = mapped_column(String(35), nullable=False, default="en")
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    license: Mapped[str] = mapped_column(String(100), nullable=False)
+    attribution_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    source_revision: Mapped[str | None] = mapped_column(String(100))
+    access_scope: Mapped[str] = mapped_column(String(50), nullable=False, default="attributed_reference")
+    corpus_record: Mapped[CorpusRecord] = relationship(back_populates="documents")
 
 
 class FilmProvenance(Base):

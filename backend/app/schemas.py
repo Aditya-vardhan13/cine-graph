@@ -102,3 +102,19 @@ class HealthOut(BaseModel):
     sources: int
     latest_ingestion_at: datetime | None
     language_editions: list[LanguageEditionOut]
+
+
+class CorpusSourceQuality(BaseModel):
+    source_name: str
+    license: str
+    records: int
+    matched: int
+    review_required: int
+    narrative_documents: int
+
+
+class CorpusQualityOut(BaseModel):
+    films: int
+    release_events: int
+    explicit_work_relationships: int
+    sources: list[CorpusSourceQuality]

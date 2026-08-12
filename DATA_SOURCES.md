@@ -10,6 +10,14 @@
 
 Wikidata makes its structured data available under CC0. The project retains a visible “Source: Wikidata” attribution even though it is not required by that license.
 
+## Approved narrative-reference source: CMU Movie Summary Corpus
+
+- **Content collected:** English-language plot summaries plus their source-record metadata from the published archive.
+- **Collection route:** an explicit archive download or an operator-supplied archive file; it is not fetched during application startup.
+- **Rights and provenance:** CMU states that the corpus is released under CC BY-SA. Each retained document records its source revision, content hash, licence snapshot, and an English Wikipedia attribution URL.
+- **Boundary:** this is a historical 2012 English-Wikipedia / Freebase reference layer. It does not overwrite canonical titles, release dates, credits, or box-office values from the CC0 fact layer.
+- **Product use:** attributed reference material only. Semantic retrieval can suggest candidates, but a narrative similarity is never shown as a proven relationship or influence.
+
 ## Policy for every future HTML source
 
 Before an HTML crawler is enabled it must:

@@ -24,6 +24,20 @@ export type Health = {
   }>;
 };
 
+export type CorpusQuality = {
+  films: number;
+  release_events: number;
+  explicit_work_relationships: number;
+  sources: Array<{
+    source_name: string;
+    license: string;
+    records: number;
+    matched: number;
+    review_required: number;
+    narrative_documents: number;
+  }>;
+};
+
 export type FilmDetail = Film & {
   wikidata_id: string | null;
   countries: string[];

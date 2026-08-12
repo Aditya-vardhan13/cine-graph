@@ -9,12 +9,13 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db import get_db
 from app.models import (
-    DataSource, Film, FilmCredit, FilmGenre, FilmProvenance, Genre, IngestionBatch,
-    LanguageEdition, Person, PersonProvenance,
+    CorpusRecord, DataSource, ExternalWorkRelationship, Film, FilmCredit, FilmGenre, FilmProvenance,
+    FilmReleaseEvent, Genre, IngestionBatch, LanguageEdition, NarrativeDocument, Person, PersonProvenance,
 )
 from app.schemas import (
     CreditOut, FilmDetail, FilmListItem, GraphEdge, GraphNode, GraphOut, HealthOut,
-    FilmComparison, LanguageEditionOut, PersonDetail, ProvenanceOut, SimilarFilmOut, SimilarityFactor,
+    CorpusQualityOut, CorpusSourceQuality, FilmComparison, LanguageEditionOut, PersonDetail, ProvenanceOut,
+    SimilarFilmOut, SimilarityFactor,
 )
 
 router = APIRouter(prefix="/api/v1")
@@ -96,6 +97,29 @@ def catalog_health(db: Session = Depends(get_db)) -> HealthOut:
         sources=db.scalar(select(func.count()).select_from(DataSource)) or 0,
         latest_ingestion_at=latest,
         language_editions=[LanguageEditionOut.model_validate(item, from_attributes=True) for item in editions],
+    )
+
+
+@router.get("/corpus/quality", response_model=CorpusQualityOut)
+def corpus_quality(db: Session = Depends(get_db)) -> CorpusQualityOut:
+    """Expose completeness and reconciliation state before presenting catalogue insights."""
+    sources: list[CorpusSourceQuality] = []
+    for source in db.scalars(select(DataSource).order_by(DataSource.name)).all():
+        records = db.scalar(select(func.count()).select_from(CorpusRecord).where(CorpusRecord.source_id == source.id)) or 0
+        matched = db.scalar(select(func.count()).select_from(CorpusRecord).where(CorpusRecord.source_id == source.id, CorpusRecord.match_status == "matched")) or 0
+        review_required = db.scalar(select(func.count()).select_from(CorpusRecord).where(CorpusRecord.source_id == source.id, CorpusRecord.match_status == "review_required")) or 0
+        narrative_documents = db.scalar(
+            select(func.count()).select_from(NarrativeDocument).join(CorpusRecord).where(CorpusRecord.source_id == source.id)
+        ) or 0
+        sources.append(CorpusSourceQuality(
+            source_name=source.name, license=source.license, records=records, matched=matched,
+            review_required=review_required, narrative_documents=narrative_documents,
+        ))
+    return CorpusQualityOut(
+        films=db.scalar(select(func.count()).select_from(Film)) or 0,
+        release_events=db.scalar(select(func.count()).select_from(FilmReleaseEvent)) or 0,
+        explicit_work_relationships=db.scalar(select(func.count()).select_from(ExternalWorkRelationship)) or 0,
+        sources=sources,
     )
 
 

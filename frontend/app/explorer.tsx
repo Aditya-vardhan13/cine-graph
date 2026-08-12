@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Film, FilmComparison, Health, year } from "../lib/api";
+import { CorpusQuality, Film, FilmComparison, Health, year } from "../lib/api";
 
-type Props = { health: Health | null; initialFilms: Film[]; initialError: string | null };
+type Props = { health: Health | null; corpusQuality: CorpusQuality | null; initialFilms: Film[]; initialError: string | null };
 
 const metric = (value: number | undefined) => value?.toLocaleString("en-IN") ?? "—";
 
-export function Explorer({ health, initialFilms, initialError }: Props) {
+export function Explorer({ health, corpusQuality, initialFilms, initialError }: Props) {
   const [films] = useState(initialFilms);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Film[]>([]);
@@ -107,6 +107,12 @@ export function Explorer({ health, initialFilms, initialError }: Props) {
         <Metric label="Active edition" value={health?.language_editions.find((edition) => edition.enabled)?.display_name ?? "—"} />
       </section>
 
+      {corpusQuality && <section className="quality-board">
+        <div><p className="eyebrow">Corpus quality board</p><h2>Know what the catalog knows.</h2><p>Facts, relationships and narrative material are counted separately so a connection never looks stronger than its evidence.</p></div>
+        <div className="quality-metrics"><Metric label="Release events" value={metric(corpusQuality.release_events)} /><Metric label="Explicit work links" value={metric(corpusQuality.explicit_work_relationships)} /><Metric label="Reference sources" value={metric(corpusQuality.sources.length)} /></div>
+        <div className="source-quality-list">{corpusQuality.sources.map((source) => <article key={source.source_name}><div><span>{source.source_name}</span><small>{source.license}</small></div><p>{metric(source.records)} source records <i>·</i> {metric(source.matched)} reconciled <i>·</i> {metric(source.narrative_documents)} narrative documents</p></article>)}</div>
+      </section>}
+
       <section className="connection-lens">
         <div className="lens-copy"><p className="eyebrow">Connection lens</p><h2>Put two films on the table.</h2><p>Start with any title. CineGraph shows only the links it can prove from the current catalog.</p></div>
         <div className="lens-workspace">
@@ -116,7 +122,7 @@ export function Explorer({ health, initialFilms, initialError }: Props) {
         </div>
       </section>
 
-      {(comparison || message) && <section className="connection-result">{message && <p className="notice">{message}</p>}{comparison && <><div><p className="eyebrow">Connection report</p><h2>{comparison.summary}</h2><p>{comparison.first.title} <i>×</i> {comparison.second.title}</p></div><div className="signal-list">{comparison.signals.length ? comparison.signals.map((signal) => <article key={signal.label}><span>{signal.label}</span><b>{signal.evidence}</b><small>Evidence weight: {Math.round(signal.weight * 100)}%</small></article>) : <article><span>No hidden match</span><b>These films may still be creatively interesting together—but the current metadata cannot prove a direct connection.</b><small>Screenplay and scene-level evidence arrives in a later phase.</small></article>}</div></>}</section>}
+      {(comparison || message) && <section className="connection-result">{message && <p className="notice">{message}</p>}{comparison && <><div><p className="eyebrow">Connection report</p><h2>{comparison.summary}</h2><p>{comparison.first.title} <i>×</i> {comparison.second.title}</p></div><div className="signal-list">{comparison.signals.length ? comparison.signals.map((signal) => <article key={signal.label}><span>{signal.label}</span><b>{signal.evidence}</b><small>Source-backed catalog signal</small></article>) : <article><span>No hidden match</span><b>These films may still be creatively interesting together—but the current metadata cannot prove a direct connection.</b><small>Screenplay and scene-level evidence arrives in a later phase.</small></article>}</div></>}</section>}
 
       <section className="catalog">
         <div className="catalog-heading">

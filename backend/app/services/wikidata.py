@@ -24,8 +24,10 @@ from app.models import (
     Film,
     FilmAlias,
     FilmCredit,
+    FilmReleaseEvent,
     FilmGenre,
     FilmProvenance,
+    ExternalWorkRelationship,
     Genre,
     IngestionBatch,
     LanguageEdition,
@@ -120,12 +122,11 @@ def fetch_rows(limit: int, offset: int = 0) -> list[dict[str, Any]]:
         return response.json()["results"]["bindings"]
 
     film_rows = run_query(f"""
-      SELECT ?film ?filmLabel ?releaseDate ?runtime WHERE {{
+      SELECT ?film ?filmLabel (SAMPLE(?runtimeValue) AS ?runtime) WHERE {{
         {{ SELECT ?film WHERE {{ ?film wdt:P31 wd:Q11424; wdt:P364 wd:Q1860. }} LIMIT {limit} OFFSET {offset} }}
-        OPTIONAL {{ ?film wdt:P577 ?releaseDate. }}
-        OPTIONAL {{ ?film wdt:P2047 ?runtime. }}
+        OPTIONAL {{ ?film wdt:P2047 ?runtimeValue. }}
         SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
-      }}
+      }} GROUP BY ?film ?filmLabel
     """)
     by_film = {item_id(_value(row, "film")): row for row in film_rows if item_id(_value(row, "film"))}
     film_ids = list(by_film)
@@ -145,6 +146,23 @@ def fetch_rows(limit: int, offset: int = 0) -> list[dict[str, Any]]:
             ?film wdt:P495 ?country.
           }}
         """)
+        release_rows = run_query(f"""
+          SELECT ?film ?releaseDate ?releasePlace WHERE {{
+            VALUES ?film {{ {values} }}
+            ?film p:P577 ?releaseStatement.
+            ?releaseStatement ps:P577 ?releaseDate.
+            OPTIONAL {{ ?releaseStatement pq:P291 ?releasePlace. }}
+          }}
+        """)
+        relationship_rows = run_query(f"""
+          SELECT ?film ?relatedWork ?relationship WHERE {{
+            VALUES ?film {{ {values} }}
+            {{ ?film wdt:P155 ?relatedWork. BIND("follows" AS ?relationship) }}
+            UNION {{ ?film wdt:P156 ?relatedWork. BIND("followed_by" AS ?relationship) }}
+            UNION {{ ?film wdt:P144 ?relatedWork. BIND("based_on" AS ?relationship) }}
+            UNION {{ ?film wdt:P179 ?relatedWork. BIND("part_of_series" AS ?relationship) }}
+          }}
+        """)
         credit_rows = run_query(f"""
           SELECT ?film ?person ?personLabel ?role WHERE {{
             VALUES ?film {{ {values} }}
@@ -154,7 +172,7 @@ def fetch_rows(limit: int, offset: int = 0) -> list[dict[str, Any]]:
             SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
           }}
         """)
-        for row in [*genre_rows, *country_rows, *credit_rows]:
+        for row in [*genre_rows, *country_rows, *credit_rows, *release_rows, *relationship_rows]:
             header = by_film.get(item_id(_value(row, "film")))
             if header:
                 enriched.append({**header, **row})
@@ -229,14 +247,19 @@ def _ingest_locked(db: Session, limit: int, offset: int, rows: list[dict[str, An
     db.flush()
     rows = fetch_rows(limit, offset) if rows is None else rows
 
-    films: dict[str, dict[str, Any]] = defaultdict(lambda: {"genres": {}, "credits": {}, "countries": set()})
+    films: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"genres": {}, "credits": {}, "countries": set(), "release_events": set(), "relationships": set()}
+    )
     for row in rows:
         film_qid = item_id(_value(row, "film"))
         title = clean_label(_value(row, "filmLabel"))
         if not film_qid or not title:
             continue
         record = films[film_qid]
-        record.update({"title": title, "release_date": parse_date(_value(row, "releaseDate")), "runtime": _value(row, "runtime")})
+        record.update({"title": title, "runtime": _value(row, "runtime")})
+        release_date = parse_date(_value(row, "releaseDate"))
+        if release_date:
+            record["release_events"].add((release_date, item_id(_value(row, "releasePlace"))))
         country = item_id(_value(row, "country"))
         if country:
             record["countries"].add(country)
@@ -246,13 +269,17 @@ def _ingest_locked(db: Session, limit: int, offset: int, rows: list[dict[str, An
         person_qid, person_label, role = item_id(_value(row, "person")), clean_label(_value(row, "personLabel")), _value(row, "role")
         if person_qid and person_label and role:
             record["credits"][(person_qid, role)] = person_label
+        related_work, relationship_type = item_id(_value(row, "relatedWork")), _value(row, "relationship")
+        if related_work and relationship_type:
+            record["relationships"].add((related_work, relationship_type))
 
     for film_qid, record in films.items():
         film = db.scalar(select(Film).where(Film.wikidata_id == film_qid))
         runtime = int(float(record["runtime"])) if record["runtime"] else None
+        selected_release_date = min((release_date for release_date, _ in record["release_events"]), default=None)
         if not film:
             film = Film(
-                canonical_title=record["title"], wikidata_id=film_qid, release_date=record["release_date"],
+                canonical_title=record["title"], wikidata_id=film_qid, release_date=selected_release_date,
                 runtime_minutes=runtime, original_language_code="en", country_codes=sorted(record["countries"]),
             )
             db.add(film)
@@ -260,6 +287,36 @@ def _ingest_locked(db: Session, limit: int, offset: int, rows: list[dict[str, An
             db.add(FilmAlias(film_id=film.id, value=record["title"], normalized_value=normalize(record["title"]), language_code="en"))
             for field in ("canonical_title", "release_date", "runtime_minutes", "original_language_code", "country_codes"):
                 db.add(FilmProvenance(film_id=film.id, source_id=source.id, batch_id=batch.id, field_name=field, source_reference=f"https://www.wikidata.org/wiki/{film_qid}"))
+        else:
+            # A source page can contain multiple release assertions. Always use
+            # the documented display policy, never source-row arrival order.
+            film.release_date = selected_release_date or film.release_date
+            film.runtime_minutes = runtime or film.runtime_minutes
+            film.country_codes = sorted(record["countries"]) or film.country_codes
+        for release_date, release_place in record["release_events"]:
+            exists = db.scalar(select(FilmReleaseEvent).where(
+                FilmReleaseEvent.film_id == film.id,
+                FilmReleaseEvent.release_date == release_date,
+                FilmReleaseEvent.source_id == source.id,
+                FilmReleaseEvent.source_reference == f"https://www.wikidata.org/wiki/{film_qid}",
+            ))
+            if not exists:
+                db.add(FilmReleaseEvent(
+                    film_id=film.id, release_date=release_date, location_ids=[release_place] if release_place else [],
+                    source_id=source.id, batch_id=batch.id, source_reference=f"https://www.wikidata.org/wiki/{film_qid}",
+                ))
+        for related_work, relationship_type in record["relationships"]:
+            exists = db.scalar(select(ExternalWorkRelationship).where(
+                ExternalWorkRelationship.from_film_id == film.id,
+                ExternalWorkRelationship.to_wikidata_id == related_work,
+                ExternalWorkRelationship.relationship_type == relationship_type,
+                ExternalWorkRelationship.source_id == source.id,
+            ))
+            if not exists:
+                db.add(ExternalWorkRelationship(
+                    from_film_id=film.id, to_wikidata_id=related_work, relationship_type=relationship_type,
+                    source_id=source.id, source_reference=f"https://www.wikidata.org/wiki/{film_qid}",
+                ))
         for genre_qid, genre_label in record["genres"].items():
             genre = upsert_genre(db, genre_qid, genre_label)
             exists = db.scalar(select(FilmGenre).where(FilmGenre.film_id == film.id, FilmGenre.genre_id == genre.id))

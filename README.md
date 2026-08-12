@@ -8,6 +8,7 @@ CineGraph begins as a public-data cinema intelligence platform. Phase A ingests 
 - 15,056 people and 25,191 film credits
 - 207 genres
 - Source provenance, language-edition configuration, API catalog endpoints, and source-access controls are implemented
+- An explicit CMU Movie Summary Corpus importer and corpus-quality endpoint are available for the next, attributed narrative-reference layer
 
 The local database is intentionally excluded from Git. Regenerate it from the source instead of committing scraped/derived data.
 
@@ -17,6 +18,8 @@ The local database is intentionally excluded from Git. Regenerate it from the so
 conda env create -f environment.yml
 conda activate cine-graph
 PYTHONPATH=backend python -m app.services.wikidata --limit 1000
+# Explicitly import a small CMU validation sample from a downloaded archive.
+PYTHONPATH=backend python -m app.services.cmu_movie_summaries --archive /path/to/MovieSummaries.tar.gz --limit 3
 PYTHONPATH=backend uvicorn app.main:app --reload
 ```
 
@@ -42,6 +45,9 @@ PYTHONPATH=backend pytest -q backend/tests
 ```
 
 The API starts at `http://localhost:8000`; catalog health is available at `/api/v1/health`.
+`/api/v1/corpus/quality` reports source records, narrative documents, matches,
+release events, and explicit work relationships. The CMU import's `--limit`
+option is only for validation, not a production corpus-selection strategy.
 
 ## Source policy
 

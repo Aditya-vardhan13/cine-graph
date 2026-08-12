@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./styles.css";
+import "./quality.css";
 
 export const metadata: Metadata = {
   title: "CineGraph · Cinema Explorer",
