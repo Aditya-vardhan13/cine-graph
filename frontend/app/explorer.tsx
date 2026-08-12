@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CorpusQuality, Film, FilmLineage, Health, year } from "../lib/api";
 
-type Props = { health: Health | null; corpusQuality: CorpusQuality | null; initialFilms: Film[]; initialError: string | null };
+type Props = { health: Health | null; corpusQuality: CorpusQuality | null; initialFilms: Film[]; lineageEntryPoints: Film[]; initialError: string | null };
 
 const metric = (value: number | undefined) => value?.toLocaleString("en-IN") ?? "—";
 
-export function Explorer({ health, corpusQuality, initialFilms, initialError }: Props) {
+export function Explorer({ health, corpusQuality, initialFilms, lineageEntryPoints, initialError }: Props) {
   const [films] = useState(initialFilms);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Film[]>([]);
@@ -112,7 +112,7 @@ export function Explorer({ health, corpusQuality, initialFilms, initialError }: 
       </section>}
 
       <section className="connection-lens">
-        <div className="lens-copy"><p className="eyebrow">Story lineage</p><h2>Start with one film.</h2><p>Trace its direct installment, adaptation and source-material routes. Similarity never becomes a claim.</p></div>
+        <div className="lens-copy"><p className="eyebrow">Story lineage</p><h2>Start with one film.</h2><p>Trace its direct installment, adaptation and source-material routes. Similarity never becomes a claim.</p>{lineageEntryPoints.length > 0 && <div className="lineage-entry-points"><span>Try a proven route</span>{lineageEntryPoints.slice(0, 4).map((film) => <button key={film.id} onClick={() => chooseFilm(film)}>{film.title}</button>)}</div>}</div>
         <div className="lens-workspace">
           <div className="film-slots single"><FilmSlot film={firstFilm} label="Selected film" onClear={() => { setFirstFilm(null); setLineage(null); }} /></div>
           <div className="live-search"><span className="search-glyph">⌕</span><input autoComplete="off" aria-label="Search for a film" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={firstFilm ? "Replace this film…" : "Start typing a film title…"} /><span className="search-state">{searching ? "Searching" : "Live"}</span>{(suggestions.length > 0 || searchError || (searchedQuery === query.trim() && query.trim().length >= 2 && !searching)) && <div className="suggestions">{searchError ? <p className="search-feedback error">{searchError}</p> : suggestions.length ? suggestions.map((film) => <button key={film.id} onClick={() => chooseFilm(film)}><span><b>{film.title}</b><small>{year(film.release_date)} · {film.genres.slice(0, 2).join(", ") || "Metadata only"}</small></span><i>trace ↗</i></button>) : <p className="search-feedback">No title matches “{query.trim()}”. Try fewer words.</p>}</div>}</div>
@@ -120,7 +120,7 @@ export function Explorer({ health, corpusQuality, initialFilms, initialError }: 
         </div>
       </section>
 
-      {(lineage || message) && <section className="connection-result">{message && <p className="notice">{message}</p>}{lineage && <><div><p className="eyebrow">Lineage report</p><h2>{lineage.summary}</h2><p>{lineage.film.title}</p></div><div className="signal-list">{lineage.edges.length ? lineage.edges.map((edge) => <article key={edge.assertion_id}><span>{edge.relation_label} <i>·</i> {edge.direction}</span><b>{edge.target_film?.title ?? edge.target_title}</b><p className="writer-question">{edge.writer_question}</p><small>{edge.target_kind} <i>·</i> {edge.assertion_kind === "source_fact" ? "Source-backed fact" : edge.assertion_kind}</small>{edge.evidence_url && <a href={edge.evidence_url} target="_blank">View evidence ↗</a>}</article>) : <article><span>No typed route yet</span><b>The catalog has not proved a direct lineage route for this film.</b><small>It will not substitute genre, era or cast overlap for a relationship.</small></article>}</div></>}</section>}
+      {(lineage || message) && <section className="connection-result">{message && <p className="notice">{message}</p>}{lineage && <><div><p className="eyebrow">Lineage report</p><h2>{lineage.summary}</h2><p>{lineage.film.title}</p></div><div className="signal-list">{lineage.edges.length ? lineage.edges.map((edge) => <article key={edge.assertion_id}><span>{edge.relation_label} <i>·</i> {edge.direction}</span><b>{edge.target_film?.title ?? edge.target_title}</b><p className="writer-question">{edge.writer_question}</p><small>{edge.target_kind} <i>·</i> {edge.assertion_kind === "source_fact" ? "Source-backed fact" : edge.assertion_kind}</small>{edge.evidence_url && <a href={edge.evidence_url} target="_blank">View evidence ↗</a>}</article>) : <article><span>No typed route for this title</span><b>The catalog has no explicit source relationship for this film yet.</b><small>Try a proven route above. CineGraph will not substitute genre, era or cast overlap for a relationship.</small></article>}</div></>}</section>}
 
       <section className="catalog">
         <div className="catalog-heading">

@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db import get_db
@@ -217,6 +217,25 @@ def list_films(
     if decade:
         query = query.where(Film.release_date >= datetime(decade, 1, 1), Film.release_date < datetime(decade + 10, 1, 1))
     films = db.scalars(query.order_by(Film.release_date.desc(), Film.canonical_title).offset(offset).limit(limit)).unique().all()
+    return [film_item(film) for film in films]
+
+
+@router.get("/lineage/entry-points", response_model=list[FilmListItem])
+def lineage_entry_points(
+    limit: int = Query(default=6, ge=1, le=20),
+    db: Session = Depends(get_db),
+) -> list[FilmListItem]:
+    """Offer known-good lineage examples so users never have to guess coverage."""
+    route_count = func.count(Assertion.id).label("route_count")
+    installment_count = func.sum(case((Assertion.predicate.in_(("follows", "followed_by", "part_of_series")), 1), else_=0)).label("installment_count")
+    films = db.scalars(select(Film).join(
+        Assertion, Assertion.subject_entity_id == Film.entity_id
+    ).options(
+        selectinload(Film.genres).selectinload(FilmGenre.genre)
+    ).where(
+        Assertion.predicate.in_(LINEAGE_PREDICATES),
+        Assertion.review_status.in_(("resolved", "published")),
+    ).group_by(Film.id).order_by(installment_count.desc(), route_count.desc(), Film.canonical_title).limit(limit)).unique().all()
     return [film_item(film) for film in films]
 
 
