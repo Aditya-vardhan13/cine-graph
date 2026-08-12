@@ -21,6 +21,8 @@ PYTHONPATH=backend python -m app.services.wikidata --limit 1000
 PYTHONPATH=backend python -m app.services.cmu_movie_summaries --archive /path/to/MovieSummaries.tar.gz
 # Reconcile its records and fetch their canonical CC0 metadata. Omit --limit for the full run.
 PYTHONPATH=backend python -m app.services.cmu_wikidata_reconcile --page-size 100
+# Backfill the additive canonical-entity and evidence layer from an existing catalog.
+PYTHONPATH=backend python -m app.services.backfill_evidence_core
 PYTHONPATH=backend uvicorn app.main:app --reload
 ```
 
@@ -38,6 +40,12 @@ The import is intentionally explicit: it makes the source-access decision and
 the resulting local dataset visible instead of silently downloading data on
 application startup. It fetches and commits 100-film source pages sequentially,
 so an interrupted run can safely be repeated.
+
+Database schema changes are managed by Alembic. The API upgrades a new database
+at startup; an older local catalog is stamped at the documented legacy baseline
+and upgraded in place, never reset. The evidence-core backfill is a separate,
+idempotent command so operators can observe it before any API reads switch to
+the new projections.
 
 Run checks:
 
