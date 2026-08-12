@@ -7,7 +7,7 @@ from collections.abc import Callable
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Assertion, CanonicalEntity
+from app.models import Assertion, CanonicalEntity, Film
 from app.services.backfill_evidence_core import backfill
 from app.services.wikidata import (
     _ingest_locked,
@@ -74,7 +74,6 @@ def apply_classifications(
         entity.wikidata_id: entity
         for entity in db.scalars(select(CanonicalEntity).where(CanonicalEntity.wikidata_id.in_(classifications)))
     }
-    film_qids: list[str] = []
     for qid, (kind, label) in classifications.items():
         entity = entities.get(qid)
         if not entity:
@@ -85,11 +84,18 @@ def apply_classifications(
             Assertion.object_entity_id == entity.id,
             Assertion.review_status == "review_required",
         ).values(object_entity_kind=kind, review_status="resolved"))
-        if kind == "film":
-            film_qids.append(qid)
         stats["classified"] += 1
     db.commit()
 
+    # A retry must finish targets already classified in an earlier run whose
+    # projection failed later in the pipeline.
+    film_qids = list(db.scalars(select(CanonicalEntity.wikidata_id).join(
+        Assertion, Assertion.object_entity_id == CanonicalEntity.id
+    ).outerjoin(Film, Film.entity_id == CanonicalEntity.id).where(
+        CanonicalEntity.entity_kind == "film",
+        CanonicalEntity.wikidata_id.is_not(None),
+        Film.id.is_(None),
+    ).distinct()))
     if film_qids:
         rows = fetcher(film_qids) if fetcher else fetch_rows_for_film_ids(film_qids)
         batch = _ingest_locked(db, limit=len(film_qids), offset=0, rows=rows, external_reference="https://query.wikidata.org/#typed-work-target")

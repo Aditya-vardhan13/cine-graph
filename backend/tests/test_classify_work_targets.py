@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.db import Base
 from app.models import Assertion, CanonicalEntity
 from app.services.classify_work_targets import apply_classifications, classify_targets
+from app.services.wikidata import upsert_genre
 
 
 def test_classification_uses_supported_type_and_unblocks_only_typed_assertions() -> None:
@@ -36,3 +37,13 @@ def test_classifier_selects_a_deterministic_type_when_wikidata_returns_multiple_
         {"target": {"value": "http://www.wikidata.org/entity/Q2"}, "targetLabel": {"value": "Fixture"}, "kind": {"value": "film"}},
     ]
     assert classify_targets(["Q2"], runner=lambda _query: rows) == {"Q2": ("film", "Fixture")}
+
+
+def test_genre_projection_reuses_an_existing_label_for_a_second_wikidata_item() -> None:
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        first = upsert_genre(db, "Q100", "melodrama")
+        second = upsert_genre(db, "Q101", "melodrama")
+        db.commit()
+        assert first.id == second.id

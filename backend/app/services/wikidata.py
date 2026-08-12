@@ -289,9 +289,17 @@ def upsert_person(db: Session, wikidata_id: str, name: str, source: DataSource, 
 def upsert_genre(db: Session, wikidata_id: str, label: str) -> Genre:
     genre = db.scalar(select(Genre).where(Genre.wikidata_id == wikidata_id))
     if not genre:
-        genre = Genre(label=label, wikidata_id=wikidata_id)
-        db.add(genre)
-        db.flush()
+        # The legacy projection keeps labels unique. Wikidata can legitimately
+        # expose distinct genre items with the same English label, so reuse the
+        # existing label projection instead of failing the whole import.
+        genre = db.scalar(select(Genre).where(Genre.label == label))
+        if genre:
+            if genre.wikidata_id is None:
+                genre.wikidata_id = wikidata_id
+        else:
+            genre = Genre(label=label, wikidata_id=wikidata_id)
+            db.add(genre)
+            db.flush()
     return genre
 
 
