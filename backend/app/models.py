@@ -34,13 +34,203 @@ class DataSource(Base):
     batches: Mapped[list[IngestionBatch]] = relationship(back_populates="source")
 
 
+class SourceAccessPolicy(Base):
+    """Recorded permission decision for one acquisition route, not a crawler bypass."""
+
+    __tablename__ = "source_access_policies"
+    __table_args__ = (
+        CheckConstraint("access_mode IN ('api', 'dump', 'html')", name="ck_source_access_policy_mode"),
+        CheckConstraint("decision IN ('allowed', 'denied', 'review_required')", name="ck_source_access_policy_decision"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_id: Mapped[UUID] = mapped_column(ForeignKey("data_sources.id"), nullable=False, index=True)
+    access_mode: Mapped[str] = mapped_column(String(20), nullable=False)
+    policy_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    policy_revision: Mapped[str | None] = mapped_column(String(150))
+    robots_url: Mapped[str | None] = mapped_column(String(500))
+    robots_decision: Mapped[str | None] = mapped_column(String(40))
+    allowed_paths: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    required_user_agent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    max_requests_per_minute: Mapped[int | None] = mapped_column(Integer)
+    max_concurrency: Mapped[int | None] = mapped_column(Integer)
+    decision: Mapped[str] = mapped_column(String(30), nullable=False, default="review_required")
+    decision_notes: Mapped[str | None] = mapped_column(Text)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RawIngestionRun(Base):
+    """One replayable source run, tied to an input manifest and adapter version."""
+
+    __tablename__ = "raw_ingestion_runs"
+    __table_args__ = (
+        CheckConstraint("status IN ('queued', 'running', 'complete', 'failed', 'cancelled')", name="ck_raw_ingestion_run_status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_id: Mapped[UUID] = mapped_column(ForeignKey("data_sources.id"), nullable=False, index=True)
+    access_policy_id: Mapped[UUID | None] = mapped_column(ForeignKey("source_access_policies.id"), index=True)
+    adapter_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    adapter_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    manifest_uri: Mapped[str | None] = mapped_column(String(800))
+    manifest_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    input_revision: Mapped[str | None] = mapped_column(String(150))
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="queued")
+    records_requested: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    records_snapshotted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    records_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_summary: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SourceObject(Base):
+    """Stable identity of an object at a source; multiple snapshots retain its history."""
+
+    __tablename__ = "source_objects"
+    __table_args__ = (UniqueConstraint("source_id", "external_id", name="uq_source_object_source_external"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_id: Mapped[UUID] = mapped_column(ForeignKey("data_sources.id"), nullable=False, index=True)
+    external_id: Mapped[str] = mapped_column(String(300), nullable=False, index=True)
+    object_kind: Mapped[str] = mapped_column(String(80), nullable=False, default="work")
+    canonical_url: Mapped[str] = mapped_column(String(800), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    snapshots: Mapped[list[SourceSnapshot]] = relationship(back_populates="source_object", cascade="all, delete-orphan")
+
+
+class SourceSnapshot(Base):
+    """Immutable captured source payload descriptor; bytes live in object storage."""
+
+    __tablename__ = "source_snapshots"
+    __table_args__ = (
+        UniqueConstraint("source_object_id", "source_revision", "content_hash", name="uq_source_snapshot_revision_hash"),
+        CheckConstraint("fetch_status IN ('success', 'not_modified', 'not_found', 'denied', 'failed')", name="ck_source_snapshot_fetch_status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_object_id: Mapped[UUID] = mapped_column(ForeignKey("source_objects.id"), nullable=False, index=True)
+    ingestion_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("raw_ingestion_runs.id"), index=True)
+    source_revision: Mapped[str | None] = mapped_column(String(150), index=True)
+    canonical_url: Mapped[str] = mapped_column(String(800), nullable=False)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    fetch_status: Mapped[str] = mapped_column(String(30), nullable=False, default="success")
+    http_status: Mapped[int | None] = mapped_column(Integer)
+    media_type: Mapped[str | None] = mapped_column(String(120))
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    byte_size: Mapped[int | None] = mapped_column(Integer)
+    storage_uri: Mapped[str | None] = mapped_column(String(1000))
+    license: Mapped[str] = mapped_column(String(100), nullable=False)
+    attribution_url: Mapped[str | None] = mapped_column(String(800))
+    parser_version: Mapped[str | None] = mapped_column(String(100))
+    source_object: Mapped[SourceObject] = relationship(back_populates="snapshots")
+    assertions: Mapped[list[SourceAssertion]] = relationship(back_populates="snapshot", cascade="all, delete-orphan")
+
+
+class RawIngestionRunSnapshot(Base):
+    """Associates a replayed run with both newly created and reused immutable snapshots."""
+
+    __tablename__ = "raw_ingestion_run_snapshots"
+    __table_args__ = (UniqueConstraint("ingestion_run_id", "source_snapshot_id", name="uq_raw_ingestion_run_snapshot"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    ingestion_run_id: Mapped[UUID] = mapped_column(ForeignKey("raw_ingestion_runs.id"), nullable=False, index=True)
+    source_snapshot_id: Mapped[UUID] = mapped_column(ForeignKey("source_snapshots.id"), nullable=False, index=True)
+    disposition: Mapped[str] = mapped_column(String(30), nullable=False, default="reused")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SourceAssertion(Base):
+    """Immutable, source-shaped statement before entity resolution or normalization."""
+
+    __tablename__ = "source_assertions"
+    __table_args__ = (UniqueConstraint("source_snapshot_id", "statement_locator", "extractor_version", name="uq_source_assertion_locator"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_snapshot_id: Mapped[UUID] = mapped_column(ForeignKey("source_snapshots.id"), nullable=False, index=True)
+    statement_locator: Mapped[str] = mapped_column(String(500), nullable=False)
+    source_property: Mapped[str | None] = mapped_column(String(100), index=True)
+    raw_subject: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    raw_value: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    raw_qualifiers: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    source_rank: Mapped[str | None] = mapped_column(String(30))
+    extractor_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    snapshot: Mapped[SourceSnapshot] = relationship(back_populates="assertions")
+
+
+class EntityResolution(Base):
+    """A reviewable association between one source object/snapshot and a canonical entity."""
+
+    __tablename__ = "entity_resolutions"
+    __table_args__ = (
+        UniqueConstraint("source_object_id", "entity_id", "source_snapshot_id", name="uq_entity_resolution"),
+        CheckConstraint("status IN ('resolved', 'review_required', 'rejected')", name="ck_entity_resolution_status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_object_id: Mapped[UUID] = mapped_column(ForeignKey("source_objects.id"), nullable=False, index=True)
+    source_snapshot_id: Mapped[UUID | None] = mapped_column(ForeignKey("source_snapshots.id"), index=True)
+    entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    method: Mapped[str] = mapped_column(String(80), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="review_required")
+    reviewer: Mapped[str | None] = mapped_column(String(120))
+    rationale: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Claim(Base):
+    """Normalized fact candidate. Claims are not source snapshots and never erase them."""
+
+    __tablename__ = "claims"
+    __table_args__ = (
+        CheckConstraint("object_entity_id IS NOT NULL OR value_json IS NOT NULL", name="ck_claim_has_target"),
+        CheckConstraint("status IN ('raw', 'resolved', 'published', 'review_required', 'retracted')", name="ck_claim_status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    subject_entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    predicate: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    object_entity_id: Mapped[UUID | None] = mapped_column(ForeignKey("canonical_entities.id"), index=True)
+    object_entity_kind: Mapped[str | None] = mapped_column(String(40), index=True)
+    value_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    valid_from: Mapped[date | None] = mapped_column(Date)
+    valid_to: Mapped[date | None] = mapped_column(Date)
+    value_precision: Mapped[str | None] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="raw", index=True)
+    normalization_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    evidence: Mapped[list[ClaimEvidence]] = relationship(back_populates="claim", cascade="all, delete-orphan")
+    qualifiers: Mapped[list[ClaimQualifier]] = relationship(back_populates="claim", cascade="all, delete-orphan")
+
+
+class ClaimEvidence(Base):
+    """A normalized claim is publishable only through retained source assertion evidence."""
+
+    __tablename__ = "claim_evidence"
+    __table_args__ = (UniqueConstraint("claim_id", "source_assertion_id", name="uq_claim_evidence"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    claim_id: Mapped[UUID] = mapped_column(ForeignKey("claims.id"), nullable=False, index=True)
+    source_assertion_id: Mapped[UUID] = mapped_column(ForeignKey("source_assertions.id"), nullable=False, index=True)
+    evidence_note: Mapped[str | None] = mapped_column(Text)
+    claim: Mapped[Claim] = relationship(back_populates="evidence")
+
+
+class ClaimQualifier(Base):
+    """Queryable normalised qualifiers; uncommon source detail remains in source assertions."""
+
+    __tablename__ = "claim_qualifiers"
+    __table_args__ = (UniqueConstraint("claim_id", "qualifier_key", "value_hash", name="uq_claim_qualifier"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    claim_id: Mapped[UUID] = mapped_column(ForeignKey("claims.id"), nullable=False, index=True)
+    qualifier_key: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    value_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    value_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    claim: Mapped[Claim] = relationship(back_populates="qualifiers")
+
+
 class CanonicalEntity(Base):
     """Stable identity for any work or person, independent of source and language."""
 
     __tablename__ = "canonical_entities"
     __table_args__ = (
         CheckConstraint(
-            "entity_kind IN ('film', 'person', 'book', 'play', 'comic', 'series', 'episode', 'game', 'organisation', 'unknown_work')",
+            "entity_kind IN ('film', 'person', 'book', 'play', 'comic', 'series', 'episode', 'game', 'organisation', 'place', 'award', 'character', 'unknown_work')",
             name="ck_canonical_entity_kind",
         ),
     )
@@ -193,6 +383,38 @@ class InsightEvidence(Base):
     narrative_document_id: Mapped[UUID | None] = mapped_column(ForeignKey("narrative_documents.id"), index=True)
     note: Mapped[str | None] = mapped_column(Text)
     insight: Mapped[InsightCard] = relationship(back_populates="evidence")
+
+
+class ReferenceCollection(Base):
+    """A transparent, versioned inclusion set; it is never a hidden popularity rank."""
+
+    __tablename__ = "reference_collections"
+    code: Mapped[str] = mapped_column(String(100), primary_key=True)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    language_code: Mapped[str] = mapped_column(ForeignKey("language_editions.code"), nullable=False, index=True)
+    period_start_year: Mapped[int | None] = mapped_column(Integer)
+    period_end_year: Mapped[int | None] = mapped_column(Integer)
+    selection_method: Mapped[str] = mapped_column(String(100), nullable=False)
+    selection_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    memberships: Mapped[list[ReferenceCollectionMembership]] = relationship(back_populates="collection", cascade="all, delete-orphan")
+
+
+class ReferenceCollectionMembership(Base):
+    """The evidence and selection signals behind one collection membership."""
+
+    __tablename__ = "reference_collection_memberships"
+    __table_args__ = (UniqueConstraint("collection_code", "entity_id", name="uq_reference_collection_membership"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    collection_code: Mapped[str] = mapped_column(ForeignKey("reference_collections.code"), nullable=False, index=True)
+    entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    selection_position: Mapped[int | None] = mapped_column(Integer)
+    selection_signals: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    source_reference: Mapped[str] = mapped_column(String(500), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="included")
+    collection: Mapped[ReferenceCollection] = relationship(back_populates="memberships")
 
 
 class IngestionBatch(Base):

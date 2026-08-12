@@ -16,7 +16,9 @@ The local database is intentionally excluded from Git. Regenerate it from the so
 ```bash
 conda env create -f environment.yml
 conda activate cine-graph
-PYTHONPATH=backend python -m app.services.wikidata --limit 1000
+# Build the reproducible English 2000–2025 reference shelf (default: 1,000 films).
+# This is not an IMDb-derived list or a rating rank.
+PYTHONPATH=backend python -m app.services.english_reference_shelf --limit 1000
 # Import the complete attributed CMU archive; it checkpoints every 250 records.
 PYTHONPATH=backend python -m app.services.cmu_movie_summaries --archive /path/to/MovieSummaries.tar.gz
 # Reconcile its records and fetch their canonical CC0 metadata. Omit --limit for the full run.

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./cinegraph.db"
     api_cors_origins: str = "http://localhost:3000"
     wikidata_user_agent: str = "CineGraphExplorer/0.1 (https://github.com/Aditya-vardhan13/cine-graph)"
+    raw_snapshot_root: str = "./data/raw-snapshots"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

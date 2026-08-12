@@ -105,22 +105,27 @@ def sparql_query_runner() -> Callable[[str], list[dict[str, Any]]]:
 
     def run_query(query: str) -> list[dict[str, Any]]:
         nonlocal last_request_at
-        pause = MIN_REQUEST_INTERVAL_SECONDS - (time.monotonic() - last_request_at)
-        if pause > 0:
-            time.sleep(pause)
-        with httpx.Client(timeout=90, headers=headers) as client:
-            response = client.post(ENDPOINT, data={"query": query, "format": "json"})
-        last_request_at = time.monotonic()
-        if response.status_code == 429:
-            retry_after = float(response.headers.get("Retry-After", "60"))
-            time.sleep(retry_after)
-            return run_query(query)
-        if response.status_code in {403, 401}:
-            raise WikidataIngestionError(
-                f"Wikidata denied the request (HTTP {response.status_code}); stopping rather than bypassing access controls."
-            )
-        response.raise_for_status()
-        return response.json()["results"]["bindings"]
+        for attempt in range(4):
+            pause = MIN_REQUEST_INTERVAL_SECONDS - (time.monotonic() - last_request_at)
+            if pause > 0:
+                time.sleep(pause)
+            with httpx.Client(timeout=90, headers=headers) as client:
+                response = client.post(ENDPOINT, data={"query": query, "format": "json"})
+            last_request_at = time.monotonic()
+            if response.status_code == 429:
+                retry_after = float(response.headers.get("Retry-After", "60"))
+                time.sleep(retry_after)
+                continue
+            if response.status_code in {403, 401}:
+                raise WikidataIngestionError(
+                    f"Wikidata denied the request (HTTP {response.status_code}); stopping rather than bypassing access controls."
+                )
+            if response.status_code in {502, 503, 504} and attempt < 3:
+                time.sleep(2 ** attempt)
+                continue
+            response.raise_for_status()
+            return response.json()["results"]["bindings"]
+        raise WikidataIngestionError("Wikidata remained unavailable after bounded, polite retries.")
     return run_query
 
 
@@ -170,6 +175,12 @@ def enrich_film_rows(
             {{ ?film wdt:P57 ?person. BIND("director" AS ?role) }}
             UNION {{ ?film wdt:P58 ?person. BIND("writer" AS ?role) }}
             UNION {{ ?film wdt:P161 ?person. BIND("cast" AS ?role) }}
+            UNION {{ ?film wdt:P162 ?person. BIND("producer" AS ?role) }}
+            UNION {{ ?film wdt:P86 ?person. BIND("composer" AS ?role) }}
+            UNION {{ ?film wdt:P344 ?person. BIND("cinematographer" AS ?role) }}
+            UNION {{ ?film wdt:P1040 ?person. BIND("editor" AS ?role) }}
+            UNION {{ ?film wdt:P2554 ?person. BIND("production_designer" AS ?role) }}
+            UNION {{ ?film wdt:P2515 ?person. BIND("costume_designer" AS ?role) }}
             SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
           }}
         """)

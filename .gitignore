@@ -11,3 +11,5 @@ coverage/
 dist/
 *.db
 *.db-journal
+data/
+imdb_top_1000.csv
