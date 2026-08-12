@@ -77,6 +77,13 @@ class SimilarFilmOut(FilmListItem):
     factors: list[SimilarityFactor]
 
 
+class FilmComparison(BaseModel):
+    first: FilmListItem
+    second: FilmListItem
+    summary: str
+    signals: list[SimilarityFactor]
+
+
 class LanguageEditionOut(BaseModel):
     code: str
     display_name: str

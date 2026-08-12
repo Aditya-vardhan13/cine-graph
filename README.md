@@ -32,7 +32,8 @@ Open `http://localhost:3000`. The frontend expects the API at
 
 The import is intentionally explicit: it makes the source-access decision and
 the resulting local dataset visible instead of silently downloading data on
-application startup.
+application startup. It fetches and commits 100-film source pages sequentially,
+so an interrupted run can safely be repeated.
 
 Run checks:
 

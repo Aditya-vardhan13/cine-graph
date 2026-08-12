@@ -89,7 +89,7 @@ def _value(row: dict[str, Any], key: str) -> str | None:
     return row.get(key, {}).get("value")
 
 
-def fetch_rows(limit: int) -> list[dict[str, Any]]:
+def fetch_rows(limit: int, offset: int = 0) -> list[dict[str, Any]]:
     # Keep independent relationships in separate queries. A single query would
     # multiply cast × genres × countries and becomes impractical at 1,000 films.
     headers = {
@@ -121,7 +121,7 @@ def fetch_rows(limit: int) -> list[dict[str, Any]]:
 
     film_rows = run_query(f"""
       SELECT ?film ?filmLabel ?releaseDate ?runtime WHERE {{
-        {{ SELECT ?film WHERE {{ ?film wdt:P31 wd:Q11424; wdt:P364 wd:Q1860. }} LIMIT {limit} }}
+        {{ SELECT ?film WHERE {{ ?film wdt:P31 wd:Q11424; wdt:P364 wd:Q1860. }} LIMIT {limit} OFFSET {offset} }}
         OPTIONAL {{ ?film wdt:P577 ?releaseDate. }}
         OPTIONAL {{ ?film wdt:P2047 ?runtime. }}
         SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
@@ -216,18 +216,18 @@ def upsert_genre(db: Session, wikidata_id: str, label: str) -> Genre:
     return genre
 
 
-def ingest(db: Session, limit: int = 1000, rows: list[dict[str, Any]] | None = None) -> IngestionBatch:
+def ingest(db: Session, limit: int = 1000, offset: int = 0, rows: list[dict[str, Any]] | None = None) -> IngestionBatch:
     with exclusive_ingestion_lock():
-        return _ingest_locked(db, limit, rows)
+        return _ingest_locked(db, limit, offset, rows)
 
 
-def _ingest_locked(db: Session, limit: int, rows: list[dict[str, Any]] | None) -> IngestionBatch:
+def _ingest_locked(db: Session, limit: int, offset: int, rows: list[dict[str, Any]] | None) -> IngestionBatch:
     ensure_language_editions(db)
     source = source_for_wikidata(db)
-    batch = IngestionBatch(source_id=source.id, external_reference=ENDPOINT, status="running")
+    batch = IngestionBatch(source_id=source.id, external_reference=f"{ENDPOINT}?offset={offset}&limit={limit}", status="running")
     db.add(batch)
     db.flush()
-    rows = fetch_rows(limit) if rows is None else rows
+    rows = fetch_rows(limit, offset) if rows is None else rows
 
     films: dict[str, dict[str, Any]] = defaultdict(lambda: {"genres": {}, "credits": {}, "countries": set()})
     for row in rows:
@@ -284,11 +284,20 @@ def main() -> None:
     from app.db import Base, SessionLocal, engine
     parser = argparse.ArgumentParser(description="Ingest CC0 English-language film metadata from Wikidata.")
     parser.add_argument("--limit", type=int, default=1000)
+    parser.add_argument("--offset", type=int, default=0)
+    parser.add_argument("--page-size", type=int, default=100)
     args = parser.parse_args()
+    if args.limit < 1 or args.offset < 0 or args.page_size < 1:
+        parser.error("--limit and --page-size must be positive; --offset cannot be negative")
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
-        batch = ingest(db, limit=args.limit)
-        print(f"Completed batch {batch.id}: {batch.records_published} films from {batch.records_received} rows")
+        total_published = 0
+        for page_offset in range(args.offset, args.offset + args.limit, args.page_size):
+            page_limit = min(args.page_size, args.offset + args.limit - page_offset)
+            batch = ingest(db, limit=page_limit, offset=page_offset)
+            total_published += batch.records_published
+            print(f"Completed batch {batch.id}: {batch.records_published} films at offset {page_offset}")
+        print(f"Completed {total_published} films across resumable source batches")
 
 
 if __name__ == "__main__":

@@ -37,6 +37,15 @@ export type SimilarFilm = Film & {
   factors: Array<{ label: string; weight: number; contribution: number; evidence: string }>;
 };
 
+export type ConnectionSignal = { label: string; weight: number; contribution: number; evidence: string };
+
+export type FilmComparison = {
+  first: Film;
+  second: Film;
+  summary: string;
+  signals: ConnectionSignal[];
+};
+
 export type Graph = {
   center_id: string;
   nodes: Array<{ id: string; label: string; type: string }>;
@@ -44,7 +53,7 @@ export type Graph = {
   truncated: boolean;
 };
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+const baseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8000/api/v1";
 
 export async function api<T>(path: string, revalidate = 0): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, { next: { revalidate } });

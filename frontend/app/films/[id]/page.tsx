@@ -25,7 +25,7 @@ export default async function FilmPage({ params }: { params: Promise<{ id: strin
       <div className="panel graph"><p className="eyebrow">Relationship graph</p><h2>Direct connections</h2><GraphView graph={graph} /></div>
     </section>
 
-    <section className="panel similarity"><div><p className="eyebrow">Explainable similarity</p><h2>Related films</h2><p>Scores use shared genres, credited people and release-era proximity. No opaque “vibe” score.</p></div><div className="similar-list">{similar.map((item) => <Link href={`/films/${item.id}`} key={item.id} className="similar"><strong>{item.score}%</strong><div><b>{item.title}</b><small>{item.factors.map((factor) => factor.evidence).join(" · ")}</small></div><span>↗</span></Link>)}</div></section>
+    <section className="panel similarity"><div><p className="eyebrow">Evidence-backed paths</p><h2>Where to go next</h2><p>These are not opaque similarity scores. Each suggestion shows the specific collaborators, genres, or era context it shares with this film.</p></div><div className="similar-list">{similar.map((item) => <Link href={`/films/${item.id}`} key={item.id} className="similar"><div><b>{item.title}</b><small>{item.factors.map((factor) => `${factor.label}: ${factor.evidence}`).join(" · ")}</small></div><span>↗</span></Link>)}</div></section>
 
     <section className="panel provenance"><p className="eyebrow">Evidence</p><h2>Field provenance</h2><div className="source-table">{film.provenance.map((entry, index) => <a key={`${entry.field_name}-${index}`} href={entry.source_reference} target="_blank"><span>{entry.field_name.replaceAll("_", " ")}</span><b>{entry.source_name}</b><small>{entry.license}</small><i>↗</i></a>)}</div></section>
   </main>;
