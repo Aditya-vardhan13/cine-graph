@@ -25,6 +25,22 @@
 - Deployment: Docker + a low-cost cloud deployment
 - Observability: structured logs first; add tracing later
 
+## Phase A data-contract decision (2026-08-12)
+
+The first English-corpus import exposed a constraint that applies to every
+future language edition: an explicit source relationship can target a book,
+play, comic, series, or film, and a useful writer-facing observation can be a
+derived result rather than a source fact. The platform therefore uses a stable
+evidence core—canonical entities, source records, typed assertions, and
+evidence-backed insight cards—with films, people, and language editions as
+rebuildable projections.
+
+This replaces the assumption that a relationship table can contain only two
+films. The detailed schema contract, vocabulary, migration sequence, and phase
+gates are in [Stable cinema knowledge contract](docs/stable-cinema-knowledge-contract.md).
+All Phase A implementation work must follow that contract before adding more
+connection UI or language-specific ingestion.
+
 ---
 
 # 1. Product Thesis
@@ -2366,4 +2382,3 @@ TMDB
 Then make the acquisition decision based on evidence rather than convenience.
 
 **The implementation should begin only after this audit gives us a clean initial corpus and provenance policy.**
-
