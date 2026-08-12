@@ -23,11 +23,16 @@ PYTHONPATH=backend uvicorn app.main:app --reload
 To run the full Explorer locally, use Docker Compose:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
+docker compose exec api python -m app.services.wikidata --limit 1000
 ```
 
 Open `http://localhost:3000`. The frontend expects the API at
 `http://localhost:8000/api/v1` by default.
+
+The import is intentionally explicit: it makes the source-access decision and
+the resulting local dataset visible instead of silently downloading data on
+application startup.
 
 Run checks:
 
