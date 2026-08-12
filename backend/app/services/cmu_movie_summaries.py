@@ -12,6 +12,7 @@ import json
 import tarfile
 from contextlib import contextmanager
 from datetime import date
+from itertools import islice
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -119,9 +120,22 @@ def archive_rows(archive_path: Path, limit: int | None = None) -> Iterator[dict[
                 return
 
 
-def ingest_archive(db: Session, archive_path: Path, limit: int | None = None) -> IngestionBatch:
+def chunked(rows: Iterator[dict[str, Any]], size: int) -> Iterator[list[dict[str, Any]]]:
+    """Yield bounded pages so the full archive can be committed safely."""
+    while page := list(islice(rows, size)):
+        yield page
+
+
+def ingest_archive(
+    db: Session,
+    archive_path: Path,
+    limit: int | None = None,
+    page_size: int = 250,
+) -> IngestionBatch:
     if not archive_path.is_file():
         raise CmuIngestionError(f"Archive not found: {archive_path}")
+    if page_size < 1:
+        raise CmuIngestionError("page_size must be positive")
     with exclusive_cmu_lock():
         source = source_for_cmu(db)
         batch = IngestionBatch(
@@ -132,54 +146,81 @@ def ingest_archive(db: Session, archive_path: Path, limit: int | None = None) ->
         db.add(batch)
         db.flush()
         received = published = 0
-        for row in archive_rows(archive_path, limit):
-            received += 1
-            record = db.scalar(select(CorpusRecord).where(
-                CorpusRecord.source_id == source.id,
-                CorpusRecord.external_id == row["wikipedia_movie_id"],
-            ))
-            if not record:
-                record = CorpusRecord(
-                    source_id=source.id,
-                    external_id=row["wikipedia_movie_id"],
-                    title=row["title"],
-                    release_date=row["release_date"],
-                    language_codes=row["languages"],
-                    country_codes=row["countries"],
-                    genres=row["genres"],
-                    source_revision=CMU_REVISION,
-                    raw_metadata={
-                        "freebase_movie_id": row["freebase_movie_id"],
-                        "box_office": row["box_office"],
-                        "runtime_minutes": row["runtime_minutes"],
-                    },
-                )
-                db.add(record)
+        try:
+            for page in chunked(archive_rows(archive_path, limit), page_size):
+                external_ids = [row["wikipedia_movie_id"] for row in page]
+                records = {
+                    record.external_id: record
+                    for record in db.scalars(select(CorpusRecord).where(
+                        CorpusRecord.source_id == source.id,
+                        CorpusRecord.external_id.in_(external_ids),
+                    ))
+                }
+                for row in page:
+                    if row["wikipedia_movie_id"] in records:
+                        continue
+                    record = CorpusRecord(
+                        source_id=source.id,
+                        external_id=row["wikipedia_movie_id"],
+                        title=row["title"],
+                        release_date=row["release_date"],
+                        language_codes=row["languages"],
+                        country_codes=row["countries"],
+                        genres=row["genres"],
+                        source_revision=CMU_REVISION,
+                        raw_metadata={
+                            "freebase_movie_id": row["freebase_movie_id"],
+                            "box_office": row["box_office"],
+                            "runtime_minutes": row["runtime_minutes"],
+                        },
+                    )
+                    db.add(record)
+                    records[row["wikipedia_movie_id"]] = record
                 db.flush()
-            content_hash = hashlib.sha256(row["plot"].encode("utf-8")).hexdigest()
-            document = db.scalar(select(NarrativeDocument).where(
-                NarrativeDocument.corpus_record_id == record.id,
-                NarrativeDocument.document_type == "plot_summary",
-                NarrativeDocument.content_hash == content_hash,
-            ))
-            if not document:
-                db.add(NarrativeDocument(
-                    corpus_record_id=record.id,
-                    document_type="plot_summary",
-                    language_code="en",
-                    content=row["plot"],
-                    content_hash=content_hash,
-                    license="CC BY-SA (source version unspecified)",
-                    attribution_url=f"https://en.wikipedia.org/?curid={row['wikipedia_movie_id']}",
-                    source_revision=CMU_REVISION,
-                ))
-            published += 1
-        batch.records_received = received
-        batch.records_published = published
-        batch.records_rejected = 0
-        batch.status = "complete"
-        db.commit()
-        return batch
+
+                document_keys = {
+                    (corpus_record_id, content_hash)
+                    for corpus_record_id, content_hash in db.execute(select(
+                        NarrativeDocument.corpus_record_id,
+                        NarrativeDocument.content_hash,
+                    ).where(
+                        NarrativeDocument.corpus_record_id.in_(record.id for record in records.values()),
+                        NarrativeDocument.document_type == "plot_summary",
+                    ))
+                }
+                for row in page:
+                    record = records[row["wikipedia_movie_id"]]
+                    content_hash = hashlib.sha256(row["plot"].encode("utf-8")).hexdigest()
+                    if (record.id, content_hash) in document_keys:
+                        continue
+                    db.add(NarrativeDocument(
+                        corpus_record_id=record.id,
+                        document_type="plot_summary",
+                        language_code="en",
+                        content=row["plot"],
+                        content_hash=content_hash,
+                        license="CC BY-SA (source version unspecified)",
+                        attribution_url=f"https://en.wikipedia.org/?curid={row['wikipedia_movie_id']}",
+                        source_revision=CMU_REVISION,
+                    ))
+                received += len(page)
+                published += len(page)
+                batch.records_received = received
+                batch.records_published = published
+                batch.records_rejected = 0
+                db.commit()
+                print(f"CMU checkpoint: {published} English plot records", flush=True)
+
+            batch.status = "complete"
+            db.commit()
+            return batch
+        except Exception:
+            db.rollback()
+            failed_batch = db.get(IngestionBatch, batch.id)
+            if failed_batch:
+                failed_batch.status = "failed"
+                db.commit()
+            raise
 
 
 def download_archive(destination: Path) -> None:
@@ -200,18 +241,21 @@ def main() -> None:
     parser.add_argument("--archive", type=Path, help="Downloaded MovieSummaries.tar.gz archive")
     parser.add_argument("--download-to", type=Path, help="Explicitly download the archive to this path before ingesting")
     parser.add_argument("--limit", type=int, help="Temporary validation limit; do not use as a production sampling strategy")
+    parser.add_argument("--page-size", type=int, default=250, help="Checkpoint interval for a resumable bulk import")
     args = parser.parse_args()
     if bool(args.archive) == bool(args.download_to):
         parser.error("Provide exactly one of --archive or --download-to")
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be positive")
+    if args.page_size < 1:
+        parser.error("--page-size must be positive")
     archive_path = args.archive or args.download_to
     assert archive_path is not None
     if args.download_to:
         download_archive(archive_path)
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
-        batch = ingest_archive(db, archive_path, args.limit)
+        batch = ingest_archive(db, archive_path, args.limit, args.page_size)
         print(f"Completed CMU batch {batch.id}: {batch.records_published} English plot records")
 
 
