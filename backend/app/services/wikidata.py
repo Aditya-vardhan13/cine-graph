@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import json
 import re
 import time
 from collections import defaultdict
 from contextlib import contextmanager
 from datetime import date
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -91,9 +93,8 @@ def _value(row: dict[str, Any], key: str) -> str | None:
     return row.get(key, {}).get("value")
 
 
-def fetch_rows(limit: int, offset: int = 0) -> list[dict[str, Any]]:
-    # Keep independent relationships in separate queries. A single query would
-    # multiply cast × genres × countries and becomes impractical at 1,000 films.
+def sparql_query_runner() -> Callable[[str], list[dict[str, Any]]]:
+    """Create one polite, rate-limited Wikidata query session for a job."""
     headers = {
         "Accept": "application/sparql-results+json",
         "User-Agent": get_settings().wikidata_user_agent,
@@ -120,14 +121,14 @@ def fetch_rows(limit: int, offset: int = 0) -> list[dict[str, Any]]:
             )
         response.raise_for_status()
         return response.json()["results"]["bindings"]
+    return run_query
 
-    film_rows = run_query(f"""
-      SELECT ?film ?filmLabel (SAMPLE(?runtimeValue) AS ?runtime) WHERE {{
-        {{ SELECT ?film WHERE {{ ?film wdt:P31 wd:Q11424; wdt:P364 wd:Q1860. }} LIMIT {limit} OFFSET {offset} }}
-        OPTIONAL {{ ?film wdt:P2047 ?runtimeValue. }}
-        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
-      }} GROUP BY ?film ?filmLabel
-    """)
+
+def enrich_film_rows(
+    film_rows: list[dict[str, Any]],
+    run_query: Callable[[str], list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Keep independent relationships separate to avoid Cartesian explosion."""
     by_film = {item_id(_value(row, "film")): row for row in film_rows if item_id(_value(row, "film"))}
     film_ids = list(by_film)
     enriched: list[dict[str, Any]] = list(by_film.values())
@@ -177,6 +178,66 @@ def fetch_rows(limit: int, offset: int = 0) -> list[dict[str, Any]]:
             if header:
                 enriched.append({**header, **row})
     return enriched
+
+
+def fetch_rows(limit: int, offset: int = 0) -> list[dict[str, Any]]:
+    # Keep independent relationships in separate queries. A single query would
+    # multiply cast × genres × countries and becomes impractical at 1,000 films.
+    run_query = sparql_query_runner()
+
+    film_rows = run_query(f"""
+      SELECT ?film ?filmLabel (SAMPLE(?runtimeValue) AS ?runtime) WHERE {{
+        {{ SELECT ?film WHERE {{ ?film wdt:P31 wd:Q11424; wdt:P364 wd:Q1860. }} LIMIT {limit} OFFSET {offset} }}
+        OPTIONAL {{ ?film wdt:P2047 ?runtimeValue. }}
+        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+      }} GROUP BY ?film ?filmLabel
+    """)
+    return enrich_film_rows(film_rows, run_query)
+
+
+def fetch_wikidata_ids_for_freebase(
+    freebase_ids: list[str],
+    run_query: Callable[[str], list[dict[str, Any]]] | None = None,
+) -> dict[str, set[str]]:
+    """Resolve CMU's legacy Freebase IDs through Wikidata's direct P646 property."""
+    if not freebase_ids:
+        return {}
+    if any(not re.fullmatch(r"/m/[A-Za-z0-9_-]+", freebase_id) for freebase_id in freebase_ids):
+        raise WikidataIngestionError("Unexpected Freebase identifier; refusing to interpolate it into SPARQL")
+    runner = run_query or sparql_query_runner()
+    values = " ".join(json.dumps(freebase_id) for freebase_id in freebase_ids)
+    mappings: dict[str, set[str]] = defaultdict(set)
+    for row in runner(f"""
+      SELECT ?film ?freebaseId WHERE {{
+        VALUES ?freebaseId {{ {values} }}
+        ?film wdt:P646 ?freebaseId.
+      }}
+    """):
+        freebase_id, qid = _value(row, "freebaseId"), item_id(_value(row, "film"))
+        if freebase_id and qid:
+            mappings[freebase_id].add(qid)
+    return mappings
+
+
+def fetch_rows_for_film_ids(
+    film_ids: list[str],
+    run_query: Callable[[str], list[dict[str, Any]]] | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch canonical facts for an already selected, identifier-backed set of films."""
+    if not film_ids:
+        return []
+    if any(not re.fullmatch(r"Q\d+", film_id) for film_id in film_ids):
+        raise WikidataIngestionError("Unexpected Wikidata identifier; refusing to interpolate it into SPARQL")
+    runner = run_query or sparql_query_runner()
+    values = " ".join(f"wd:{film_id}" for film_id in film_ids)
+    headers = runner(f"""
+      SELECT ?film ?filmLabel (SAMPLE(?runtimeValue) AS ?runtime) WHERE {{
+        VALUES ?film {{ {values} }}
+        OPTIONAL {{ ?film wdt:P2047 ?runtimeValue. }}
+        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+      }} GROUP BY ?film ?filmLabel
+    """)
+    return enrich_film_rows(headers, runner)
 
 
 def ensure_language_editions(db: Session) -> None:
@@ -234,15 +295,31 @@ def upsert_genre(db: Session, wikidata_id: str, label: str) -> Genre:
     return genre
 
 
-def ingest(db: Session, limit: int = 1000, offset: int = 0, rows: list[dict[str, Any]] | None = None) -> IngestionBatch:
+def ingest(
+    db: Session,
+    limit: int = 1000,
+    offset: int = 0,
+    rows: list[dict[str, Any]] | None = None,
+    external_reference: str | None = None,
+) -> IngestionBatch:
     with exclusive_ingestion_lock():
-        return _ingest_locked(db, limit, offset, rows)
+        return _ingest_locked(db, limit, offset, rows, external_reference)
 
 
-def _ingest_locked(db: Session, limit: int, offset: int, rows: list[dict[str, Any]] | None) -> IngestionBatch:
+def _ingest_locked(
+    db: Session,
+    limit: int,
+    offset: int,
+    rows: list[dict[str, Any]] | None,
+    external_reference: str | None = None,
+) -> IngestionBatch:
     ensure_language_editions(db)
     source = source_for_wikidata(db)
-    batch = IngestionBatch(source_id=source.id, external_reference=f"{ENDPOINT}?offset={offset}&limit={limit}", status="running")
+    batch = IngestionBatch(
+        source_id=source.id,
+        external_reference=external_reference or f"{ENDPOINT}?offset={offset}&limit={limit}",
+        status="running",
+    )
     db.add(batch)
     db.flush()
     rows = fetch_rows(limit, offset) if rows is None else rows

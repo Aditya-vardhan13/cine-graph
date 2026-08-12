@@ -1,14 +1,13 @@
 # CineGraph
 
-CineGraph begins as a public-data cinema intelligence platform. Phase A ingests English-language film metadata from a permitted structured source and retains provenance for every imported entity and field. It intentionally does **not** ingest copyrighted scripts, subtitles, plots, posters, or article text.
+CineGraph begins as a public-data cinema intelligence platform. Phase A ingests English-language film metadata from a permitted structured source and retains provenance for every imported entity and field. It excludes scripts, subtitles, posters, and unlicensed article text; its one narrative layer is the separately attributed CC BY-SA CMU Movie Summary Corpus.
 
 ## Current milestone
 
-- 1,319 English-language films imported locally from Wikidata
-- 15,056 people and 25,191 film credits
-- 207 genres
+- 24,776 English-language CMU plot records are available as an attributed, historical narrative-reference layer
+- Canonical facts, credits, release events, and explicit work links are fetched only from Wikidata's CC0 structured data
+- CMU records reconcile only through an exact CMU Freebase ID → Wikidata P646 match; title matching is deliberately excluded
 - Source provenance, language-edition configuration, API catalog endpoints, and source-access controls are implemented
-- An explicit CMU Movie Summary Corpus importer and corpus-quality endpoint are available for the next, attributed narrative-reference layer
 
 The local database is intentionally excluded from Git. Regenerate it from the source instead of committing scraped/derived data.
 
@@ -18,8 +17,10 @@ The local database is intentionally excluded from Git. Regenerate it from the so
 conda env create -f environment.yml
 conda activate cine-graph
 PYTHONPATH=backend python -m app.services.wikidata --limit 1000
-# Explicitly import a small CMU validation sample from a downloaded archive.
-PYTHONPATH=backend python -m app.services.cmu_movie_summaries --archive /path/to/MovieSummaries.tar.gz --limit 3
+# Import the complete attributed CMU archive; it checkpoints every 250 records.
+PYTHONPATH=backend python -m app.services.cmu_movie_summaries --archive /path/to/MovieSummaries.tar.gz
+# Reconcile its records and fetch their canonical CC0 metadata. Omit --limit for the full run.
+PYTHONPATH=backend python -m app.services.cmu_wikidata_reconcile --page-size 100
 PYTHONPATH=backend uvicorn app.main:app --reload
 ```
 
@@ -47,7 +48,9 @@ PYTHONPATH=backend pytest -q backend/tests
 The API starts at `http://localhost:8000`; catalog health is available at `/api/v1/health`.
 `/api/v1/corpus/quality` reports source records, narrative documents, matches,
 release events, and explicit work relationships. The CMU import's `--limit`
-option is only for validation, not a production corpus-selection strategy.
+option is only for validation. Both CMU ingestion and CMU-to-Wikidata
+reconciliation commit bounded source pages, so an interrupted run can be
+repeated without duplicating source records.
 
 ## Source policy
 
