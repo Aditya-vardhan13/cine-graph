@@ -59,3 +59,17 @@ def test_resolver_accepts_specific_animated_feature_type() -> None:
     )
     assert unresolved == []
     assert resolved[0]["wikidata_id"] == "Qanimated"
+
+
+def test_resolver_allows_a_reviewed_wikipedia_release_date_conflict() -> None:
+    film = _film("Qfilm", "Example", 2011, "Example")
+    resolved, unresolved = resolve_entries(
+        [{
+            "position": 1, "title": "Example", "release_year": 2012,
+            "wikidata_id": "Qfilm",
+            "selection_year_evidence": {"kind": "enwiki_infobox_release"},
+        }],
+        fetcher=lambda _: {"Qfilm": film},
+    )
+    assert unresolved == []
+    assert resolved[0]["wikidata_id"] == "Qfilm"

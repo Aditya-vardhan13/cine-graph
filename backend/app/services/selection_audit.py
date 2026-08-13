@@ -35,9 +35,24 @@ def snak_year(raw_value: dict[str, Any]) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def snapshot_positions(snapshots: list[SourceSnapshot]) -> tuple[dict[int, str], list[str]]:
+def wikipedia_release_years(payload: dict[str, Any]) -> set[int]:
+    """Extract years only from the revision's infobox ``released`` field.
+
+    This is intentionally narrow. It does not treat arbitrary prose years as
+    release evidence, and exists for documented source-date disagreements
+    where Wikidata records a festival/first publication date instead.
+    """
+    page = payload.get("page", {})
+    revision = (page.get("revisions") or [{}])[0]
+    content = revision.get("slots", {}).get("main", {}).get("content", "")
+    match = re.search(r"^\s*\|\s*released\s*=\s*(.*)$", content, flags=re.IGNORECASE | re.MULTILINE)
+    return {int(year) for year in re.findall(r"(?<!\d)(?:18|19|20)\d{2}(?!\d)", match.group(1))} if match else set()
+
+
+def snapshot_positions(snapshots: list[SourceSnapshot]) -> tuple[dict[int, str], dict[int, set[int]], list[str]]:
     """Read only recent host-visible source snapshots to bind positions to QIDs."""
     qid_by_position: dict[int, str] = {}
+    wikipedia_years_by_position: dict[int, set[int]] = {}
     unavailable: list[str] = []
     for item in snapshots:
         if not item.storage_uri:
@@ -54,7 +69,8 @@ def snapshot_positions(snapshots: list[SourceSnapshot]) -> tuple[dict[int, str],
         qid = page.get("pageprops", {}).get("wikibase_item")
         if isinstance(position, int) and isinstance(qid, str):
             qid_by_position[position] = qid
-    return qid_by_position, unavailable
+            wikipedia_years_by_position[position] = wikipedia_release_years(payload)
+    return qid_by_position, wikipedia_years_by_position, unavailable
 
 
 def audit_selection(db: Session, entries: list[dict[str, Any]], manifest_uris: list[str]) -> dict[str, Any]:
@@ -69,7 +85,7 @@ def audit_selection(db: Session, entries: list[dict[str, Any]], manifest_uris: l
     wiki_snapshots = db.scalars(select(SourceSnapshot).where(
         SourceSnapshot.id.in_(run_snapshot_ids["wikipedia_api_revision_snapshot"])
     )).all() if run_snapshot_ids["wikipedia_api_revision_snapshot"] else []
-    qid_by_position, unavailable_snapshot_files = snapshot_positions(wiki_snapshots)
+    qid_by_position, wikipedia_years_by_position, unavailable_snapshot_files = snapshot_positions(wiki_snapshots)
 
     qids = set(qid_by_position.values())
     facts: dict[str, dict[str, set[Any]]] = defaultdict(lambda: {"types": set(), "years": set()})
@@ -100,8 +116,12 @@ def audit_selection(db: Session, entries: list[dict[str, Any]], manifest_uris: l
         reasons: list[str] = []
         if not item_facts["types"] & FILM_TYPE_QIDS:
             reasons.append(f"not an accepted film type: {sorted(item_facts['types'])}")
-        if int(entry["release_year"]) not in item_facts["years"]:
-            reasons.append(f"release year absent: {sorted(item_facts['years'])}")
+        expected_year = int(entry["release_year"])
+        if expected_year not in item_facts["years"] and expected_year not in wikipedia_years_by_position.get(position, set()):
+            reasons.append(
+                f"release year absent from Wikidata and Wikipedia infobox: "
+                f"wikidata={sorted(item_facts['years'])}, wikipedia={sorted(wikipedia_years_by_position.get(position, set()))}"
+            )
         if reasons:
             invalid.append({"position": position, "title": entry["title"], "qid": qid, "reasons": reasons})
 

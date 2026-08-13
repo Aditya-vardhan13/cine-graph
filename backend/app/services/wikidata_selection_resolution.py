@@ -58,6 +58,10 @@ def is_film_in_year(entity: dict[str, Any], year: int) -> bool:
     return bool(FILM_TYPE_QIDS & entity_ids(entity.get("claims", {}).get("P31", []))) and year in release_years(entity.get("claims", {}).get("P577", []))
 
 
+def is_film(entity: dict[str, Any]) -> bool:
+    return bool(FILM_TYPE_QIDS & entity_ids(entity.get("claims", {}).get("P31", [])))
+
+
 def title_score(entity: dict[str, Any], title: str) -> int:
     expected = normalized(title)
     labels = [item.get("value", "") for item in entity.get("labels", {}).values()]
@@ -172,7 +176,7 @@ def resolve_entries(
     candidate_ids: dict[int, list[str]] = {}
     all_ids: set[str] = set()
     for index, entry in enumerate(entries):
-        ids = searcher(str(entry["title"]))
+        ids = [str(entry["wikidata_id"])] if entry.get("wikidata_id") else searcher(str(entry["title"]))
         candidate_ids[index] = ids
         all_ids.update(ids)
         if (index + 1) % 10 == 0 or index + 1 == len(entries):
@@ -183,7 +187,17 @@ def resolve_entries(
     selected: dict[int, dict[str, Any]] = {}
     for index, entry in enumerate(entries):
         year = int(entry["release_year"])
-        matches = [entities[qid] for qid in candidate_ids[index] if qid in entities and is_film_in_year(entities[qid], year)]
+        # A reconciled input can deliberately preserve a source-year conflict
+        # (for example, a festival date in Wikidata versus a theatrical date in
+        # the enwiki infobox). Its final admission is still checked against the
+        # retained Wikipedia revision by selection_audit.
+        evidence_kind = entry.get("selection_year_evidence", {}).get("kind") if isinstance(entry.get("selection_year_evidence"), dict) else None
+        matches = [
+            entities[qid] for qid in candidate_ids[index] if qid in entities and (
+                is_film_in_year(entities[qid], year)
+                or (entry.get("wikidata_id") == qid and evidence_kind == "enwiki_infobox_release" and is_film(entities[qid]))
+            )
+        ]
         if matches:
             selected[index] = max(matches, key=lambda entity: title_score(entity, str(entry["title"])))
 
