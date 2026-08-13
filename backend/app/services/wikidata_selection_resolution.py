@@ -23,7 +23,10 @@ FILM_QID = "Q11424"
 # animated feature from being incorrectly discarded merely for being specific.
 FILM_TYPE_QIDS = {FILM_QID, "Q202866", "Q20650540"}
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
-MIN_REQUEST_INTERVAL_SECONDS = 1.0
+
+
+def request_interval_seconds() -> float:
+    return get_settings().source_request_interval_seconds
 
 
 def normalized(value: str) -> str:
@@ -149,7 +152,7 @@ def multi_source_search_ids(title: str) -> list[str]:
         for qid in searcher(title):
             if qid not in candidates:
                 candidates.append(qid)
-        time.sleep(MIN_REQUEST_INTERVAL_SECONDS)
+        time.sleep(request_interval_seconds())
     return candidates
 
 
@@ -175,7 +178,7 @@ def resolve_entries(
         if (index + 1) % 10 == 0 or index + 1 == len(entries):
             print(f"resolution primary search: {index + 1}/{len(entries)}", flush=True)
         if index + 1 < len(entries):
-            time.sleep(MIN_REQUEST_INTERVAL_SECONDS)
+            time.sleep(request_interval_seconds())
     entities = fetcher(sorted(all_ids))
     selected: dict[int, dict[str, Any]] = {}
     for index, entry in enumerate(entries):
@@ -197,12 +200,12 @@ def resolve_entries(
             for qid in fallback():
                 if qid not in ids:
                     ids.append(qid)
-            time.sleep(MIN_REQUEST_INTERVAL_SECONDS)
+            time.sleep(request_interval_seconds())
         fallback_ids[index] = ids
         if ordinal % 5 == 0 or ordinal == len(entries) - len(selected):
             print(f"resolution fallback search: {ordinal}/{len(entries) - len(selected)}", flush=True)
         if ordinal < len(entries) - len(selected):
-            time.sleep(MIN_REQUEST_INTERVAL_SECONDS)
+            time.sleep(request_interval_seconds())
     fallback_entities = fetcher(sorted({qid for ids in fallback_ids.values() for qid in ids})) if fallback_ids else {}
     for index, ids in fallback_ids.items():
         entry = entries[index]

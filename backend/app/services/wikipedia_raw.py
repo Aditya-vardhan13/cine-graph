@@ -28,7 +28,10 @@ WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 SOURCE_URL = "https://en.wikipedia.org/"
 SOURCE_NAME = "English Wikipedia"
 ADAPTER_VERSION = "enwiki-revision-snapshot-v1"
-MIN_REQUEST_INTERVAL_SECONDS = 1.0
+
+
+def request_interval_seconds() -> float:
+    return get_settings().source_request_interval_seconds
 
 
 class RawWikipediaError(RuntimeError):
@@ -58,6 +61,7 @@ def wikipedia_api_policy(db: Session, source: DataSource) -> SourceAccessPolicy:
         SourceAccessPolicy.access_mode == "api",
     ))
     if policy:
+        policy.max_requests_per_minute = get_settings().source_requests_per_minute
         return policy
     policy = SourceAccessPolicy(
         source_id=source.id,
@@ -67,7 +71,7 @@ def wikipedia_api_policy(db: Session, source: DataSource) -> SourceAccessPolicy:
         robots_decision="documented_api_route",
         allowed_paths=[WIKIPEDIA_API],
         required_user_agent=True,
-        max_requests_per_minute=60,
+        max_requests_per_minute=get_settings().source_requests_per_minute,
         max_concurrency=1,
         decision="allowed",
         decision_notes="Bounded pilot through documented MediaWiki API with meaningful user agent, sequential pacing, revision attribution and stop-on-denial policy.",
@@ -148,7 +152,7 @@ def ingest_title_year_entries(db: Session, entries: list[dict[str, Any]], manife
     for index, entry in enumerate(entries):
         title = str(entry.get("wikipedia_title") or entry["title"])
         lookup = page_lookup(title)
-        time.sleep(MIN_REQUEST_INTERVAL_SECONDS)
+        time.sleep(request_interval_seconds())
         if not lookup:
             stats["not_found"] += 1
             continue
@@ -182,7 +186,7 @@ def ingest_title_year_entries(db: Session, entries: list[dict[str, Any]], manife
             run.records_failed = stats["not_found"]
             db.commit()
         if index + 1 < len(entries):
-            time.sleep(MIN_REQUEST_INTERVAL_SECONDS)
+            time.sleep(request_interval_seconds())
     run.records_snapshotted = stats["snapshots"]
     run.records_failed = stats["not_found"]
     run.status = "complete"

@@ -33,6 +33,7 @@ class RawWikidataError(RuntimeError):
 def wikidata_api_policy(db: Session, source: DataSource) -> SourceAccessPolicy:
     policy = db.query(SourceAccessPolicy).filter_by(source_id=source.id, access_mode="api").one_or_none()
     if policy:
+        policy.max_requests_per_minute = get_settings().source_requests_per_minute
         return policy
     policy = SourceAccessPolicy(
         source_id=source.id,
@@ -42,7 +43,7 @@ def wikidata_api_policy(db: Session, source: DataSource) -> SourceAccessPolicy:
         robots_decision="documented_api_route",
         allowed_paths=[WIKIDATA_API],
         required_user_agent=True,
-        max_requests_per_minute=60,
+        max_requests_per_minute=get_settings().source_requests_per_minute,
         max_concurrency=1,
         decision="allowed",
         decision_notes="CC0 structured data through the documented API; identifying user agent, sequential batches and stop-on-denial policy required.",
