@@ -2,11 +2,11 @@ import app.services.wikidata_selection_resolution as resolution
 from app.services.wikidata_selection_resolution import multi_source_search_ids, resolve_entries
 
 
-def _film(qid: str, label: str, year: int, enwiki: str) -> dict:
+def _film(qid: str, label: str, year: int, enwiki: str, film_type: str = "Q11424") -> dict:
     return {
         "id": qid, "labels": {"en": {"value": label}}, "aliases": {}, "sitelinks": {"enwiki": {"title": enwiki}},
         "claims": {
-            "P31": [{"mainsnak": {"datavalue": {"value": {"id": "Q11424"}}}}],
+            "P31": [{"mainsnak": {"datavalue": {"value": {"id": film_type}}}}],
             "P577": [{"mainsnak": {"datavalue": {"value": {"time": f"+{year}-01-01T00:00:00Z"}}}}],
         },
     }
@@ -49,3 +49,13 @@ def test_resolver_uses_multilingual_and_wikipedia_routes_only_for_primary_misses
     )
     assert unresolved == []
     assert [entry["wikidata_id"] for entry in resolved] == ["Qfirst", "Qfallback"]
+
+
+def test_resolver_accepts_specific_animated_feature_type() -> None:
+    animated = _film("Qanimated", "Spirited Away", 2001, "Spirited Away", film_type="Q20650540")
+    resolved, unresolved = resolve_entries(
+        [{"position": 1, "title": "Sen to Chihiro no kamikakushi", "release_year": 2001}],
+        searcher=lambda _: ["Qanimated"], fetcher=lambda _: {"Qanimated": animated},
+    )
+    assert unresolved == []
+    assert resolved[0]["wikidata_id"] == "Qanimated"

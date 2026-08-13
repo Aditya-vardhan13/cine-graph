@@ -18,6 +18,10 @@ from app.core.config import get_settings
 from app.services.wikidata_raw import WIKIDATA_API, fetch_entities
 
 FILM_QID = "Q11424"
+# These are direct Wikidata subclasses used by mainstream feature-film records.
+# The resolver keeps the original P31 evidence; accepting them prevents an
+# animated feature from being incorrectly discarded merely for being specific.
+FILM_TYPE_QIDS = {FILM_QID, "Q202866", "Q20650540"}
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 MIN_REQUEST_INTERVAL_SECONDS = 1.0
 
@@ -48,7 +52,7 @@ def release_years(claims: list[dict[str, Any]]) -> set[int]:
 
 
 def is_film_in_year(entity: dict[str, Any], year: int) -> bool:
-    return FILM_QID in entity_ids(entity.get("claims", {}).get("P31", [])) and year in release_years(entity.get("claims", {}).get("P577", []))
+    return bool(FILM_TYPE_QIDS & entity_ids(entity.get("claims", {}).get("P31", []))) and year in release_years(entity.get("claims", {}).get("P577", []))
 
 
 def title_score(entity: dict[str, Any], title: str) -> int:
@@ -128,6 +132,11 @@ def wikipedia_search_ids(title: str) -> list[str]:
         ]
 
 
+def wikipedia_title_year_search_ids(title: str, year: int) -> list[str]:
+    """A precise fallback for ambiguous titles such as ``Anand`` or ``Coco``."""
+    return wikipedia_search_ids(f"{title} {year} film")
+
+
 def multi_source_search_ids(title: str) -> list[str]:
     """Union all discovery routes; retained for direct diagnostic use.
 
@@ -179,8 +188,13 @@ def resolve_entries(
     for ordinal, index in enumerate((index for index in range(len(entries)) if index not in selected), start=1):
         entry = entries[index]
         ids: list[str] = []
-        for fallback in (multilingual_search_ids, wikipedia_search_ids):
-            for qid in fallback(str(entry["title"])):
+        fallback_searches = (
+            lambda: multilingual_search_ids(str(entry["title"])),
+            lambda: wikipedia_search_ids(str(entry["title"])),
+            lambda: wikipedia_title_year_search_ids(str(entry["title"]), int(entry["release_year"])),
+        )
+        for fallback in fallback_searches:
+            for qid in fallback():
                 if qid not in ids:
                     ids.append(qid)
             time.sleep(MIN_REQUEST_INTERVAL_SECONDS)
