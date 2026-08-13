@@ -1,4 +1,5 @@
-from app.services.wikidata_selection_resolution import resolve_entries
+import app.services.wikidata_selection_resolution as resolution
+from app.services.wikidata_selection_resolution import multi_source_search_ids, resolve_entries
 
 
 def _film(qid: str, label: str, year: int, enwiki: str) -> dict:
@@ -21,3 +22,10 @@ def test_resolver_rejects_a_same_title_nonfilm_before_wikipedia_fetch() -> None:
     assert unresolved == []
     assert resolved[0]["wikidata_id"] == "Qfilm"
     assert resolved[0]["wikipedia_title"] == "Interstellar (film)"
+
+
+def test_multi_source_search_unions_independent_title_routes(monkeypatch) -> None:
+    monkeypatch.setattr(resolution, "search_ids", lambda _: ["Q1", "Q2"])
+    monkeypatch.setattr(resolution, "wikipedia_search_ids", lambda _: ["Q2", "Q3"])
+    monkeypatch.setattr(resolution.time, "sleep", lambda _: None)
+    assert multi_source_search_ids("Sen to Chihiro no kamikakushi") == ["Q1", "Q2", "Q3"]

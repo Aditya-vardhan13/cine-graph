@@ -18,6 +18,7 @@ from app.core.config import get_settings
 from app.services.wikidata_raw import WIKIDATA_API, fetch_entities
 
 FILM_QID = "Q11424"
+WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 MIN_REQUEST_INTERVAL_SECONDS = 1.0
 
 
@@ -57,12 +58,13 @@ def title_score(entity: dict[str, Any], title: str) -> int:
     return 1 if expected in {normalized(value) for value in [*labels, *aliases]} else 0
 
 
-def search_ids(title: str) -> list[str]:
+def _request_search_ids(title: str, language: str) -> list[str]:
     headers = {"User-Agent": get_settings().wikidata_user_agent, "Accept-Encoding": "gzip, deflate"}
     for attempt in range(4):
         with httpx.Client(timeout=30, headers=headers) as client:
             response = client.get(WIKIDATA_API, params={
-                "action": "wbsearchentities", "format": "json", "language": "en", "type": "item", "limit": 10, "search": title,
+                "action": "wbsearchentities", "format": "json", "language": language,
+                "type": "item", "limit": 10, "search": title,
             })
         if response.status_code in {401, 403}:
             raise RuntimeError(f"Wikidata denied title resolution ({response.status_code}); stopping.")
@@ -77,10 +79,71 @@ def search_ids(title: str) -> list[str]:
     raise RuntimeError("Wikidata title resolution remained unavailable after bounded retries.")
 
 
+def search_ids(title: str) -> list[str]:
+    """Search Wikidata in English and multilingual labels/aliases."""
+    candidates: list[str] = []
+    for language in ("en", "mul"):
+        for qid in _request_search_ids(title, language):
+            if qid not in candidates:
+                candidates.append(qid)
+        time.sleep(MIN_REQUEST_INTERVAL_SECONDS)
+    return candidates
+
+
+def wikipedia_search_ids(title: str) -> list[str]:
+    """Resolve alternate/original titles through English Wikipedia pageprops.
+
+    Wikipedia search is an independent discovery route. It never publishes a
+    match by itself: the caller still validates the returned Wikidata entity's
+    film type and release year.
+    """
+    headers = {"User-Agent": get_settings().wikidata_user_agent, "Accept-Encoding": "gzip, deflate"}
+    with httpx.Client(timeout=30, headers=headers) as client:
+        response = client.get(WIKIPEDIA_API, params={
+            "action": "query", "format": "json", "formatversion": "2",
+            "list": "search", "srsearch": title, "srnamespace": 0, "srlimit": 10,
+            "redirects": "1", "maxlag": "5",
+        })
+        if response.status_code in {401, 403}:
+            raise RuntimeError(f"Wikipedia denied title resolution ({response.status_code}); stopping.")
+        if response.status_code == 429:
+            raise RuntimeError("Wikipedia rate-limited title resolution; stop and retry later.")
+        response.raise_for_status()
+        titles = [item.get("title") for item in response.json().get("query", {}).get("search", []) if item.get("title")]
+        if not titles:
+            return []
+        response = client.get(WIKIPEDIA_API, params={
+            "action": "query", "format": "json", "formatversion": "2",
+            "titles": "|".join(titles), "prop": "pageprops", "ppprop": "wikibase_item",
+            "redirects": "1", "maxlag": "5",
+        })
+        if response.status_code in {401, 403}:
+            raise RuntimeError(f"Wikipedia denied page identity lookup ({response.status_code}); stopping.")
+        if response.status_code == 429:
+            raise RuntimeError("Wikipedia rate-limited page identity lookup; stop and retry later.")
+        response.raise_for_status()
+        return [
+            page.get("pageprops", {}).get("wikibase_item")
+            for page in response.json().get("query", {}).get("pages", [])
+            if page.get("pageprops", {}).get("wikibase_item")
+        ]
+
+
+def multi_source_search_ids(title: str) -> list[str]:
+    """Union independent Wikidata and Wikipedia candidates, preserving rank."""
+    candidates: list[str] = []
+    for searcher in (search_ids, wikipedia_search_ids):
+        for qid in searcher(title):
+            if qid not in candidates:
+                candidates.append(qid)
+        time.sleep(MIN_REQUEST_INTERVAL_SECONDS)
+    return candidates
+
+
 def resolve_entries(
     entries: list[dict[str, Any]],
     *,
-    searcher: Callable[[str], list[str]] = search_ids,
+    searcher: Callable[[str], list[str]] = multi_source_search_ids,
     fetcher: Callable[[list[str]], dict[str, dict[str, Any]]] = fetch_entities,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     candidate_ids: dict[int, list[str]] = {}
