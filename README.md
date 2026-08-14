@@ -1,6 +1,6 @@
 # CineGraph
 
-CineGraph begins as a public-data cinema intelligence platform. Phase A ingests English-language film metadata from a permitted structured source and retains provenance for every imported entity and field. It excludes scripts, subtitles, posters, and unlicensed article text; its one narrative layer is the separately attributed CC BY-SA CMU Movie Summary Corpus.
+CineGraph begins as a public-data cinema intelligence platform. Phase A ingests English-language film metadata from a permitted structured source and retains provenance for every imported entity and field. It excludes scripts, subtitles, posters, and unlicensed article text. Licensed narrative material is retained separately: the attributed CC BY-SA CMU Movie Summary Corpus and revisioned, attributed CC BY-SA English Wikipedia passages.
 
 ## Current milestone
 
@@ -8,6 +8,7 @@ CineGraph begins as a public-data cinema intelligence platform. Phase A ingests 
 - Canonical facts, credits, release events, and explicit work links are fetched only from Wikidata's CC0 structured data
 - CMU records reconcile only through an exact CMU Freebase ID → Wikidata P646 match; title matching is deliberately excluded
 - Source provenance, language-edition configuration, API catalog endpoints, and source-access controls are implemented
+- The deep-research pilot stores Wikipedia as section-bound, cited passages—not a blob—and connects each curated answer to those passages with an explicit evidence class
 
 The local database is intentionally excluded from Git. Regenerate it from the source instead of committing scraped/derived data.
 
@@ -25,6 +26,9 @@ PYTHONPATH=backend python -m app.services.cmu_movie_summaries --archive /path/to
 PYTHONPATH=backend python -m app.services.cmu_wikidata_reconcile --page-size 100
 # Backfill the additive canonical-entity and evidence layer from an existing catalog.
 PYTHONPATH=backend python -m app.services.backfill_evidence_core
+# Extract a retained English Wikipedia revision into attributable passages.
+# This command does not fetch pages: run the revision-snapshot adapter first.
+PYTHONPATH=backend python -m app.services.wikipedia_research Q163872 --curate-pilot --quality
 PYTHONPATH=backend uvicorn app.main:app --reload
 ```
 
@@ -61,6 +65,16 @@ release events, and explicit work relationships. The CMU import's `--limit`
 option is only for validation. Both CMU ingestion and CMU-to-Wikidata
 reconciliation commit bounded source pages, so an interrupted run can be
 repeated without duplicating source records.
+
+## Narrative research contract
+
+See [docs/narrative-research-layer.md](docs/narrative-research-layer.md). A
+Wikipedia-derived card is never silently treated as a fact: it is labelled as a
+source fact, narrative extraction, derived relation, attributed interpretation,
+or semantic candidate. Each card retains its source snapshot, revision, section
+path and passage-level evidence. Embeddings will index these licensed passages
+only after the research layer is established; similarity can suggest a route but
+cannot publish a claim.
 
 ## Source policy
 

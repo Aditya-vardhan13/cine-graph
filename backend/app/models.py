@@ -605,6 +605,93 @@ class NarrativeDocument(Base):
     corpus_record: Mapped[CorpusRecord] = relationship(back_populates="documents")
 
 
+class NarrativePassage(Base):
+    """A locatable, licensed passage extracted from an immutable source snapshot.
+
+    The passage is deliberately not a canonical fact.  It exists so an answer
+    about a film can point back to an exact Wikipedia (or future licensed
+    source) revision and section instead of treating narrative prose as
+    untraceable metadata.
+    """
+
+    __tablename__ = "narrative_passages"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_snapshot_id", "section_locator", "ordinal", "content_hash",
+            name="uq_narrative_passage_snapshot_locator",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    subject_entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    source_snapshot_id: Mapped[UUID] = mapped_column(ForeignKey("source_snapshots.id"), nullable=False, index=True)
+    section_locator: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
+    section_title: Mapped[str] = mapped_column(String(300), nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    language_code: Mapped[str] = mapped_column(String(35), nullable=False, default="en")
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    citation_markers: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    extraction_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ResearchAnswer(Base):
+    """A reviewable answer to a declared CineGraph research question.
+
+    `evidence_class` prevents a source fact, a bounded narrative extraction and
+    a critic's interpretation from being displayed as equivalent truth claims.
+    """
+
+    __tablename__ = "research_answers"
+    __table_args__ = (
+        UniqueConstraint("subject_entity_id", "question_id", "answer_version", name="uq_research_answer_question_version"),
+        CheckConstraint(
+            "evidence_class IN ('source_fact', 'narrative_extraction', 'derived_relation', 'attributed_interpretation', 'semantic_candidate')",
+            name="ck_research_answer_evidence_class",
+        ),
+        CheckConstraint(
+            "review_status IN ('draft', 'review_required', 'published', 'retracted')",
+            name="ck_research_answer_review_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    subject_entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    comparison_entity_id: Mapped[UUID | None] = mapped_column(ForeignKey("canonical_entities.id"), index=True)
+    question_id: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_class: Mapped[str] = mapped_column(String(40), nullable=False)
+    answer_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft", index=True)
+    reviewer: Mapped[str | None] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    evidence: Mapped[list[ResearchAnswerEvidence]] = relationship(back_populates="answer_record", cascade="all, delete-orphan")
+
+
+class ResearchAnswerEvidence(Base):
+    """One precise passage or structured assertion supporting a research answer."""
+
+    __tablename__ = "research_answer_evidence"
+    __table_args__ = (
+        CheckConstraint(
+            "narrative_passage_id IS NOT NULL OR source_assertion_id IS NOT NULL",
+            name="ck_research_answer_evidence_has_target",
+        ),
+        UniqueConstraint(
+            "research_answer_id", "narrative_passage_id", "source_assertion_id",
+            name="uq_research_answer_evidence_target",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    research_answer_id: Mapped[UUID] = mapped_column(ForeignKey("research_answers.id"), nullable=False, index=True)
+    narrative_passage_id: Mapped[UUID | None] = mapped_column(ForeignKey("narrative_passages.id"), index=True)
+    source_assertion_id: Mapped[UUID | None] = mapped_column(ForeignKey("source_assertions.id"), index=True)
+    evidence_locator: Mapped[str | None] = mapped_column(String(500))
+    note: Mapped[str | None] = mapped_column(Text)
+    answer_record: Mapped[ResearchAnswer] = relationship(back_populates="evidence")
+
+
 class FilmProvenance(Base):
     __tablename__ = "film_provenance"
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
