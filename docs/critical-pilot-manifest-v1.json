@@ -1,0 +1,162 @@
+{
+  "manifest_version": "critical-pilot-v1",
+  "purpose": "Work-level metadata pilot. No article body, image, transcript, or embedding is acquired by this manifest.",
+  "works": [
+    {
+      "source": {
+        "name": "Área Abierta",
+        "url": "https://revistas.ucm.es/index.php/ARAB/en/article/view/47526",
+        "source_type": "peer_reviewed_critical_essays",
+        "license": "CC BY 4.0",
+        "rights_status": "attributed_reuse"
+      },
+      "external_id": "doi:10.5209/rev_ARAB.2016.v16.n1.47526",
+      "title": "Super-villains of the real world: the political use of the characterization of villains in Christopher Nolan's Dark Knight Trilogy",
+      "canonical_url": "https://revistas.ucm.es/index.php/ARAB/en/article/view/47526",
+      "authors": ["Alfonso M. Rodriguez de Austria Giménez de Aragón"],
+      "published_on": "2016-02-12",
+      "work_kind": "academic_article",
+      "rights_scope": "metadata_link_only",
+      "work_license": "CC BY 4.0",
+      "language_code": "en",
+      "subjects": [
+        {"wikidata_id": "Q166262", "role": "primary"},
+        {"wikidata_id": "Q163872", "role": "primary"},
+        {"wikidata_id": "Q189330", "role": "primary"}
+      ]
+    },
+    {
+      "source": {
+        "name": "Film-Philosophy",
+        "url": "https://philpapers.org/rec/CRORUT",
+        "source_type": "peer_reviewed_critical_essays",
+        "license": "Work-specific; review required",
+        "rights_status": "review_required"
+      },
+      "external_id": "doi:10.3366/film.1999.0031",
+      "title": "Reflections Upon the Matrix",
+      "canonical_url": "https://philpapers.org/rec/CRORUT",
+      "authors": ["Mark Crosby"],
+      "published_on": "1999-01-01",
+      "work_kind": "academic_article",
+      "rights_scope": "metadata_link_only",
+      "work_license": "Unverified for this 1999 work",
+      "language_code": "en",
+      "subjects": [{"wikidata_id": "Q83495", "role": "primary"}]
+    },
+    {
+      "source": {
+        "name": "Revista Tecnologia e Sociedade",
+        "url": "https://periodicos.utfpr.edu.br/rts/article/view/2500",
+        "source_type": "peer_reviewed_critical_essays",
+        "license": "CC BY 4.0",
+        "rights_status": "attributed_reuse"
+      },
+      "external_id": "doi:10.3895/rts.v3n4.2500",
+      "title": "Blade Runner: o humano na época de sua reprodutibilidade técnica",
+      "canonical_url": "https://periodicos.utfpr.edu.br/rts/article/view/2500",
+      "authors": ["Rafael Afonso da Silva"],
+      "published_on": "2007-01-01",
+      "work_kind": "academic_article",
+      "rights_scope": "metadata_link_only",
+      "work_license": "CC BY 4.0",
+      "language_code": "pt",
+      "subjects": [{"wikidata_id": "Q184843", "role": "primary"}]
+    },
+    {
+      "source": {
+        "name": "KAXE / NPR",
+        "url": "https://www.kaxe.org/2018-04-04/what-made-2001-a-space-odyssey-such-an-influential-film",
+        "source_type": "cultural_criticism",
+        "license": "CC BY-NC-ND 4.0",
+        "rights_status": "metadata_link_only"
+      },
+      "external_id": "kaxe:2001-influential-film-2018",
+      "title": "What Made '2001, A Space Odyssey' Such An Influential Film",
+      "canonical_url": "https://www.kaxe.org/2018-04-04/what-made-2001-a-space-odyssey-such-an-influential-film",
+      "authors": ["Bob Mondello"],
+      "published_on": "2018-04-04",
+      "work_kind": "essay",
+      "rights_scope": "metadata_link_only",
+      "work_license": "CC BY-NC-ND 4.0",
+      "language_code": "en",
+      "subjects": [{"wikidata_id": "Q103474", "role": "primary"}]
+    },
+    {
+      "source": {
+        "name": "Ankara University Journal of the Faculty of Languages and History-Geography",
+        "url": "https://dergipark.org.tr/en/pub/dtcfdergisi/article/1044443",
+        "source_type": "peer_reviewed_critical_essays",
+        "license": "CC BY 4.0",
+        "rights_status": "attributed_reuse"
+      },
+      "external_id": "izlik:JA49SE48FN",
+      "title": "Female Action Hero vs Male Dominance: The Female Representation in Mad Max: Fury Road",
+      "canonical_url": "https://dergipark.org.tr/en/pub/dtcfdergisi/article/1044443",
+      "authors": ["Sotirios Bampatzımopoulos"],
+      "published_on": "2015-01-01",
+      "work_kind": "academic_article",
+      "rights_scope": "metadata_link_only",
+      "work_license": "CC BY 4.0",
+      "language_code": "en",
+      "subjects": [{"wikidata_id": "Q1757288", "role": "primary"}]
+    },
+    {
+      "source": {
+        "name": "Mount Royal Undergraduate Humanities Review",
+        "url": "https://mrujs.mtroyal.ca/index.php/mruhr/article/view/769",
+        "source_type": "peer_reviewed_critical_essays",
+        "license": "CC BY 4.0",
+        "rights_status": "attributed_reuse"
+      },
+      "external_id": "mruhr:769",
+      "title": "The Lure of Jordan Peele's Get Out!",
+      "canonical_url": "https://mrujs.mtroyal.ca/index.php/mruhr/article/view/769",
+      "authors": ["Tia Myriani"],
+      "published_on": "2024-04-09",
+      "work_kind": "academic_article",
+      "rights_scope": "metadata_link_only",
+      "work_license": "CC BY 4.0",
+      "language_code": "en",
+      "subjects": [{"wikidata_id": "Q25136235", "role": "primary"}]
+    },
+    {
+      "source": {
+        "name": "Journal of Arts",
+        "url": "https://journals.gen.tr/index.php/arts/article/view/1179",
+        "source_type": "peer_reviewed_critical_essays",
+        "license": "CC BY 4.0",
+        "rights_status": "attributed_reuse"
+      },
+      "external_id": "doi:10.31566/arts.3.014",
+      "title": "Comic Book Aesthetics in Animation Cinema: Spider-Man: Into the Spider-Verse Example",
+      "canonical_url": "https://journals.gen.tr/index.php/arts/article/view/1179",
+      "authors": ["Çağlar Doğru"],
+      "published_on": "2020-07-31",
+      "work_kind": "academic_article",
+      "rights_scope": "metadata_link_only",
+      "work_license": "CC BY 4.0",
+      "language_code": "tr",
+      "subjects": [{"wikidata_id": "Q29588607", "role": "primary"}]
+    },
+    {
+      "source": {
+        "name": "Arts (MDPI)",
+        "url": "https://doi.org/10.3390/arts14060165",
+        "source_type": "peer_reviewed_critical_essays",
+        "license": "CC BY 4.0",
+        "rights_status": "attributed_reuse"
+      },
+      "external_id": "doi:10.3390/arts14060165",
+      "title": "Sounding Out the Femme Fatale-ness of Mia Wallace in Pulp Fiction (1994)",
+      "canonical_url": "https://doi.org/10.3390/arts14060165",
+      "authors": ["Stephen Andriano-Moore", "Xinyu Guo"],
+      "published_on": "2025-01-01",
+      "work_kind": "academic_article",
+      "rights_scope": "metadata_link_only",
+      "work_license": "CC BY 4.0",
+      "language_code": "en",
+      "subjects": [{"wikidata_id": "Q104123", "role": "primary"}]
+    }
+  ]
+}

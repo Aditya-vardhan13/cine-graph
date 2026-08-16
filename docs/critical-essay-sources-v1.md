@@ -116,3 +116,30 @@ admit:
 The acceptance test is not volume. It is whether a reader can distinguish in a
 single screen: *what the film shows*, *what is historically documented*, *who
 argues what it means*, and *which opposing reading is available*.
+
+## Current admission result
+
+The initial metadata-only manifest is
+[`critical-pilot-manifest-v1.json`](critical-pilot-manifest-v1.json). It has
+eight individually checked works covering all ten films from the existing
+deep-research pilot:
+
+| Film group | Work-level coverage | Admission state |
+| --- | ---: | --- |
+| *Batman Begins*, *The Dark Knight*, *The Dark Knight Rises* | 1 comparative CC BY article | Metadata/link only pending intentional source acquisition |
+| *The Matrix* | 1 Film-Philosophy record | Link only; historic work licence must be checked |
+| *Blade Runner*, *Mad Max: Fury Road*, *Get Out*, *Spider-Man: Into the Spider-Verse*, *Pulp Fiction* | 5 named works | Metadata/link only, despite compatible licence signals, until source snapshots exist |
+| *2001: A Space Odyssey* | 1 CC BY-NC-ND cultural-criticism record | Link only by policy |
+
+The manifest is imported without any article, image, transcript, or media
+request:
+
+```bash
+PYTHONPATH=backend python -m app.services.critical_work_manifest \
+  docs/critical-pilot-manifest-v1.json
+```
+
+It creates `critical_works` and film links only. A later full-text acquisition
+command must be separate, pass a work-level licence/access review, and create
+an immutable source snapshot before any record can change to
+`full_text_reusable`.

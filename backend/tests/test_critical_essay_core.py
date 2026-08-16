@@ -1,3 +1,6 @@
+import json
+
+import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -8,9 +11,11 @@ from app.models import (
     CriticalClaim,
     CriticalClaimAnchor,
     CriticalWork,
+    CriticalWorkSubject,
     DataSource,
 )
 from app.services.critical_sources import CRITICAL_SOURCE_REGISTRY, register_critical_sources
+from app.services.critical_work_manifest import CriticalManifestError, import_manifest
 
 
 def test_critical_source_registry_is_idempotent_and_policy_only() -> None:
@@ -91,3 +96,54 @@ def test_link_only_claim_stays_attributed_and_requires_an_anchor_target() -> Non
             db.rollback()
         else:
             raise AssertionError("critical claim anchor was accepted without a factual or narrative target")
+
+
+def test_metadata_manifest_links_a_work_to_existing_canonical_films(tmp_path) -> None:
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    manifest = tmp_path / "critical-pilot.json"
+    manifest.write_text(json.dumps({
+        "manifest_version": "critical-pilot-v1",
+        "works": [{
+            "source": {
+                "name": "Fixture journal", "url": "https://fixture.test/article", "source_type": "peer_reviewed_critical_essays",
+                "license": "CC BY 4.0", "rights_status": "attributed_reuse",
+            },
+            "external_id": "doi:fixture", "title": "Fixture critical work", "canonical_url": "https://fixture.test/article",
+            "authors": ["Test Critic"], "published_on": "2024-04-09", "work_kind": "academic_article",
+            "rights_scope": "metadata_link_only", "work_license": "CC BY 4.0", "language_code": "en",
+            "subjects": [{"wikidata_id": "Qfixture", "role": "primary"}],
+        }],
+    }), encoding="utf-8")
+    with Session(engine) as db:
+        db.add(CanonicalEntity(entity_kind="film", canonical_label="Fixture film", wikidata_id="Qfixture"))
+        db.commit()
+        assert import_manifest(db, manifest) == {"works_created": 1, "works_reused": 0, "subject_links_created": 1}
+        assert import_manifest(db, manifest) == {"works_created": 0, "works_reused": 1, "subject_links_created": 0}
+        db.commit()
+        work = db.scalar(select(CriticalWork))
+        assert work is not None
+        assert work.source_snapshot_id is None
+        assert work.rights_scope == "metadata_link_only"
+        assert db.scalar(select(func.count()).select_from(CriticalWorkSubject)) == 1
+
+
+def test_metadata_manifest_refuses_full_text_without_acquisition_path(tmp_path) -> None:
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    manifest = tmp_path / "not-metadata-only.json"
+    manifest.write_text(json.dumps({"manifest_version": "critical-pilot-v1", "works": []}), encoding="utf-8")
+    with Session(engine) as db:
+        db.add(CanonicalEntity(entity_kind="film", canonical_label="Fixture film", wikidata_id="Qfixture"))
+        db.commit()
+        manifest.write_text(json.dumps({
+            "manifest_version": "critical-pilot-v1",
+            "works": [{
+                "source": {"name": "Fixture", "url": "https://fixture.test", "source_type": "essay", "license": "CC BY", "rights_status": "attributed_reuse"},
+                "external_id": "fixture", "title": "Fixture", "canonical_url": "https://fixture.test", "authors": ["A"],
+                "work_kind": "essay", "rights_scope": "full_text_reusable", "work_license": "CC BY", "language_code": "en",
+                "subjects": [{"wikidata_id": "Qfixture", "role": "primary"}],
+            }],
+        }), encoding="utf-8")
+        with pytest.raises(CriticalManifestError, match="metadata_link_only"):
+            import_manifest(db, manifest)
