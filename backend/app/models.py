@@ -694,6 +694,137 @@ class ResearchAnswerEvidence(Base):
     answer_record: Mapped[ResearchAnswer] = relationship(back_populates="evidence")
 
 
+class CriticalWork(Base):
+    """An attributed essay, review, scholarly article, or video-essay record.
+
+    A critical work is deliberately distinct from a source fact and from a
+    CineGraph answer.  Link-only records carry metadata and a route to the
+    original; reusable full text is represented by a separately licensed,
+    immutable ``SourceSnapshot``.  This prevents a platform licence (for
+    example, a hosting site's licence to display a creator's work) from being
+    mistaken for a licence granted to CineGraph.
+    """
+
+    __tablename__ = "critical_works"
+    __table_args__ = (
+        UniqueConstraint("source_id", "external_id", name="uq_critical_work_source_external"),
+        CheckConstraint(
+            "work_kind IN ('essay', 'review', 'academic_article', 'video_essay', 'creator_statement')",
+            name="ck_critical_work_kind",
+        ),
+        CheckConstraint(
+            "rights_scope IN ('full_text_reusable', 'metadata_link_only', 'permissioned', 'private_reference')",
+            name="ck_critical_work_rights_scope",
+        ),
+        CheckConstraint(
+            "review_status IN ('draft', 'review_required', 'published', 'retracted')",
+            name="ck_critical_work_review_status",
+        ),
+        CheckConstraint(
+            "rights_scope != 'full_text_reusable' OR source_snapshot_id IS NOT NULL",
+            name="ck_critical_work_reusable_snapshot",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_id: Mapped[UUID] = mapped_column(ForeignKey("data_sources.id"), nullable=False, index=True)
+    source_snapshot_id: Mapped[UUID | None] = mapped_column(ForeignKey("source_snapshots.id"), index=True)
+    external_id: Mapped[str] = mapped_column(String(300), nullable=False)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    canonical_url: Mapped[str] = mapped_column(String(800), nullable=False)
+    authors: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    published_on: Mapped[date | None] = mapped_column(Date)
+    work_kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    rights_scope: Mapped[str] = mapped_column(String(40), nullable=False)
+    work_license: Mapped[str | None] = mapped_column(String(160))
+    attribution_text: Mapped[str | None] = mapped_column(Text)
+    language_code: Mapped[str] = mapped_column(String(35), nullable=False, default="en")
+    review_status: Mapped[str] = mapped_column(String(30), nullable=False, default="review_required", index=True)
+    reviewer: Mapped[str | None] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    subjects: Mapped[list[CriticalWorkSubject]] = relationship(back_populates="critical_work", cascade="all, delete-orphan")
+    claims: Mapped[list[CriticalClaim]] = relationship(back_populates="critical_work", cascade="all, delete-orphan")
+
+
+class CriticalWorkSubject(Base):
+    """A work's primary film and any comparison/context films it discusses."""
+
+    __tablename__ = "critical_work_subjects"
+    __table_args__ = (
+        UniqueConstraint("critical_work_id", "entity_id", "subject_role", name="uq_critical_work_subject"),
+        CheckConstraint(
+            "subject_role IN ('primary', 'comparison', 'context')",
+            name="ck_critical_work_subject_role",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    critical_work_id: Mapped[UUID] = mapped_column(ForeignKey("critical_works.id"), nullable=False, index=True)
+    entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    subject_role: Mapped[str] = mapped_column(String(30), nullable=False, default="primary")
+    critical_work: Mapped[CriticalWork] = relationship(back_populates="subjects")
+
+
+class CriticalClaim(Base):
+    """A reviewable, attributed interpretation stated in CineGraph's own words.
+
+    ``claim_text`` is an editorial paraphrase, not copied article prose.  The
+    original is located by ``source_claim_locator`` and shown as an attributed
+    route.  The claim may be anchored to retained narrative or factual evidence
+    without converting the critic's interpretation into a canonical fact.
+    """
+
+    __tablename__ = "critical_claims"
+    __table_args__ = (
+        CheckConstraint(
+            "claim_type IN ('interpretive_argument', 'formal_analysis', 'historical_context', 'reception_judgment', 'comparative_argument')",
+            name="ck_critical_claim_type",
+        ),
+        CheckConstraint(
+            "review_status IN ('draft', 'review_required', 'published', 'retracted')",
+            name="ck_critical_claim_review_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    critical_work_id: Mapped[UUID] = mapped_column(ForeignKey("critical_works.id"), nullable=False, index=True)
+    subject_entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    comparison_entity_id: Mapped[UUID | None] = mapped_column(ForeignKey("canonical_entities.id"), index=True)
+    lens: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    claim_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    claim_text: Mapped[str] = mapped_column(Text, nullable=False)
+    source_claim_locator: Mapped[str | None] = mapped_column(Text)
+    review_status: Mapped[str] = mapped_column(String(30), nullable=False, default="review_required", index=True)
+    reviewer: Mapped[str | None] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    critical_work: Mapped[CriticalWork] = relationship(back_populates="claims")
+    anchors: Mapped[list[CriticalClaimAnchor]] = relationship(back_populates="critical_claim", cascade="all, delete-orphan")
+
+
+class CriticalClaimAnchor(Base):
+    """A fact or passage which gives a critic's argument inspectable context."""
+
+    __tablename__ = "critical_claim_anchors"
+    __table_args__ = (
+        CheckConstraint(
+            "anchor_relation IN ('narrative_anchor', 'factual_anchor', 'counterpoint')",
+            name="ck_critical_claim_anchor_relation",
+        ),
+        CheckConstraint(
+            "narrative_passage_id IS NOT NULL OR source_assertion_id IS NOT NULL",
+            name="ck_critical_claim_anchor_has_target",
+        ),
+        UniqueConstraint(
+            "critical_claim_id", "narrative_passage_id", "source_assertion_id", "anchor_relation",
+            name="uq_critical_claim_anchor_target",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    critical_claim_id: Mapped[UUID] = mapped_column(ForeignKey("critical_claims.id"), nullable=False, index=True)
+    narrative_passage_id: Mapped[UUID | None] = mapped_column(ForeignKey("narrative_passages.id"), index=True)
+    source_assertion_id: Mapped[UUID | None] = mapped_column(ForeignKey("source_assertions.id"), index=True)
+    anchor_relation: Mapped[str] = mapped_column(String(30), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    critical_claim: Mapped[CriticalClaim] = relationship(back_populates="anchors")
+
+
 class FilmProvenance(Base):
     __tablename__ = "film_provenance"
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

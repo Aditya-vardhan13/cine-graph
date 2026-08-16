@@ -10,6 +10,7 @@ CineGraph begins as a public-data cinema intelligence platform. Phase A ingests 
 - Source provenance, language-edition configuration, API catalog endpoints, and source-access controls are implemented
 - The deep-research pilot stores Wikipedia as section-bound, cited passages—not a blob—and connects each curated answer to those passages with an explicit evidence class
 - The vetted 1,000-film English selection has been parsed locally into 24,446 attributable Wikipedia passages; raw snapshots and the local database remain outside Git
+- Critical essays and reviews now have a separate attribution-and-rights model: an interpretation remains attached to its author and source rather than becoming an anonymous catalog fact
 
 The local database is intentionally excluded from Git. Regenerate it from the source instead of committing scraped/derived data.
 
@@ -76,6 +77,14 @@ or semantic candidate. Each card retains its source snapshot, revision, section
 path and passage-level evidence. Embeddings will index these licensed passages
 only after the research layer is established; similarity can suggest a route but
 cannot publish a claim.
+
+## Critical essay contract
+
+See [docs/critical-essay-sources-v1.md](docs/critical-essay-sources-v1.md).
+Critical writing is a distinct meaning layer. A Medium or other link-only work
+stores author, link and attributed interpretation—not copied prose or
+embeddings. Reusable full text must have a work-level compatible licence and an
+immutable source snapshot; every public critical claim is separately reviewed.
 
 ## Source policy
 
