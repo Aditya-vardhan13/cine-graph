@@ -1,9 +1,14 @@
-from sqlalchemy import create_engine, select
+import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import Base
 from app.models import CanonicalEntity, NarrativePassage, ResearchAnswer, ResearchAnswerEvidence
 from app.services.wikipedia_research import chunk_section, clean_wikitext, split_sections
+from tests.postgres_test_db import isolated_postgres_engine
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_section_parser_retains_hierarchy_and_excludes_reference_material() -> None:
@@ -17,7 +22,7 @@ def test_section_parser_retains_hierarchy_and_excludes_reference_material() -> N
 
 
 def test_research_answer_requires_a_retained_evidence_target() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         film = CanonicalEntity(entity_kind="film", canonical_label="Fixture")
@@ -35,7 +40,6 @@ def test_research_answer_requires_a_retained_evidence_target() -> None:
         db.flush()
         evidence = ResearchAnswerEvidence(research_answer_id=answer.id)
         db.add(evidence)
-        # SQLite enforces this check too: the evidence cannot be targetless.
         try:
             db.commit()
         except Exception:

@@ -1,14 +1,19 @@
-from sqlalchemy import create_engine, select
+import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import Base
 from app.models import Assertion, CanonicalEntity
 from app.services.classify_work_targets import apply_classifications, classify_targets
 from app.services.wikidata import upsert_genre
+from tests.postgres_test_db import isolated_postgres_engine
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_classification_uses_supported_type_and_unblocks_only_typed_assertions() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         film = CanonicalEntity(entity_kind="film", canonical_label="Film", wikidata_id="Q1")
@@ -40,7 +45,7 @@ def test_classifier_selects_a_deterministic_type_when_wikidata_returns_multiple_
 
 
 def test_genre_projection_reuses_an_existing_label_for_a_second_wikidata_item() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         first = upsert_genre(db, "Q100", "melodrama")
@@ -50,7 +55,7 @@ def test_genre_projection_reuses_an_existing_label_for_a_second_wikidata_item() 
 
 
 def test_empty_classification_retries_already_typed_film_targets() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         source_film = CanonicalEntity(entity_kind="film", canonical_label="Source", wikidata_id="Q1")

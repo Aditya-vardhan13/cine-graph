@@ -1,13 +1,17 @@
-from sqlalchemy import create_engine
+import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import Base
 from app.models import Assertion, CanonicalEntity, EntityAlias, InsightCard, InsightEvidence
+from tests.postgres_test_db import isolated_postgres_engine
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_typed_assertions_and_language_aliases_preserve_evidence_boundaries() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         film = CanonicalEntity(entity_kind="film", canonical_label="Example Film", wikidata_id="Q1")
@@ -38,12 +42,12 @@ def test_typed_assertions_and_language_aliases_preserve_evidence_boundaries() ->
 
 
 def test_assertions_and_insight_evidence_cannot_be_targetless() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         entity = CanonicalEntity(entity_kind="film", canonical_label="Example Film")
         db.add(entity)
-        db.flush()
+        db.commit()
         db.add(Assertion(subject_entity_id=entity.id, predicate="follows"))
         try:
             db.commit()
@@ -52,6 +56,8 @@ def test_assertions_and_insight_evidence_cannot_be_targetless() -> None:
         else:
             raise AssertionError("targetless assertions must violate the evidence contract")
 
+        entity = db.get(CanonicalEntity, entity.id)
+        assert entity is not None
         insight = InsightCard(
             kind="creative_engine", title="Fixture", writer_question="What persists?",
             explanation="A fixture.", subject_entity_id=entity.id,

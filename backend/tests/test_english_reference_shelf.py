@@ -1,9 +1,14 @@
-from sqlalchemy import create_engine, select
+import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import Base
 from app.models import CanonicalEntity, ReferenceCollectionMembership
 from app.services.english_reference_shelf import Candidate, COLLECTION_CODE, fetch_reference_candidates, ingest_reference_shelf
+from tests.postgres_test_db import isolated_postgres_engine
+
+
+pytestmark = pytest.mark.integration
 
 
 def _row(qid: str, title: str, release: str) -> dict:
@@ -15,7 +20,7 @@ def _row(qid: str, title: str, release: str) -> dict:
 
 
 def test_reference_shelf_is_idempotent_and_retains_selection_signals() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     candidates = [Candidate("Q1", 200), Candidate("Q2", 150)]
     rows = [_row("Q1", "First fixture", "2014-01-01T00:00:00Z"), _row("Q2", "Second fixture", "2020-01-01T00:00:00Z")]

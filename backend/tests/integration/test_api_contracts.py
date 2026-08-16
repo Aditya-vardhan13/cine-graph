@@ -6,7 +6,9 @@ import os
 import httpx
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
 
+from app.services.evidence_preprocessing import build_evidence_chunks, evidence_chunk_quality_report
 
 API_URL = os.environ.get("CINEGRAPH_INTEGRATION_API_URL", "http://127.0.0.1:8001")
 DATABASE_URL = os.environ.get(
@@ -40,7 +42,7 @@ def test_health_and_catalogue_are_served_from_real_postgresql() -> None:
     with create_engine(DATABASE_URL).connect() as connection:
         assert connection.scalar(text("SELECT count(*) FROM films")) == 2
         assert connection.scalar(text("SELECT count(*) FROM film_provenance")) == 2
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260816_11"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260816_12"
         assert connection.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm')")) is True
         assert connection.scalar(text("SELECT to_regclass('public.ix_films_canonical_title_trgm')")) == "ix_films_canonical_title_trgm"
 
@@ -79,3 +81,27 @@ def test_search_detail_comparison_and_lineage_return_evidence_backed_contracts()
     assert len(edges) == 1
     assert edges[0]["target_title"] == "The Dark Knight"
     assert edges[0]["evidence_url"] == "https://www.wikidata.org/wiki/Q163872"
+
+
+def test_preprocessing_uses_real_postgresql_rows_and_preserves_narrative_lineage() -> None:
+    with Session(create_engine(DATABASE_URL)) as db:
+        first = build_evidence_chunks(db, collection_code="integration-narrative-v1")
+        second = build_evidence_chunks(db, collection_code="integration-narrative-v1")
+        report = evidence_chunk_quality_report(db, collection_code="integration-narrative-v1")
+
+    assert first["passages_requested"] == 1
+    assert first["passages_eligible"] == 1
+    assert first["chunks_created"] + first["chunks_reused"] >= 1
+    assert second["chunks_created"] == 0
+    assert second["chunks_reused"] >= 1
+    assert report["quality_status_counts"]["eligible"] >= 1
+    assert report["eligible_chunks_per_film"]["films_with_eligible_chunks"] == 1
+
+    with create_engine(DATABASE_URL).connect() as connection:
+        row = connection.execute(text(
+            "SELECT chunk.source_snapshot_id = passage.source_snapshot_id "
+            "FROM evidence_chunks AS chunk "
+            "JOIN narrative_passages AS passage ON passage.id = chunk.narrative_passage_id "
+            "WHERE chunk.quality_status = 'eligible'"
+        )).scalar_one()
+        assert row is True

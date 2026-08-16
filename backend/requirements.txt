@@ -6,4 +6,5 @@ psycopg[binary]==3.2.3
 pydantic-settings==2.7.0
 httpx==0.28.1
 wikipedia-api==0.15.0
+spacy==3.8.7
 pytest==8.3.4

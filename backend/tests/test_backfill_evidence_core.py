@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, select
+import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import Base
@@ -7,10 +8,14 @@ from app.models import (
     FilmAlias, FilmCredit, LanguageEdition, Person,
 )
 from app.services.backfill_evidence_core import backfill
+from tests.postgres_test_db import isolated_postgres_engine
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_backfill_is_idempotent_and_keeps_external_targets_typed_unknown() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         db.add(LanguageEdition(code="en", display_name="English", native_name="English", script="Latin", enabled=True, status="live"))

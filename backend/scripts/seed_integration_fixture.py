@@ -22,7 +22,12 @@ from app.models import (
     Genre,
     IngestionBatch,
     LanguageEdition,
+    NarrativePassage,
     Person,
+    ReferenceCollection,
+    ReferenceCollectionMembership,
+    SourceObject,
+    SourceSnapshot,
 )
 
 
@@ -90,6 +95,69 @@ def seed() -> None:
                 subject_entity_id=begins_entity.id, object_entity_id=knight_entity.id, object_entity_kind="film",
                 predicate="followed_by", assertion_kind="source_fact", source_id=source.id,
                 source_reference=reference, review_status="published",
+            ),
+        ])
+        wikipedia_source = DataSource(
+            name="Integration Wikipedia narrative fixture",
+            url="https://en.wikipedia.org/",
+            source_type="recorded_test_fixture",
+            license="CC BY-SA 4.0",
+            rights_status="open_with_attribution",
+            notes="Attributable local prose fixture; no external request.",
+        )
+        collection = ReferenceCollection(
+            code="integration-narrative-v1",
+            title="Integration Narrative Collection",
+            description="A one-film attributable fixture used only by the local PostgreSQL integration suite.",
+            language_code="en",
+            selection_method="recorded integration fixture",
+            selection_version="v1",
+        )
+        db.add_all([wikipedia_source, collection])
+        db.flush()
+        source_object = SourceObject(
+            source_id=wikipedia_source.id,
+            external_id="The_Dark_Knight",
+            object_kind="article",
+            canonical_url="https://en.wikipedia.org/wiki/The_Dark_Knight",
+        )
+        db.add(source_object)
+        db.flush()
+        snapshot = SourceSnapshot(
+            source_object_id=source_object.id,
+            canonical_url=source_object.canonical_url,
+            source_revision="integration-revision-1",
+            content_hash="n" * 64,
+            license="CC BY-SA 4.0",
+            attribution_url=source_object.canonical_url,
+            parser_version="fixture-v1",
+        )
+        db.add(snapshot)
+        db.flush()
+        passage_text = (
+            "Batman, Gordon, and Harvey Dent work together to dismantle Gotham's organised crime. "
+            "The Joker turns that campaign into escalating public tests of law, trust, and personal moral limits. "
+            "Dent is presented as the lawful public alternative to Batman, while the antagonist repeatedly forces choices that change the stakes. "
+            "The final decision leaves Batman carrying blame so the city can retain a public symbol of hope."
+        )
+        db.add_all([
+            ReferenceCollectionMembership(
+                collection_code=collection.code,
+                entity_id=knight_entity.id,
+                selection_position=1,
+                selection_signals={"recorded_fixture": True},
+                source_reference=source_object.canonical_url,
+            ),
+            NarrativePassage(
+                subject_entity_id=knight_entity.id,
+                source_snapshot_id=snapshot.id,
+                section_locator="plot",
+                section_title="Plot",
+                ordinal=0,
+                content=passage_text,
+                content_hash="p" * 64,
+                citation_markers=["fixture"],
+                extraction_version="fixture-v1",
             ),
         ])
         db.commit()

@@ -19,4 +19,4 @@ docker compose -f "$compose_file" exec -T api-test env PYTHONPATH=/app python sc
 CINEGRAPH_RUN_INTEGRATION=1 \
 CINEGRAPH_INTEGRATION_API_URL=http://127.0.0.1:8001 \
 CINEGRAPH_TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:5433/cinegraph_test \
-PYTHONPATH=. pytest -m integration tests/integration -q
+PYTHONPATH=. conda run -n "${CINEGRAPH_CONDA_ENV:-cine-graph}" python -m pytest -m integration tests -q

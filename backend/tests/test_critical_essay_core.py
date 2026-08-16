@@ -3,7 +3,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -15,7 +15,9 @@ from app.models import (
     CriticalWork,
     CriticalWorkSubject,
     DataSource,
+    LanguageEdition,
     RawIngestionRun,
+    ReferenceCollection,
     ReferenceCollectionMembership,
     SourceAssertion,
     SourceObject,
@@ -26,10 +28,30 @@ from app.services.critical_work_manifest import CriticalManifestError, import_ma
 from app.services import openalex_critical_discovery
 from app.services import crossref_critical_discovery
 from app.services.repair_canonical_entities import repair_unknown_films
+from tests.postgres_test_db import isolated_postgres_engine
+
+
+pytestmark = pytest.mark.integration
+
+
+def add_fixture_collection(db: Session, code: str) -> None:
+    if db.get(LanguageEdition, "en") is None:
+        db.add(LanguageEdition(
+            code="en", display_name="English", native_name="English", script="Latin", enabled=True, status="live",
+        ))
+    db.add(ReferenceCollection(
+        code=code,
+        title=f"{code} fixture collection",
+        description="A local PostgreSQL test collection.",
+        language_code="en",
+        selection_method="recorded fixture",
+        selection_version="v1",
+    ))
+    db.flush()
 
 
 def test_critical_source_registry_is_idempotent_and_policy_only() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         first = register_critical_sources(db)
@@ -46,7 +68,7 @@ def test_critical_source_registry_is_idempotent_and_policy_only() -> None:
 
 
 def test_reusable_critical_work_requires_a_licensed_snapshot() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         source = DataSource(name="Fixture criticism", url="https://fixture.test", source_type="essay", license="CC BY", rights_status="review_required")
@@ -70,7 +92,7 @@ def test_reusable_critical_work_requires_a_licensed_snapshot() -> None:
 
 
 def test_link_only_claim_stays_attributed_and_requires_an_anchor_target() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         source = DataSource(name="Fixture criticism", url="https://fixture.test", source_type="essay", license="Author retained", rights_status="metadata_link_only")
@@ -109,7 +131,7 @@ def test_link_only_claim_stays_attributed_and_requires_an_anchor_target() -> Non
 
 
 def test_metadata_manifest_links_a_work_to_existing_canonical_films(tmp_path) -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     manifest = tmp_path / "critical-pilot.json"
     manifest.write_text(json.dumps({
@@ -139,7 +161,7 @@ def test_metadata_manifest_links_a_work_to_existing_canonical_films(tmp_path) ->
 
 
 def test_metadata_manifest_refuses_full_text_without_acquisition_path(tmp_path) -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     manifest = tmp_path / "not-metadata-only.json"
     manifest.write_text(json.dumps({"manifest_version": "critical-pilot-v1", "works": []}), encoding="utf-8")
@@ -178,7 +200,7 @@ def test_openalex_discovery_creates_review_candidates_but_never_fetches_full_tex
         queried_titles.append(title)
         return [recorded_work] if title == "The Matrix" else []
 
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         matrix = CanonicalEntity(entity_kind="film", canonical_label="The Matrix", wikidata_id="Q83495")
@@ -186,6 +208,7 @@ def test_openalex_discovery_creates_review_candidates_but_never_fetches_full_tex
         no_match = CanonicalEntity(entity_kind="film", canonical_label="No Match Film", wikidata_id="Q998")
         db.add_all([matrix, her, no_match])
         db.flush()
+        add_fixture_collection(db, "fixture-collection")
         db.add_all([
             ReferenceCollectionMembership(collection_code="fixture-collection", entity_id=matrix.id, selection_position=1, selection_signals={}, source_reference="fixture"),
             ReferenceCollectionMembership(collection_code="fixture-collection", entity_id=her.id, selection_position=2, selection_signals={}, source_reference="fixture"),
@@ -234,12 +257,13 @@ def test_crossref_discovery_retains_bibliographic_metadata_not_abstracts(tmp_pat
     assert recorded_work is not None
     assert "abstract" not in recorded_work
 
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         film = CanonicalEntity(entity_kind="film", canonical_label="The Godfather", wikidata_id="Q47703")
         db.add(film)
         db.flush()
+        add_fixture_collection(db, "fixture-crossref")
         db.add(ReferenceCollectionMembership(
             collection_code="fixture-crossref", entity_id=film.id, selection_position=1,
             selection_signals={}, source_reference="fixture",
@@ -269,13 +293,14 @@ def test_crossref_timeout_is_recorded_and_does_not_abort_other_titles(tmp_path) 
             raise httpx.ReadTimeout("fixture timeout")
         return []
 
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         timeout = CanonicalEntity(entity_kind="film", canonical_label="Timeout Film", wikidata_id="Qtimeout")
         empty = CanonicalEntity(entity_kind="film", canonical_label="Empty Film", wikidata_id="Qempty")
         db.add_all([timeout, empty])
         db.flush()
+        add_fixture_collection(db, "fixture-timeout")
         db.add_all([
             ReferenceCollectionMembership(collection_code="fixture-timeout", entity_id=timeout.id, selection_position=1, selection_signals={}, source_reference="fixture"),
             ReferenceCollectionMembership(collection_code="fixture-timeout", entity_id=empty.id, selection_position=2, selection_signals={}, source_reference="fixture"),
@@ -295,7 +320,7 @@ def test_crossref_timeout_is_recorded_and_does_not_abort_other_titles(tmp_path) 
 
 
 def test_canonical_repair_uses_retained_wikidata_p31_not_title_guessing() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         source = DataSource(name="Wikidata fixture", url="https://wikidata.org", source_type="metadata", license="CC0", rights_status="open")

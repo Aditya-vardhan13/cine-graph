@@ -8,6 +8,7 @@ FORBIDDEN_TEST_DOUBLES = (
     "MagicMock(",
     "responses.activate",
     "respx.mock",
+    "sqlite:",
 )
 
 

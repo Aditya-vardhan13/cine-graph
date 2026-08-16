@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, select
+import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import Base
@@ -6,10 +7,14 @@ from app.models import CorpusRecord, Film, FilmReleaseEvent
 from app.services.cmu_movie_summaries import source_for_cmu
 from app.services.cmu_wikidata_reconcile import reconcile_cmu_records
 from app.services.wikidata import ingest
+from tests.postgres_test_db import isolated_postgres_engine
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_reconciles_only_an_exact_freebase_identifier_match() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         source = source_for_cmu(db)
@@ -44,7 +49,7 @@ def test_reconciles_only_an_exact_freebase_identifier_match() -> None:
 
 
 def test_marks_ambiguous_freebase_mappings_for_review() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         source = source_for_cmu(db)
@@ -73,7 +78,7 @@ def test_marks_ambiguous_freebase_mappings_for_review() -> None:
 
 
 def test_merges_release_places_for_the_same_source_date() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         base = {

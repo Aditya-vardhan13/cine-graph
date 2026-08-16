@@ -2,7 +2,8 @@ import json
 from pathlib import Path
 from urllib.parse import urlparse
 
-from sqlalchemy import create_engine, select
+import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import Base
@@ -14,10 +15,14 @@ from app.services import raw_snapshots
 from app.services.wikidata_raw import entities_from_response, ingest_entities, wikidata_api_policy
 from app.services.wikipedia_raw import page_lookup_record
 from app.services.evaluation_ingestion import qids_from_wikipedia_run
+from tests.postgres_test_db import isolated_postgres_engine
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_raw_snapshots_are_immutable_and_statements_are_replayable(tmp_path) -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     entity = {
         "id": "Q42",
@@ -41,7 +46,7 @@ def test_raw_snapshots_are_immutable_and_statements_are_replayable(tmp_path) -> 
         assert json.loads(Path(urlparse(stored.storage_uri).path).read_text())["id"] == "Q42"
         assert sorted(item.disposition for item in links) == ["created", "reused"]
         assert [(item.source_property, item.statement_locator, item.source_rank) for item in assertions] == [
-            ("P577", "claims.P577[0]", "normal"), ("P57", "claims.P57[0]", "preferred"),
+            ("P57", "claims.P57[0]", "preferred"), ("P577", "claims.P577[0]", "normal"),
         ]
         policy = wikidata_api_policy(db, db.scalar(select(DataSource).where(DataSource.name == "Wikidata")))
         assert policy.decision == "allowed"
@@ -49,7 +54,7 @@ def test_raw_snapshots_are_immutable_and_statements_are_replayable(tmp_path) -> 
 
 
 def test_normalized_claim_requires_a_retained_source_assertion() -> None:
-    engine = create_engine("sqlite://")
+    engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         source = DataSource(name="Fixture", url="https://fixture.test", source_type="metadata", license="CC0", rights_status="open")

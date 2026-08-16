@@ -106,7 +106,8 @@ before the preprocessing gate is declared complete.
 ## Required gates before embeddings
 
 1. The full test suite has no SQLite database path for persistence behaviour
-   and no mock/patch framework usage.
+   and no mock/patch framework usage. Persistence-level tests run in isolated
+   schemas inside `cinegraph_test`, while pure-policy tests remain database-free.
 2. A clean local PostgreSQL test database migrates from revision zero to
    `head`.
 3. API contract tests exercise `/health`, `/api/v1/health`, title search,
@@ -116,3 +117,21 @@ before the preprocessing gate is declared complete.
 5. A query-count and latency baseline is recorded for the hot endpoints.
 6. Only after the above passes may preprocessing create `EvidenceChunk` rows;
    only after its quality gate passes may a local embedding model be started.
+
+## Local baseline before embeddings (2026-08-16)
+
+Measured against the local Docker API and PostgreSQL corpus (1,226 films; the
+explicit preprocessing collection contains 1,000 films). These are single warm
+local measurements, not production SLOs; they establish a regression point for
+the current query plans:
+
+| Endpoint | HTTP status | Wall time |
+| --- | ---: | ---: |
+| `/api/v1/health` | 200 | 92 ms |
+| title search (`harry potter`, limit 7) | 200 | 13 ms |
+| film detail | 200 | 47 ms |
+| comparison | 200 | 16 ms |
+| lineage | 200 | 19 ms |
+
+The first vector-retrieval implementation must repeat this measurement with a
+fixed query set and report p50/p95 separately from these baseline endpoints.

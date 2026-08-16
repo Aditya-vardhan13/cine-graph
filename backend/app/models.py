@@ -637,6 +637,83 @@ class NarrativePassage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class EvidenceChunkRun(Base):
+    """One resumable, versioned materialisation of a collection's narrative evidence.
+
+    A run records the exact chunking configuration rather than an embedding
+    model.  This makes the textual derivative reproducible and independently
+    auditable before any vector is created.
+    """
+
+    __tablename__ = "evidence_chunk_runs"
+    __table_args__ = (
+        UniqueConstraint(
+            "collection_code", "language_code", "chunker_version", "configuration_hash",
+            name="uq_evidence_chunk_run_configuration",
+        ),
+        CheckConstraint(
+            "status IN ('running', 'complete', 'failed')",
+            name="ck_evidence_chunk_run_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    collection_code: Mapped[str] = mapped_column(ForeignKey("reference_collections.code"), nullable=False, index=True)
+    language_code: Mapped[str] = mapped_column(ForeignKey("language_editions.code"), nullable=False, index=True)
+    chunker_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    configuration: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    configuration_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="running")
+    passages_requested: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    passages_eligible: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    chunks_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    chunks_reused: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    chunks_excluded: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_summary: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EvidenceChunk(Base):
+    """A source-linked, embeddable derivative of one licensed narrative passage.
+
+    Chunks are contextual evidence only.  They cannot be used as a published
+    fact or a typed graph edge without separate source-backed review.
+    """
+
+    __tablename__ = "evidence_chunks"
+    __table_args__ = (
+        UniqueConstraint(
+            "narrative_passage_id", "chunk_ordinal", "chunker_version", "configuration_hash",
+            name="uq_evidence_chunk_passage_ordinal_version",
+        ),
+        CheckConstraint(
+            "quality_status IN ('eligible', 'duplicate', 'excluded')",
+            name="ck_evidence_chunk_quality_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    preprocessing_run_id: Mapped[UUID] = mapped_column(ForeignKey("evidence_chunk_runs.id"), nullable=False, index=True)
+    narrative_passage_id: Mapped[UUID] = mapped_column(ForeignKey("narrative_passages.id"), nullable=False, index=True)
+    subject_entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    source_snapshot_id: Mapped[UUID] = mapped_column(ForeignKey("source_snapshots.id"), nullable=False, index=True)
+    language_code: Mapped[str] = mapped_column(ForeignKey("language_editions.code"), nullable=False, index=True)
+    section_locator: Mapped[str] = mapped_column(Text, nullable=False)
+    section_title: Mapped[str] = mapped_column(Text, nullable=False)
+    chunk_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    word_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    token_count_estimate: Mapped[int] = mapped_column(Integer, nullable=False)
+    sentence_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    quality_status: Mapped[str] = mapped_column(String(30), nullable=False, default="eligible", index=True)
+    quality_flags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    duplicate_of_chunk_id: Mapped[UUID | None] = mapped_column(ForeignKey("evidence_chunks.id"), index=True)
+    chunker_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    configuration_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ResearchAnswer(Base):
     """A reviewable answer to a declared CineGraph research question.
 
