@@ -144,7 +144,12 @@ def wikipedia_title_year_search_ids(title: str, year: int) -> list[str]:
     return wikipedia_search_ids(f"{title} {year} film")
 
 
-def multi_source_search_ids(title: str) -> list[str]:
+def multi_source_search_ids(
+    title: str,
+    *,
+    search_routes: tuple[Callable[[str], list[str]], ...] | None = None,
+    delay_seconds: float | None = None,
+) -> list[str]:
     """Union all discovery routes; retained for direct diagnostic use.
 
     The bulk resolver uses the English route first and calls the other routes
@@ -152,11 +157,13 @@ def multi_source_search_ids(title: str) -> list[str]:
     traffic while preserving the independent-source fallback.
     """
     candidates: list[str] = []
-    for searcher in (search_ids, multilingual_search_ids, wikipedia_search_ids):
+    for searcher in search_routes or (search_ids, multilingual_search_ids, wikipedia_search_ids):
         for qid in searcher(title):
             if qid not in candidates:
                 candidates.append(qid)
-        time.sleep(request_interval_seconds())
+        wait = request_interval_seconds() if delay_seconds is None else delay_seconds
+        if wait > 0:
+            time.sleep(wait)
     return candidates
 
 
@@ -165,6 +172,8 @@ def resolve_entries(
     *,
     searcher: Callable[[str], list[str]] = search_ids,
     fetcher: Callable[[list[str]], dict[str, dict[str, Any]]] = fetch_entities,
+    fallback_searchers: tuple[Callable[[str, int], list[str]], ...] | None = None,
+    delay_seconds: float | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Resolve title/year selections with cheap-first, auditable fallbacks.
 
@@ -182,7 +191,9 @@ def resolve_entries(
         if (index + 1) % 10 == 0 or index + 1 == len(entries):
             print(f"resolution primary search: {index + 1}/{len(entries)}", flush=True)
         if index + 1 < len(entries):
-            time.sleep(request_interval_seconds())
+            wait = request_interval_seconds() if delay_seconds is None else delay_seconds
+            if wait > 0:
+                time.sleep(wait)
     entities = fetcher(sorted(all_ids))
     selected: dict[int, dict[str, Any]] = {}
     for index, entry in enumerate(entries):
@@ -205,21 +216,25 @@ def resolve_entries(
     for ordinal, index in enumerate((index for index in range(len(entries)) if index not in selected), start=1):
         entry = entries[index]
         ids: list[str] = []
-        fallback_searches = (
-            lambda: multilingual_search_ids(str(entry["title"])),
-            lambda: wikipedia_search_ids(str(entry["title"])),
-            lambda: wikipedia_title_year_search_ids(str(entry["title"]), int(entry["release_year"])),
+        fallback_searches = fallback_searchers or (
+            lambda title, _year: multilingual_search_ids(title),
+            lambda title, _year: wikipedia_search_ids(title),
+            wikipedia_title_year_search_ids,
         )
         for fallback in fallback_searches:
-            for qid in fallback():
+            for qid in fallback(str(entry["title"]), int(entry["release_year"])):
                 if qid not in ids:
                     ids.append(qid)
-            time.sleep(request_interval_seconds())
+            wait = request_interval_seconds() if delay_seconds is None else delay_seconds
+            if wait > 0:
+                time.sleep(wait)
         fallback_ids[index] = ids
         if ordinal % 5 == 0 or ordinal == len(entries) - len(selected):
             print(f"resolution fallback search: {ordinal}/{len(entries) - len(selected)}", flush=True)
         if ordinal < len(entries) - len(selected):
-            time.sleep(request_interval_seconds())
+            wait = request_interval_seconds() if delay_seconds is None else delay_seconds
+            if wait > 0:
+                time.sleep(wait)
     fallback_entities = fetcher(sorted({qid for ids in fallback_ids.values() for qid in ids})) if fallback_ids else {}
     for index, ids in fallback_ids.items():
         entry = entries[index]

@@ -1,4 +1,3 @@
-import app.services.wikidata_selection_resolution as resolution
 from app.services.wikidata_selection_resolution import multi_source_search_ids, resolve_entries
 
 
@@ -24,28 +23,30 @@ def test_resolver_rejects_a_same_title_nonfilm_before_wikipedia_fetch() -> None:
     assert resolved[0]["wikipedia_title"] == "Interstellar (film)"
 
 
-def test_multi_source_search_unions_independent_title_routes(monkeypatch) -> None:
-    monkeypatch.setattr(resolution, "search_ids", lambda _: ["Q1", "Q2"])
-    monkeypatch.setattr(resolution, "multilingual_search_ids", lambda _: ["Q2", "Q3"])
-    monkeypatch.setattr(resolution, "wikipedia_search_ids", lambda _: ["Q3", "Q4"])
-    monkeypatch.setattr(resolution.time, "sleep", lambda _: None)
-    assert multi_source_search_ids("Sen to Chihiro no kamikakushi") == ["Q1", "Q2", "Q3", "Q4"]
+def test_multi_source_search_unions_independent_title_routes() -> None:
+    assert multi_source_search_ids(
+        "Sen to Chihiro no kamikakushi",
+        search_routes=(lambda _: ["Q1", "Q2"], lambda _: ["Q2", "Q3"], lambda _: ["Q3", "Q4"]),
+        delay_seconds=0,
+    ) == ["Q1", "Q2", "Q3", "Q4"]
 
 
-def test_resolver_uses_multilingual_and_wikipedia_routes_only_for_primary_misses(monkeypatch) -> None:
+def test_resolver_uses_multilingual_and_wikipedia_routes_only_for_primary_misses() -> None:
     first = _film("Qfirst", "Interstellar", 2014, "Interstellar (film)")
     fallback = _film("Qfallback", "Spirited Away", 2001, "Spirited Away")
-    monkeypatch.setattr(resolution, "search_ids", lambda title: ["Qfirst"] if title == "Interstellar" else [])
-    monkeypatch.setattr(resolution, "multilingual_search_ids", lambda title: ["Qfallback"] if title == "Sen to Chihiro no kamikakushi" else [])
-    monkeypatch.setattr(resolution, "wikipedia_search_ids", lambda _: [])
-    monkeypatch.setattr(resolution.time, "sleep", lambda _: None)
     resolved, unresolved = resolve_entries(
         [
             {"position": 1, "title": "Interstellar", "release_year": 2014},
             {"position": 2, "title": "Sen to Chihiro no kamikakushi", "release_year": 2001},
         ],
-        searcher=resolution.search_ids,
+        searcher=lambda title: ["Qfirst"] if title == "Interstellar" else [],
         fetcher=lambda _: {"Qfirst": first, "Qfallback": fallback},
+        fallback_searchers=(
+            lambda title, _year: ["Qfallback"] if title == "Sen to Chihiro no kamikakushi" else [],
+            lambda _title, _year: [],
+            lambda _title, _year: [],
+        ),
+        delay_seconds=0,
     )
     assert unresolved == []
     assert [entry["wikidata_id"] for entry in resolved] == ["Qfirst", "Qfallback"]

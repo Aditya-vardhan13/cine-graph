@@ -21,11 +21,17 @@ def sha256(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def store_payload(source_id: UUID, payload: bytes, suffix: str = ".json") -> tuple[str, str]:
+def store_payload(
+    source_id: UUID,
+    payload: bytes,
+    suffix: str = ".json",
+    *,
+    root: str | Path | None = None,
+) -> tuple[str, str]:
     """Write once by content hash and return a portable file URI and hash."""
     digest = sha256(payload)
-    root = Path(get_settings().raw_snapshot_root).expanduser().resolve()
-    target = root / str(source_id) / digest[:2] / f"{digest}{suffix}"
+    snapshot_root = Path(root or get_settings().raw_snapshot_root).expanduser().resolve()
+    target = snapshot_root / str(source_id) / digest[:2] / f"{digest}{suffix}"
     target.parent.mkdir(parents=True, exist_ok=True)
     if not target.exists():
         target.write_bytes(payload)
@@ -69,8 +75,9 @@ def snapshot(
     attribution_url: str | None,
     media_type: str = "application/json",
     parser_version: str | None = None,
+    storage_root: str | Path | None = None,
 ) -> tuple[SourceSnapshot, bool]:
-    storage_uri, content_hash = store_payload(item.source_id, payload)
+    storage_uri, content_hash = store_payload(item.source_id, payload, root=storage_root)
     existing = db.scalar(select(SourceSnapshot).where(
         SourceSnapshot.source_object_id == item.id,
         SourceSnapshot.source_revision == source_revision,

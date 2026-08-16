@@ -13,7 +13,8 @@ import re
 import time
 import unicodedata
 from datetime import datetime, timezone
-from typing import Any, Iterable
+from pathlib import Path
+from typing import Any, Callable, Iterable
 
 import httpx
 from sqlalchemy import func, select
@@ -256,7 +257,14 @@ def compact_metadata(work: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def snapshot_work(db: Session, *, source: DataSource, run: RawIngestionRun, work: dict[str, Any]) -> tuple[Any, bool]:
+def snapshot_work(
+    db: Session,
+    *,
+    source: DataSource,
+    run: RawIngestionRun,
+    work: dict[str, Any],
+    storage_root: str | Path | None = None,
+) -> tuple[Any, bool]:
     identifier = work_id(work)
     url = work_url(work)
     item = source_object(db, source=source, external_id=f"openalex:{identifier}", object_kind="scholarly_work_metadata", canonical_url=url)
@@ -271,6 +279,7 @@ def snapshot_work(db: Session, *, source: DataSource, run: RawIngestionRun, work
         license="CC0 1.0",
         attribution_url=url,
         parser_version=ADAPTER_VERSION,
+        storage_root=storage_root,
     )
     if created:
         source_assertion(
@@ -330,6 +339,9 @@ def discover(
     limit: int | None = None,
     progress_every: int = 25,
     client: httpx.Client | None = None,
+    work_fetcher: Callable[[str], list[dict[str, Any]]] | None = None,
+    storage_root: str | Path | None = None,
+    delay_seconds: float | None = None,
 ) -> dict[str, int]:
     source = source_for_openalex(db)
     policy = openalex_api_policy(db, source)
@@ -353,11 +365,11 @@ def discover(
     db.flush()
     db.commit()
     stats = {"queried": 0, "skipped_ambiguous": 0, "no_candidates": 0, "candidates": 0, "snapshots": 0}
-    owns_client = client is None
-    http_client = client or httpx.Client(
+    owns_client = client is None and work_fetcher is None
+    http_client = client or (httpx.Client(
         timeout=60,
         headers={"User-Agent": get_settings().wikidata_user_agent, "Accept-Encoding": "gzip, deflate"},
-    )
+    ) if work_fetcher is None else None)
     try:
         for position, entity in enumerate(entities, start=1):
             title = entity.canonical_label
@@ -365,14 +377,16 @@ def discover(
                 upsert_query(db, entity=entity, run=run, status="skipped_ambiguous", candidates_found=0)
                 stats["skipped_ambiguous"] += 1
             else:
-                works = fetch_works(http_client, title)
+                works = work_fetcher(title) if work_fetcher is not None else fetch_works(http_client, title)
                 stats["queried"] += 1
                 accepted = 0
                 for work in works:
                     match = work_title_match(title, work)
                     if match is None:
                         continue
-                    stored_snapshot, created_snapshot = snapshot_work(db, source=source, run=run, work=work)
+                    stored_snapshot, created_snapshot = snapshot_work(
+                        db, source=source, run=run, work=work, storage_root=storage_root,
+                    )
                     if created_snapshot:
                         stats["snapshots"] += 1
                     method, score = match
@@ -407,7 +421,9 @@ def discover(
                     stats["no_candidates"] += 1
                 stats["candidates"] += accepted
                 if position < len(entities):
-                    time.sleep(get_settings().openalex_request_interval_seconds)
+                    wait = get_settings().openalex_request_interval_seconds if delay_seconds is None else delay_seconds
+                    if wait > 0:
+                        time.sleep(wait)
             if position % progress_every == 0 or position == len(entities):
                 run.records_snapshotted = stats["snapshots"]
                 db.commit()
@@ -427,7 +443,7 @@ def discover(
         db.commit()
         raise
     finally:
-        if owns_client:
+        if owns_client and http_client is not None:
             http_client.close()
 
 

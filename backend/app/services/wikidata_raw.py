@@ -11,6 +11,7 @@ import json
 import re
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -53,6 +54,17 @@ def wikidata_api_policy(db: Session, source: DataSource) -> SourceAccessPolicy:
     return policy
 
 
+def entities_from_response(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Extract valid entities from a retained Wikidata API payload."""
+    raw_entities = payload.get("entities", {})
+    entity_values = raw_entities.values() if isinstance(raw_entities, dict) else raw_entities
+    return {
+        entity["id"]: entity
+        for entity in entity_values
+        if isinstance(entity, dict) and entity.get("id") and "missing" not in entity
+    }
+
+
 def fetch_entities(qids: list[str]) -> dict[str, dict[str, Any]]:
     if not qids or any(not QID.fullmatch(qid) for qid in qids):
         raise RawWikidataError("A raw Wikidata run requires one or more QIDs.")
@@ -70,11 +82,7 @@ def fetch_entities(qids: list[str]) -> dict[str, dict[str, Any]]:
             if response.status_code == 429:
                 raise RawWikidataError("Wikidata rate-limited the run; stop and retry after the supplied delay.")
             response.raise_for_status()
-            raw_entities = response.json().get("entities", {})
-            entity_values = raw_entities.values() if isinstance(raw_entities, dict) else raw_entities
-            for entity in entity_values:
-                if entity.get("id") and "missing" not in entity:
-                    entities[entity["id"]] = entity
+            entities.update(entities_from_response(response.json()))
             if start + 50 < len(qids):
                 time.sleep(1)
     return entities
@@ -103,7 +111,13 @@ def extract_assertions(db: Session, snapshot_id, entity: dict[str, Any]) -> int:
     return inserted
 
 
-def ingest_entities(db: Session, entities: dict[str, dict[str, Any]], manifest_uri: str | None = None) -> dict[str, int]:
+def ingest_entities(
+    db: Session,
+    entities: dict[str, dict[str, Any]],
+    manifest_uri: str | None = None,
+    *,
+    snapshot_root: str | Path | None = None,
+) -> dict[str, int]:
     source: DataSource = source_for_wikidata(db)
     policy = wikidata_api_policy(db, source)
     if policy.decision != "allowed":
@@ -133,6 +147,7 @@ def ingest_entities(db: Session, entities: dict[str, dict[str, Any]], manifest_u
             db, item=item, run=run, payload=payload, source_revision=source_revision,
             canonical_url=f"{SOURCE_URL}wiki/{qid}", license="CC0 1.0",
             attribution_url=f"{SOURCE_URL}wiki/{qid}", parser_version=ADAPTER_VERSION,
+            storage_root=snapshot_root,
         )
         if not created:
             continue

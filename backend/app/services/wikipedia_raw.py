@@ -38,6 +38,19 @@ class RawWikipediaError(RuntimeError):
     pass
 
 
+def page_lookup_record(title: str, page: Any) -> dict[str, Any] | None:
+    """Convert one resolved wikipedia-api page into a stable local record."""
+    if not page.exists():
+        return None
+    return {
+        "requested_title": title,
+        "resolved_title": page.title,
+        "pageid": page.pageid,
+        "fullurl": page.fullurl,
+        "section_titles": [section.title for section in page.sections],
+    }
+
+
 def source_for_wikipedia(db: Session) -> DataSource:
     source = db.scalar(select(DataSource).where(DataSource.name == SOURCE_NAME))
     if source:
@@ -89,15 +102,7 @@ def page_lookup(title: str) -> dict[str, Any] | None:
         extract_format=wikipediaapi.ExtractFormat.WIKI,
     )
     page = wiki.page(title)
-    if not page.exists():
-        return None
-    return {
-        "requested_title": title,
-        "resolved_title": page.title,
-        "pageid": page.pageid,
-        "fullurl": page.fullurl,
-        "section_titles": [section.title for section in page.sections],
-    }
+    return page_lookup_record(title, page)
 
 
 def revision_payload(title: str) -> dict[str, Any] | None:

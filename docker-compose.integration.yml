@@ -1,0 +1,37 @@
+name: cinegraph-integration
+
+services:
+  db-test:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: cinegraph_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - cinegraph_test_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cinegraph_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api-test:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db-test:5432/cinegraph_test
+      API_CORS_ORIGINS: http://localhost:3001
+      RAW_SNAPSHOT_ROOT: /var/lib/cinegraph-test/raw-snapshots
+      ENVIRONMENT: integration
+    ports:
+      - "8001:8000"
+    volumes:
+      - cinegraph_test_raw_snapshots:/var/lib/cinegraph-test/raw-snapshots
+    depends_on:
+      db-test:
+        condition: service_healthy
+
+volumes:
+  cinegraph_test_postgres_data:
+  cinegraph_test_raw_snapshots:

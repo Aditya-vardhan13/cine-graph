@@ -12,7 +12,8 @@ import hashlib
 import json
 import time
 from datetime import datetime, timezone
-from typing import Any
+from pathlib import Path
+from typing import Any, Callable
 
 import httpx
 from sqlalchemy import func, select
@@ -163,7 +164,14 @@ def compact_metadata(work: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def snapshot_work(db: Session, *, source: DataSource, run: RawIngestionRun, work: dict[str, Any]) -> tuple[Any, bool]:
+def snapshot_work(
+    db: Session,
+    *,
+    source: DataSource,
+    run: RawIngestionRun,
+    work: dict[str, Any],
+    storage_root: str | Path | None = None,
+) -> tuple[Any, bool]:
     doi = work["DOI"]
     url = str(work["URL"])
     item = source_object(db, source=source, external_id=f"crossref:{doi}", object_kind="scholarly_work_metadata", canonical_url=url)
@@ -178,6 +186,7 @@ def snapshot_work(db: Session, *, source: DataSource, run: RawIngestionRun, work
         license="CC0 bibliographic metadata; individual work rights unverified",
         attribution_url=url,
         parser_version=ADAPTER_VERSION,
+        storage_root=storage_root,
     )
     if created:
         source_assertion(
@@ -201,6 +210,9 @@ def discover(
     limit: int | None = None,
     progress_every: int = 25,
     client: httpx.Client | None = None,
+    work_fetcher: Callable[[str], list[dict[str, Any]]] | None = None,
+    storage_root: str | Path | None = None,
+    delay_seconds: float | None = None,
 ) -> dict[str, int]:
     source = source_for_crossref(db)
     policy = crossref_api_policy(db, source)
@@ -226,11 +238,11 @@ def discover(
     db.flush()
     db.commit()
     stats = {"queried": 0, "skipped_ambiguous": 0, "timeouts": 0, "no_candidates": 0, "candidates": 0, "snapshots": 0}
-    owns_client = client is None
-    http_client = client or httpx.Client(
+    owns_client = client is None and work_fetcher is None
+    http_client = client or (httpx.Client(
         timeout=60,
         headers={"User-Agent": get_settings().wikidata_user_agent, "Accept-Encoding": "gzip, deflate"},
-    )
+    ) if work_fetcher is None else None)
     try:
         for position, entity in enumerate(entities, start=1):
             title = entity.canonical_label
@@ -242,7 +254,7 @@ def discover(
                 stats["skipped_ambiguous"] += 1
             else:
                 try:
-                    works = fetch_works(http_client, title)
+                    works = work_fetcher(title) if work_fetcher is not None else fetch_works(http_client, title)
                 except httpx.TimeoutException as exc:
                     # One slow record must not prevent the rest of a bounded,
                     # sequential queue from finishing. Keep this title visibly
@@ -260,7 +272,9 @@ def discover(
                         match = title_match(title, work)
                         if match is None:
                             continue
-                        stored_snapshot, created_snapshot = snapshot_work(db, source=source, run=run, work=work)
+                        stored_snapshot, created_snapshot = snapshot_work(
+                            db, source=source, run=run, work=work, storage_root=storage_root,
+                        )
                         if created_snapshot:
                             stats["snapshots"] += 1
                         method, score = match
@@ -291,7 +305,9 @@ def discover(
                     if not accepted:
                         stats["no_candidates"] += 1
                 if position < len(entities):
-                    time.sleep(get_settings().crossref_request_interval_seconds)
+                    wait = get_settings().crossref_request_interval_seconds if delay_seconds is None else delay_seconds
+                    if wait > 0:
+                        time.sleep(wait)
             if position % progress_every == 0 or position == len(entities):
                 run.records_snapshotted = stats["snapshots"]
                 db.commit()
@@ -311,7 +327,7 @@ def discover(
         db.commit()
         raise
     finally:
-        if owns_client:
+        if owns_client and http_client is not None:
             http_client.close()
 
 

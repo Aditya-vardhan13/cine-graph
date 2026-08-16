@@ -11,15 +11,14 @@ from app.models import (
     RawIngestionRunSnapshot, SourceAssertion, SourceObject, SourceSnapshot,
 )
 from app.services import raw_snapshots
-from app.services.wikidata_raw import fetch_entities, ingest_entities, wikidata_api_policy
-from app.services.wikipedia_raw import page_lookup
+from app.services.wikidata_raw import entities_from_response, ingest_entities, wikidata_api_policy
+from app.services.wikipedia_raw import page_lookup_record
 from app.services.evaluation_ingestion import qids_from_wikipedia_run
 
 
-def test_raw_snapshots_are_immutable_and_statements_are_replayable(tmp_path, monkeypatch) -> None:
+def test_raw_snapshots_are_immutable_and_statements_are_replayable(tmp_path) -> None:
     engine = create_engine("sqlite://")
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(raw_snapshots.get_settings(), "raw_snapshot_root", str(tmp_path))
     entity = {
         "id": "Q42",
         "lastrevid": 123,
@@ -30,8 +29,8 @@ def test_raw_snapshots_are_immutable_and_statements_are_replayable(tmp_path, mon
         },
     }
     with Session(engine) as db:
-        first = ingest_entities(db, {"Q42": entity})
-        second = ingest_entities(db, {"Q42": entity})
+        first = ingest_entities(db, {"Q42": entity}, snapshot_root=tmp_path)
+        second = ingest_entities(db, {"Q42": entity}, snapshot_root=tmp_path)
         stored = db.scalar(select(SourceSnapshot))
         assertions = list(db.scalars(select(SourceAssertion).order_by(SourceAssertion.statement_locator)))
         links = list(db.scalars(select(RawIngestionRunSnapshot).order_by(RawIngestionRunSnapshot.disposition)))
@@ -74,34 +73,13 @@ def test_normalized_claim_requires_a_retained_source_assertion() -> None:
         assert db.scalar(select(ClaimEvidence)) is not None
 
 
-def test_wikidata_fetch_accepts_the_api_entity_dictionary(monkeypatch) -> None:
-    class Response:
-        status_code = 200
-
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict:
-            return {"entities": {"Q42": {"id": "Q42", "claims": {}}}}
-
-    class Client:
-        def __init__(self, **kwargs) -> None:
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args) -> None:
-            return None
-
-        def get(self, *args, **kwargs) -> Response:
-            return Response()
-
-    monkeypatch.setattr("app.services.wikidata_raw.httpx.Client", Client)
-    assert fetch_entities(["Q42"]) == {"Q42": {"id": "Q42", "claims": {}}}
+def test_wikidata_response_parser_accepts_the_api_entity_dictionary() -> None:
+    assert entities_from_response({"entities": {"Q42": {"id": "Q42", "claims": {}}}}) == {
+        "Q42": {"id": "Q42", "claims": {}},
+    }
 
 
-def test_wikipedia_lookup_uses_wikipedia_api(monkeypatch) -> None:
+def test_wikipedia_page_record_preserves_resolved_page_shape() -> None:
     class Page:
         title = "Fixture Film"
         pageid = 42
@@ -111,13 +89,7 @@ def test_wikipedia_lookup_uses_wikipedia_api(monkeypatch) -> None:
         def exists(self) -> bool:
             return True
 
-    class Wiki:
-        def page(self, title: str) -> Page:
-            assert title == "Fixture Film"
-            return Page()
-
-    monkeypatch.setattr("app.services.wikipedia_raw.wikipediaapi.Wikipedia", lambda **kwargs: Wiki())
-    assert page_lookup("Fixture Film") == {
+    assert page_lookup_record("Fixture Film", Page()) == {
         "requested_title": "Fixture Film", "resolved_title": "Fixture Film", "pageid": 42,
         "fullurl": "https://en.wikipedia.org/wiki/Fixture_Film", "section_titles": ["Plot", "Cast"],
     }
