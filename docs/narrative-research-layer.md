@@ -59,6 +59,37 @@ That is 502 passages, 44 curated research answers and 230 passage-level
 evidence links, all from retained CC BY-SA 4.0 English Wikipedia revisions.
 The figures are reproducible with `app.services.wikipedia_research --quality`.
 
+## Full English-1,000 extraction milestone
+
+The same extraction contract has been applied to every film in the vetted
+English-1,000 selection. It is a local database milestone, not a claim that all
+films have the same depth of editorial interpretation.
+
+| Check | Result |
+| --- | ---: |
+| Selected films with a retained revision | 1,000 / 1,000 |
+| Films with one or more parsed passages | 1,000 / 1,000 |
+| Narrative passages | 24,446 |
+| Exact source section paths | 13,410 |
+| Empty passages | 0 |
+| Passages with attribution URL | 24,446 / 24,446 |
+| Passage licence | CC BY-SA 4.0 |
+
+The command uses the completed selection manifests to select QIDs, so it never
+widens the corpus through a title search:
+
+```bash
+PYTHONPATH=backend python -m app.services.wikipedia_research \
+  --ingestion-manifest /private/tmp/cinegraph-imdb-selection-100-v2.json \
+  --ingestion-manifest /private/tmp/cinegraph-imdb-selection-9-retry.json \
+  --ingestion-manifest /private/tmp/cinegraph-imdb-selection-900-v2.json \
+  --ingestion-manifest /private/tmp/cinegraph-selection-9-repair-v3.json
+```
+
+The extractor is idempotent and commits per film. If a source-heading edge case
+or an interrupted local database occurs, rerunning the command skips passages
+already retained and resumes from the missing film.
+
 ## The Dark Knight example
 
 The source lets us make useful but bounded cards, such as:

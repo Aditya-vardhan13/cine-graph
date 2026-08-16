@@ -624,8 +624,10 @@ class NarrativePassage(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     subject_entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
     source_snapshot_id: Mapped[UUID] = mapped_column(ForeignKey("source_snapshots.id"), nullable=False, index=True)
-    section_locator: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
-    section_title: Mapped[str] = mapped_column(String(300), nullable=False)
+    # Wikipedia section paths can be exceptionally long, especially when a
+    # page nests a descriptive heading beneath several parent headings.
+    section_locator: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    section_title: Mapped[str] = mapped_column(Text, nullable=False)
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     language_code: Mapped[str] = mapped_column(String(35), nullable=False, default="en")
     content: Mapped[str] = mapped_column(Text, nullable=False)

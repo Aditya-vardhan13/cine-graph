@@ -26,6 +26,8 @@ from app.models import (
     ResearchAnswerEvidence,
     SourceAssertion,
     SourceSnapshot,
+    RawIngestionRun,
+    RawIngestionRunSnapshot,
 )
 
 
@@ -159,7 +161,13 @@ def extract_passages(db: Session, qid: str) -> dict[str, object]:
     payload = _snapshot_payload(snapshot)
     wikitext = payload["page"]["revisions"][0]["slots"]["main"]["content"]
     entity = _entity_for_snapshot(db, qid, payload)
-    stored = 0
+    existing_passages = {
+        (item.section_locator, item.ordinal, item.content_hash): item
+        for item in db.scalars(select(NarrativePassage).where(
+            NarrativePassage.source_snapshot_id == snapshot.id,
+        ))
+    }
+    to_store: list[NarrativePassage] = []
     by_locator: dict[str, list[NarrativePassage]] = {}
     for section in split_sections(wikitext):
         locator = str(section["locator"])
@@ -167,12 +175,8 @@ def extract_passages(db: Session, qid: str) -> dict[str, object]:
         for ordinal, raw_chunk in enumerate(chunk_section(str(section["content"]))):
             content = clean_wikitext(raw_chunk)
             digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
-            existing = db.scalar(select(NarrativePassage).where(
-                NarrativePassage.source_snapshot_id == snapshot.id,
-                NarrativePassage.section_locator == locator,
-                NarrativePassage.ordinal == ordinal,
-                NarrativePassage.content_hash == digest,
-            ))
+            key = (locator, ordinal, digest)
+            existing = existing_passages.get(key)
             if not existing:
                 existing = NarrativePassage(
                     subject_entity_id=entity.id,
@@ -185,12 +189,37 @@ def extract_passages(db: Session, qid: str) -> dict[str, object]:
                     citation_markers=citation_markers(raw_chunk),
                     extraction_version=EXTRACTION_VERSION,
                 )
-                db.add(existing)
-                db.flush()
-                stored += 1
+                to_store.append(existing)
+                existing_passages[key] = existing
             by_locator.setdefault(locator, []).append(existing)
+    if to_store:
+        db.add_all(to_store)
+        db.flush()
     db.commit()
-    return {"qid": qid, "entity_id": str(entity.id), "source_revision": snapshot.source_revision, "passages_created": stored, "passages": by_locator}
+    return {"qid": qid, "entity_id": str(entity.id), "source_revision": snapshot.source_revision, "passages_created": len(to_store), "passages": by_locator}
+
+
+def selected_qids_from_ingestion_manifests(db: Session, manifest_uris: list[str]) -> list[str]:
+    """Return exactly the QIDs represented by completed vetted source runs.
+
+    The function deliberately follows run-to-snapshot links. It does not infer
+    membership from title search or from every Wikipedia page in the database.
+    """
+    runs = list(db.scalars(select(RawIngestionRun).where(
+        RawIngestionRun.adapter_name == "wikipedia_api_revision_snapshot",
+        RawIngestionRun.status == "complete",
+        RawIngestionRun.manifest_uri.in_(manifest_uris),
+    )))
+    if not runs:
+        raise ValueError("No completed Wikipedia ingestion runs match the supplied manifests.")
+    snapshot_ids = list(db.scalars(select(RawIngestionRunSnapshot.source_snapshot_id).where(
+        RawIngestionRunSnapshot.ingestion_run_id.in_([run.id for run in runs]),
+    )))
+    qids = list(db.scalars(select(SourceAssertion.raw_value["wikidata_id"].as_string()).where(
+        SourceAssertion.source_snapshot_id.in_(snapshot_ids),
+        SourceAssertion.source_property == "wikidata_item",
+    )))
+    return sorted({qid for qid in qids if qid})
 
 
 DEEP_RESEARCH_PILOTS: dict[str, list[dict[str, object]]] = {
@@ -412,14 +441,25 @@ def main() -> None:
     from app.migrations import run_migrations
 
     parser = argparse.ArgumentParser(description="Extract attributable Wikipedia passages and curate pilot research answers.")
-    parser.add_argument("qid", nargs="+", help="Wikidata film IDs with retained English Wikipedia snapshots")
+    parser.add_argument("qid", nargs="*", help="Wikidata film IDs with retained English Wikipedia snapshots")
     parser.add_argument("--curate-pilot", action="store_true", help="Add checked pilot answers where a curation definition exists")
     parser.add_argument("--quality", action="store_true", help="Print evidence completeness after extraction")
+    parser.add_argument(
+        "--ingestion-manifest", action="append", default=[], metavar="PATH",
+        help="Completed selection manifest used by the Wikipedia snapshot run; repeat to process a split selection.",
+    )
+    parser.add_argument("--progress-every", type=int, default=25, help="Commit-safe progress interval for a selection run")
     args = parser.parse_args()
+    if not args.qid and not args.ingestion_manifest:
+        parser.error("Provide one or more QIDs or --ingestion-manifest paths.")
+    if args.progress_every < 1:
+        parser.error("--progress-every must be positive.")
     run_migrations()
     with SessionLocal() as db:
+        manifest_uris = [Path(value).resolve().as_uri() for value in args.ingestion_manifest]
+        qids = sorted(set(args.qid) | set(selected_qids_from_ingestion_manifests(db, manifest_uris)))
         results = []
-        for qid in args.qid:
+        for index, qid in enumerate(qids, start=1):
             result = extract_passages(db, qid)
             result.pop("passages")
             if args.curate_pilot:
@@ -427,7 +467,17 @@ def main() -> None:
             if args.quality:
                 result["quality"] = quality_report(db, qid)
             results.append(result)
-        print(json.dumps(results, indent=2))
+            if len(qids) > args.progress_every and (index % args.progress_every == 0 or index == len(qids)):
+                print(json.dumps({
+                    "progress": {"completed": index, "total": len(qids)},
+                    "passages_created": sum(int(item["passages_created"]) for item in results),
+                }), flush=True)
+        if len(qids) <= args.progress_every:
+            print(json.dumps(results, indent=2))
+        else:
+            print(json.dumps({
+                "complete": {"films": len(qids), "passages_created": sum(int(item["passages_created"]) for item in results)},
+            }))
 
 
 if __name__ == "__main__":
