@@ -1,5 +1,7 @@
 import json
+from pathlib import Path
 
+import httpx
 import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.exc import IntegrityError
@@ -13,9 +15,17 @@ from app.models import (
     CriticalWork,
     CriticalWorkSubject,
     DataSource,
+    RawIngestionRun,
+    ReferenceCollectionMembership,
+    SourceAssertion,
+    SourceObject,
+    SourceSnapshot,
 )
 from app.services.critical_sources import CRITICAL_SOURCE_REGISTRY, register_critical_sources
 from app.services.critical_work_manifest import CriticalManifestError, import_manifest
+from app.services import openalex_critical_discovery
+from app.services import crossref_critical_discovery
+from app.services.repair_canonical_entities import repair_unknown_films
 
 
 def test_critical_source_registry_is_idempotent_and_policy_only() -> None:
@@ -147,3 +157,196 @@ def test_metadata_manifest_refuses_full_text_without_acquisition_path(tmp_path) 
         }), encoding="utf-8")
         with pytest.raises(CriticalManifestError, match="metadata_link_only"):
             import_manifest(db, manifest)
+
+
+def test_openalex_discovery_creates_review_candidates_but_never_fetches_full_text(tmp_path, monkeypatch) -> None:
+    class Response:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"results": [{
+                "id": "https://openalex.org/Wfixture",
+                "title": "Virtuality and Reality in The Matrix",
+                "doi": "https://doi.org/10.fixture/matrix",
+                "publication_date": "2024-01-01",
+                "authorships": [{"author": {"display_name": "Test Scholar"}}],
+                "primary_location": {"landing_page_url": "https://fixture.test/matrix", "license": "cc-by"},
+                "best_oa_location": {"landing_page_url": "https://fixture.test/matrix", "license": "cc-by", "pdf_url": "https://fixture.test/matrix.pdf"},
+                "open_access": {"is_oa": True, "oa_status": "gold"},
+                "language": "en", "cited_by_count": 12, "type": "article",
+                "abstract_inverted_index": {"The": [0], "Matrix": [1], "examines": [2], "reality": [3]},
+            }]}
+
+    class Client:
+        calls = 0
+
+        def get(self, url: str, params: dict) -> Response:
+            assert url == openalex_critical_discovery.OPENALEX_WORKS_API
+            assert params["search"] in {'"The Matrix"', '"No Match Film"'}
+            Client.calls += 1
+            if params["search"] == '"No Match Film"':
+                return type("NoResult", (), {"status_code": 200, "raise_for_status": lambda self: None, "json": lambda self: {"results": []}})()
+            return Response()
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(openalex_critical_discovery.get_settings(), "raw_snapshot_root", str(tmp_path / "snapshots"))
+    monkeypatch.setattr(openalex_critical_discovery.time, "sleep", lambda _value: None)
+    with Session(engine) as db:
+        matrix = CanonicalEntity(entity_kind="film", canonical_label="The Matrix", wikidata_id="Q83495")
+        her = CanonicalEntity(entity_kind="film", canonical_label="Her", wikidata_id="Q999")
+        no_match = CanonicalEntity(entity_kind="film", canonical_label="No Match Film", wikidata_id="Q998")
+        db.add_all([matrix, her, no_match])
+        db.flush()
+        db.add_all([
+            ReferenceCollectionMembership(collection_code="fixture-collection", entity_id=matrix.id, selection_position=1, selection_signals={}, source_reference="fixture"),
+            ReferenceCollectionMembership(collection_code="fixture-collection", entity_id=her.id, selection_position=2, selection_signals={}, source_reference="fixture"),
+            ReferenceCollectionMembership(collection_code="fixture-collection", entity_id=no_match.id, selection_position=3, selection_signals={}, source_reference="fixture"),
+        ])
+        db.commit()
+        result = openalex_critical_discovery.discover(db, collection_code="fixture-collection", progress_every=3, client=Client())
+        db.commit()
+
+        assert result == {"requested": 3, "queried": 2, "skipped_ambiguous": 1, "no_candidates": 1, "candidates": 1, "snapshots": 1}
+        candidate = db.scalar(select(openalex_critical_discovery.CriticalDiscoveryCandidate))
+        assert candidate is not None
+        assert candidate.review_status == "pending"
+        assert candidate.metadata_json["open_access"]["pdf_url"] == "https://fixture.test/matrix.pdf"
+        assert candidate.source_snapshot_id is not None
+        assert Client.calls == 2
+        assert openalex_critical_discovery.quality_report(db, "fixture-collection") == {
+            "collection_films": 3, "checked": 3, "candidates": 1,
+            "complete": 1, "no_candidates": 1, "skipped_ambiguous": 1, "failed": 0,
+        }
+        rerun = openalex_critical_discovery.discover(db, collection_code="fixture-collection", progress_every=1, client=Client())
+        assert rerun["requested"] == 0
+        assert Client.calls == 2
+
+
+def test_crossref_discovery_retains_bibliographic_metadata_not_abstracts(tmp_path, monkeypatch) -> None:
+    class Response:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            work = {
+                "DOI": "10.fixture/godfather",
+                "title": ["The Godfather and the American Dream"],
+                "URL": "https://doi.org/10.fixture/godfather",
+                "type": "journal-article",
+                "published": {"date-parts": [[2024, 1, 1]]},
+                "author": [{"given": "Test", "family": "Scholar"}],
+                "container-title": ["Fixture Studies"],
+                "publisher": "Fixture Press",
+                "abstract": "This copyrighted abstract must never be persisted.",
+                "license": [{"URL": "https://creativecommons.org/licenses/by/4.0/"}],
+            }
+            return {"message": {"items": [work, work]}}
+
+    class Client:
+        calls = 0
+
+        def get(self, url: str, params: dict) -> Response:
+            assert url == crossref_critical_discovery.CROSSREF_WORKS_API
+            assert params == {"query.bibliographic": "The Godfather", "rows": 20}
+            Client.calls += 1
+            return Response()
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(crossref_critical_discovery.get_settings(), "raw_snapshot_root", str(tmp_path / "snapshots"))
+    monkeypatch.setattr(crossref_critical_discovery.time, "sleep", lambda _value: None)
+    with Session(engine) as db:
+        film = CanonicalEntity(entity_kind="film", canonical_label="The Godfather", wikidata_id="Q47703")
+        db.add(film)
+        db.flush()
+        db.add(ReferenceCollectionMembership(
+            collection_code="fixture-crossref", entity_id=film.id, selection_position=1,
+            selection_signals={}, source_reference="fixture",
+        ))
+        db.commit()
+        result = crossref_critical_discovery.discover(db, collection_code="fixture-crossref", client=Client())
+        db.commit()
+
+        assert result == {"requested": 1, "queried": 1, "skipped_ambiguous": 0, "timeouts": 0, "no_candidates": 0, "candidates": 1, "snapshots": 1}
+        candidate = db.scalar(select(crossref_critical_discovery.CriticalDiscoveryCandidate))
+        assert candidate is not None
+        assert candidate.provider == "crossref"
+        assert candidate.metadata_json["doi"] == "10.fixture/godfather"
+        assert "abstract" not in candidate.metadata_json
+        snapshot_record = db.get(SourceSnapshot, candidate.source_snapshot_id)
+        assert snapshot_record is not None
+        assert snapshot_record.storage_uri is not None
+        assert "abstract" not in Path(snapshot_record.storage_uri.removeprefix("file://")).read_text(encoding="utf-8")
+        assert Client.calls == 1
+
+
+def test_crossref_timeout_is_recorded_and_does_not_abort_other_titles(tmp_path, monkeypatch) -> None:
+    class Client:
+        def get(self, _url: str, params: dict):
+            if params["query.bibliographic"] == "Timeout Film":
+                raise httpx.ReadTimeout("fixture timeout")
+            return type("Response", (), {
+                "status_code": 200,
+                "raise_for_status": lambda self: None,
+                "json": lambda self: {"message": {"items": []}},
+            })()
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(crossref_critical_discovery.get_settings(), "raw_snapshot_root", str(tmp_path / "snapshots"))
+    monkeypatch.setattr(crossref_critical_discovery.time, "sleep", lambda _value: None)
+    with Session(engine) as db:
+        timeout = CanonicalEntity(entity_kind="film", canonical_label="Timeout Film", wikidata_id="Qtimeout")
+        empty = CanonicalEntity(entity_kind="film", canonical_label="Empty Film", wikidata_id="Qempty")
+        db.add_all([timeout, empty])
+        db.flush()
+        db.add_all([
+            ReferenceCollectionMembership(collection_code="fixture-timeout", entity_id=timeout.id, selection_position=1, selection_signals={}, source_reference="fixture"),
+            ReferenceCollectionMembership(collection_code="fixture-timeout", entity_id=empty.id, selection_position=2, selection_signals={}, source_reference="fixture"),
+        ])
+        db.commit()
+        result = crossref_critical_discovery.discover(db, collection_code="fixture-timeout", client=Client())
+        db.commit()
+
+        assert result == {"requested": 2, "queried": 1, "skipped_ambiguous": 0, "timeouts": 1, "no_candidates": 1, "candidates": 0, "snapshots": 0}
+        queries = {query.query_title: query for query in db.scalars(select(crossref_critical_discovery.CriticalDiscoveryQuery))}
+        assert queries["Timeout Film"].status == "failed"
+        assert "ReadTimeout" in queries["Timeout Film"].error_summary
+        assert queries["Empty Film"].status == "no_candidates"
+
+
+def test_canonical_repair_uses_retained_wikidata_p31_not_title_guessing() -> None:
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        source = DataSource(name="Wikidata fixture", url="https://wikidata.org", source_type="metadata", license="CC0", rights_status="open")
+        unknown = CanonicalEntity(entity_kind="unknown_work", canonical_label="Qfixture", wikidata_id="Qfixture")
+        db.add_all([source, unknown])
+        db.flush()
+        run = RawIngestionRun(source_id=source.id, adapter_name="fixture", adapter_version="1", status="complete")
+        obj = SourceObject(source_id=source.id, external_id="Qfixture", object_kind="wikibase_item", canonical_url="https://wikidata.org/wiki/Qfixture")
+        db.add_all([run, obj])
+        db.flush()
+        snap = SourceSnapshot(source_object_id=obj.id, ingestion_run_id=run.id, canonical_url=obj.canonical_url, content_hash="b" * 64, license="CC0")
+        db.add(snap)
+        db.flush()
+        db.add(SourceAssertion(
+            source_snapshot_id=snap.id,
+            statement_locator="claims.P31[0]",
+            source_property="P31",
+            raw_subject={"wikidata_id": "Qfixture", "label": "Corrected Film"},
+            raw_value={"datavalue": {"value": {"id": "Q11424"}}},
+            raw_qualifiers={},
+            extractor_version="fixture",
+        ))
+        db.commit()
+        assert repair_unknown_films(db) == {"inspected_unknown_work": 1, "repaired_films": 1}
+        db.commit()
+        assert unknown.entity_kind == "film"
+        assert unknown.canonical_label == "Corrected Film"

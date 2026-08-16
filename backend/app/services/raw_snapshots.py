@@ -100,6 +100,17 @@ def snapshot(
 
 
 def link_snapshot_to_run(db: Session, run_id: UUID, snapshot_id: UUID, disposition: str) -> None:
+    # The same provider record can legitimately occur twice in one list response
+    # (for example, Crossref can return duplicate DOI variants). A database
+    # query cannot always see a still-pending ORM insert, so avoid that duplicate
+    # association before adding it to the session.
+    if any(
+        isinstance(item, RawIngestionRunSnapshot)
+        and item.ingestion_run_id == run_id
+        and item.source_snapshot_id == snapshot_id
+        for item in db.new
+    ):
+        return
     exists = db.scalar(select(RawIngestionRunSnapshot.id).where(
         RawIngestionRunSnapshot.ingestion_run_id == run_id,
         RawIngestionRunSnapshot.source_snapshot_id == snapshot_id,

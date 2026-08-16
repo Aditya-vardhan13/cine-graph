@@ -825,6 +825,67 @@ class CriticalClaimAnchor(Base):
     critical_claim: Mapped[CriticalClaim] = relationship(back_populates="anchors")
 
 
+class CriticalDiscoveryCandidate(Base):
+    """A scholarly-metadata lead, not an admitted critical work or a claim.
+
+    The candidate is created from an immutable scholarly-metadata snapshot after
+    a conservative film-title match. It must be reviewed for subject fit and
+    the *actual work's* licence before promotion into ``CriticalWork``.
+    """
+
+    __tablename__ = "critical_discovery_candidates"
+    __table_args__ = (
+        UniqueConstraint("subject_entity_id", "provider", "provider_work_id", name="uq_critical_candidate_subject_provider_work"),
+        CheckConstraint("provider IN ('openalex', 'crossref')", name="ck_critical_candidate_provider"),
+        CheckConstraint(
+            "match_method IN ('title_phrase', 'title_and_abstract_phrase')",
+            name="ck_critical_candidate_match_method",
+        ),
+        CheckConstraint(
+            "review_status IN ('pending', 'accepted', 'rejected', 'promoted')",
+            name="ck_critical_candidate_review_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    subject_entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    source_snapshot_id: Mapped[UUID] = mapped_column(ForeignKey("source_snapshots.id"), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(40), nullable=False, default="openalex")
+    provider_work_id: Mapped[str] = mapped_column(String(300), nullable=False)
+    query_title: Mapped[str] = mapped_column(String(500), nullable=False)
+    candidate_title: Mapped[str] = mapped_column(String(1000), nullable=False)
+    candidate_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    match_method: Mapped[str] = mapped_column(String(40), nullable=False)
+    match_score: Mapped[float] = mapped_column(Float, nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    review_status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending", index=True)
+    reviewer: Mapped[str | None] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CriticalDiscoveryQuery(Base):
+    """One replayable discovery decision, including zero-result and skipped titles."""
+
+    __tablename__ = "critical_discovery_queries"
+    __table_args__ = (
+        UniqueConstraint("subject_entity_id", "provider", "query_version", name="uq_critical_query_subject_provider_version"),
+        CheckConstraint("provider IN ('openalex', 'crossref')", name="ck_critical_query_provider"),
+        CheckConstraint(
+            "status IN ('complete', 'no_candidates', 'skipped_ambiguous', 'failed')",
+            name="ck_critical_query_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    subject_entity_id: Mapped[UUID] = mapped_column(ForeignKey("canonical_entities.id"), nullable=False, index=True)
+    ingestion_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("raw_ingestion_runs.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(40), nullable=False, default="openalex")
+    query_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    query_title: Mapped[str] = mapped_column(String(500), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    candidates_found: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_summary: Mapped[str | None] = mapped_column(Text)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class FilmProvenance(Base):
     __tablename__ = "film_provenance"
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
