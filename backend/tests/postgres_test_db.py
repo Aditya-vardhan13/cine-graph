@@ -30,13 +30,15 @@ def isolated_postgres_engine() -> Engine:
     schema = f"persistence_{uuid4().hex}"
     with admin.begin() as connection:
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
-    engine = create_engine(database_url)
+    engine = create_engine(database_url).execution_options(schema_translate_map={None: schema})
 
     @event.listens_for(engine, "connect")
     def set_test_schema(dbapi_connection, _connection_record) -> None:
         cursor = dbapi_connection.cursor()
         try:
-            cursor.execute(f'SET search_path TO "{schema}"')
+            # Explicit schema translation keeps ORM tables isolated; public is
+            # visible only so PostgreSQL can resolve the installed VECTOR type.
+            cursor.execute(f'SET search_path TO "{schema}", public')
         finally:
             cursor.close()
 

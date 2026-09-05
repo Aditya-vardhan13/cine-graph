@@ -71,3 +71,10 @@ An embedding model may be evaluated only when the report shows:
    URL, and licence; and
 5. a measured retrieval evaluation set exists. Similarity remains a candidate,
    never proof of a relationship.
+
+The evaluation design and model-selection gate are defined in
+[local-embedding-evaluation-v1.md](local-embedding-evaluation-v1.md).
+
+The first completed index contains all 24,194 eligible chunks and keeps the
+exact v3 preprocessing run as its parent. No raw passage or source snapshot was
+modified during embedding or pgvector import.

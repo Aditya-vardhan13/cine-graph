@@ -4,8 +4,9 @@ from datetime import date, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from pgvector.sqlalchemy import Vector
 
 from app.db import Base
 
@@ -711,6 +712,80 @@ class EvidenceChunk(Base):
     duplicate_of_chunk_id: Mapped[UUID | None] = mapped_column(ForeignKey("evidence_chunks.id"), index=True)
     chunker_version: Mapped[str] = mapped_column(String(100), nullable=False)
     configuration_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EmbeddingModel(Base):
+    """One immutable local embedding contract, independent of an index run."""
+
+    __tablename__ = "embedding_models"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider", "model_name", "model_revision", "dimension", "instruction_hash",
+            name="uq_embedding_model_contract",
+        ),
+        CheckConstraint("dimension = 1024", name="ck_embedding_model_storage_dimension"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    model_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    model_revision: Mapped[str] = mapped_column(String(160), nullable=False)
+    dimension: Mapped[int] = mapped_column(Integer, nullable=False)
+    query_instruction: Mapped[str] = mapped_column(Text, nullable=False)
+    instruction_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    license: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EmbeddingIndexRun(Base):
+    """Versioned materialisation of embeddings for one evidence-chunk run."""
+
+    __tablename__ = "embedding_index_runs"
+    __table_args__ = (
+        UniqueConstraint(
+            "evidence_chunk_run_id", "embedding_model_id", "configuration_hash",
+            name="uq_embedding_index_run_contract",
+        ),
+        CheckConstraint(
+            "status IN ('running', 'complete', 'failed')",
+            name="ck_embedding_index_run_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    evidence_chunk_run_id: Mapped[UUID] = mapped_column(ForeignKey("evidence_chunk_runs.id"), nullable=False, index=True)
+    embedding_model_id: Mapped[UUID] = mapped_column(ForeignKey("embedding_models.id"), nullable=False, index=True)
+    document_representation: Mapped[str] = mapped_column(String(100), nullable=False)
+    configuration: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    configuration_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="running")
+    chunks_requested: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    chunks_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    chunks_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_summary: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EvidenceEmbedding(Base):
+    """A candidate-search vector; never a fact or a reviewed relationship."""
+
+    __tablename__ = "evidence_embeddings"
+    __table_args__ = (
+        UniqueConstraint("index_run_id", "evidence_chunk_id", name="uq_evidence_embedding_run_chunk"),
+        Index(
+            "ix_evidence_embeddings_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    index_run_id: Mapped[UUID] = mapped_column(ForeignKey("embedding_index_runs.id"), nullable=False, index=True)
+    evidence_chunk_id: Mapped[UUID] = mapped_column(ForeignKey("evidence_chunks.id"), nullable=False, index=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    embedding: Mapped[list[float]] = mapped_column(Vector(1024), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
