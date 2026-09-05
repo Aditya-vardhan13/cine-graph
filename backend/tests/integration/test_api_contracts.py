@@ -9,8 +9,9 @@ import pytest
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
-from app.models import EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding
+from app.models import CanonicalEntity, EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding
 from app.services.evidence_preprocessing import build_evidence_chunks, evidence_chunk_quality_report
+from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 
 API_URL = os.environ.get("CINEGRAPH_INTEGRATION_API_URL", "http://127.0.0.1:8001")
 DATABASE_URL = os.environ.get(
@@ -150,3 +151,23 @@ def test_pgvector_index_preserves_chunk_lineage_and_cosine_ordering() -> None:
 
     assert row.evidence_chunk_id == chunk
     assert abs(float(row[1])) < 1e-6
+
+
+def test_persisted_lexical_retrieval_returns_source_linked_evidence() -> None:
+    with Session(create_engine(DATABASE_URL)) as db:
+        build_evidence_chunks(db, collection_code="integration-narrative-v1")
+        entity_id = db.scalar(select(CanonicalEntity.id).where(CanonicalEntity.wikidata_id == "Q163872"))
+        result = retrieve_narrative_candidates(
+            db,
+            subject_entity_id=entity_id,
+            question_id="benchmark.plot_character_structure",
+            question_text="How does the Joker escalate public tests of trust and moral limits?",
+            evidence_class="narrative_extraction",
+            method=NarrativeRetrievalMethod.LEXICAL,
+            limit=5,
+        )
+
+    assert result.method == "lexical"
+    assert result.evidence
+    assert result.evidence[0].source_snapshot_id
+    assert result.evidence[0].matched_by == ("lexical",)

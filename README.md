@@ -11,6 +11,7 @@ CineGraph begins as a public-data cinema intelligence platform. Phase A ingests 
 - The deep-research pilot stores Wikipedia as section-bound, cited passages—not a blob—and connects each curated answer to those passages with an explicit evidence class
 - The vetted 1,000-film English selection has been parsed locally into 24,446 attributable Wikipedia passages; raw snapshots and the local database remain outside Git
 - Critical essays and reviews now have a separate attribution-and-rights model: an interpretation remains attached to its author and source rather than becoming an anonymous catalog fact
+- Local hybrid evidence retrieval passes a balanced 200-question benchmark; the held-out 150-case split reaches 100% Recall@10 and 0.845 MRR@10 while preserving source pointers
 
 The local database is intentionally excluded from Git. Regenerate it from the source instead of committing scraped/derived data.
 
@@ -74,9 +75,10 @@ See [docs/narrative-research-layer.md](docs/narrative-research-layer.md). A
 Wikipedia-derived card is never silently treated as a fact: it is labelled as a
 source fact, narrative extraction, derived relation, attributed interpretation,
 or semantic candidate. Each card retains its source snapshot, revision, section
-path and passage-level evidence. Embeddings will index these licensed passages
-only after the research layer is established; similarity can suggest a route but
-cannot publish a claim.
+path and passage-level evidence. Embeddings index only eligible licensed
+passages; similarity can suggest a route but cannot publish a claim. See
+[docs/hybrid-retrieval-benchmark-v1.md](docs/hybrid-retrieval-benchmark-v1.md)
+for the versioned gate, held-out results, latency, and known coverage debt.
 
 ## Critical essay contract
 

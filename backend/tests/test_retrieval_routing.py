@@ -26,6 +26,12 @@ def test_interpretations_do_not_fall_back_to_an_unattributed_fact() -> None:
     assert route.candidates == (RetrievalLane.CRITICAL_INTERPRETATION, RetrievalLane.NARRATIVE_SEMANTIC)
 
 
+def test_reviewed_evidence_class_takes_precedence_over_question_prefix() -> None:
+    route = route_research_question(question_id="impact.reception", evidence_class="narrative_extraction")
+
+    assert route.primary is RetrievalLane.NARRATIVE_SEMANTIC
+
+
 def test_unclassified_question_starts_with_exact_evidence() -> None:
     route = route_research_question(question_id="unknown.custom-question")
 
@@ -42,3 +48,9 @@ def test_narrative_section_candidates_are_declared_before_ranking() -> None:
     assert narrative_section_candidates(
         question_id="story.ending", evidence_class="source_fact",
     ) == ()
+    assert narrative_section_candidates(
+        question_id="craft.production", evidence_class="narrative_extraction",
+    ) == ("production",)
+    assert narrative_section_candidates(
+        question_id="reception.legacy", evidence_class="narrative_extraction",
+    ) == ("reception", "reception-and-legacy", "legacy", "legacy-and-influence")

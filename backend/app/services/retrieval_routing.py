@@ -51,13 +51,19 @@ def route_research_question(*, question_id: str, evidence_class: str | None = No
             candidates=(RetrievalLane.STRUCTURED, RetrievalLane.LEXICAL),
             reason="objective facts require asserted, source-linked statements",
         )
+    if normalized_class == "narrative_extraction":
+        return RetrievalRoute(
+            primary=RetrievalLane.NARRATIVE_SEMANTIC,
+            candidates=(RetrievalLane.NARRATIVE_SEMANTIC, RetrievalLane.LEXICAL),
+            reason="narrative passages are semantic candidates with lexical fallback",
+        )
     if normalized_class in {"attributed_interpretation", "editorial_interpretation"} or normalized_id.startswith(_INTERPRETATION_PREFIXES):
         return RetrievalRoute(
             primary=RetrievalLane.CRITICAL_INTERPRETATION,
             candidates=(RetrievalLane.CRITICAL_INTERPRETATION, RetrievalLane.NARRATIVE_SEMANTIC),
             reason="interpretive questions need an attributed criticism corpus",
         )
-    if normalized_class == "narrative_extraction" or normalized_id.startswith(_NARRATIVE_PREFIXES):
+    if normalized_id.startswith(_NARRATIVE_PREFIXES):
         return RetrievalRoute(
             primary=RetrievalLane.NARRATIVE_SEMANTIC,
             candidates=(RetrievalLane.NARRATIVE_SEMANTIC, RetrievalLane.LEXICAL),
@@ -75,8 +81,16 @@ def narrative_section_candidates(*, question_id: str, evidence_class: str | None
     if (evidence_class or "").casefold().strip() != "narrative_extraction":
         return ()
     normalized_id = question_id.casefold().strip()
+    if normalized_id in {"story.plot_character_structure", "story.cross_film_comparison"}:
+        return ("plot", "narrative-structure")
     if normalized_id.startswith("story."):
         return ("plot",)
     if normalized_id.startswith("structure."):
         return ("narrative-structure", "structure")
+    if normalized_id.startswith("craft."):
+        return ("production",)
+    if normalized_id.startswith("impact."):
+        return ("reception", "reception-and-legacy", "legacy", "legacy-and-influence")
+    if normalized_id.startswith("reception."):
+        return ("reception", "reception-and-legacy", "legacy", "legacy-and-influence")
     return ()

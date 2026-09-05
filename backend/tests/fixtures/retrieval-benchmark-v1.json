@@ -1,0 +1,5966 @@
+{
+  "adjudication_status": "assistant_evidence_reviewed_human_review_required",
+  "cases": [
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.001",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Bowman overcome HAL after the computer locks him outside Discovery One?",
+      "split": "development",
+      "subject_qids": [
+        "Q103474"
+      ],
+      "targets": [
+        {
+          "content_hash": "6c11996b5f563648f0416dbaeaffcc6b14dbc30cb963e11a2b70ca2a629c0fe0",
+          "group": "Q103474",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368386837",
+          "subject_qid": "Q103474",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.002",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does the quarantine breach bring the creature aboard the Nostromo and turn the return journey into a survival trap?",
+      "split": "test",
+      "subject_qids": [
+        "Q103569"
+      ],
+      "targets": [
+        {
+          "content_hash": "3de34d2438585176585bd2e4c890f405f75927b9dba6aba02dbcf08397aad031",
+          "group": "Q103569",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368902493",
+          "subject_qid": "Q103569",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.003",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Pulp Fiction reorder its intersecting crime stories into a circular rather than chronological narrative?",
+      "split": "test",
+      "subject_qids": [
+        "Q104123"
+      ],
+      "targets": [
+        {
+          "content_hash": "b236f3c6915a853075b163234d91c777d55de23f2e5c02bd253cc6fda2c8c955",
+          "group": "Q104123",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "narrative-structure",
+          "source_revision": "1368985571",
+          "subject_qid": "Q104123",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.004",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "Why does the discovery of a living plant make AUTO an obstacle to WALL-E and EVE's attempt to return humanity to Earth?",
+      "split": "test",
+      "subject_qids": [
+        "Q104905"
+      ],
+      "targets": [
+        {
+          "content_hash": "72dd572150dce1bf83f1b170011e7505faa1f62b97fefec5f0264e1c709fa6a4",
+          "group": "Q104905",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368035533",
+          "subject_qid": "Q104905",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.005",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Hans Gruber exploit John McClane's incomplete knowledge when they first meet face to face?",
+      "split": "development",
+      "subject_qids": [
+        "Q105598"
+      ],
+      "targets": [
+        {
+          "content_hash": "91cf1d4005301e4b831fc7cf0f555c001bfd24adb24ab29db21ab44fe82d0ce1",
+          "group": "Q105598",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368498378",
+          "subject_qid": "Q105598",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.006",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Elliott protect a stranded visitor while government agents close in on his family?",
+      "split": "test",
+      "subject_qids": [
+        "Q11621"
+      ],
+      "targets": [
+        {
+          "content_hash": "bdb6d933e1990281d4e835548b43183c545603e21aac22a79b800efef61ea836",
+          "group": "Q11621",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368107181",
+          "subject_qid": "Q11621",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.007",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does the time dilation on Miller's planet raise the human cost of Cooper's exploration mission?",
+      "split": "test",
+      "subject_qids": [
+        "Q13417189"
+      ],
+      "targets": [
+        {
+          "content_hash": "273427a14717452970dbfa09cd92130b7ea02fcdf071672381aabedaa49894dc",
+          "group": "Q13417189",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369247590",
+          "subject_qid": "Q13417189",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.008",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "What forces Chihiro to act after her parents are transformed and she becomes trapped in the spirit world?",
+      "split": "test",
+      "subject_qids": [
+        "Q155653"
+      ],
+      "targets": [
+        {
+          "content_hash": "eb09a44a8456ff3e8c2fbb53644d4bfd3b322a28499c5485759cab7054c0d8b7",
+          "group": "Q155653",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1366776118",
+          "subject_qid": "Q155653",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.009",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Marion Crane's theft and detour place her inside Norman Bates's private trap?",
+      "split": "development",
+      "subject_qids": [
+        "Q163038"
+      ],
+      "targets": [
+        {
+          "content_hash": "198b5797fab1aaff59b99c04a09ba964900dfb85896188525a5505c9f64d365c",
+          "group": "Q163038",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368981671",
+          "subject_qid": "Q163038",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.010",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does the alliance against organized crime provoke the Joker's campaign of escalation in Gotham?",
+      "split": "test",
+      "subject_qids": [
+        "Q163872"
+      ],
+      "targets": [
+        {
+          "content_hash": "0c98618eb2852b91943607a64d143eecfd2ee2ec50cf6c173d79c08b0cb90d0c",
+          "group": "Q163872",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368945348",
+          "subject_qid": "Q163872",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.011",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "Why does Ryan refuse immediate rescue, and how does Miller turn that refusal into a final defensive mission?",
+      "split": "test",
+      "subject_qids": [
+        "Q165817"
+      ],
+      "targets": [
+        {
+          "content_hash": "1997c94fb3f42eecdab04fffad19de7772485ec66c7d078726b96fe395283edb",
+          "group": "Q165817",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367130814",
+          "subject_qid": "Q165817",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.012",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How do the cloning debate and failed park tour establish the conflict before the dinosaurs escape?",
+      "split": "test",
+      "subject_qids": [
+        "Q167726"
+      ],
+      "targets": [
+        {
+          "content_hash": "56a194c16839d6c44ef1a4d18bb99de59a0429fc416237fa929badcc3b7b308e",
+          "group": "Q167726",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369261019",
+          "subject_qid": "Q167726",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.013",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Sarah Connor's attempt to kill Miles Dyson challenge the heroes' effort to prevent Judgment Day?",
+      "split": "development",
+      "subject_qids": [
+        "Q170564"
+      ],
+      "targets": [
+        {
+          "content_hash": "6d58c54d905f3f521e45c9f5572cf220e7c107add2925d40cddf4d569e7378c2",
+          "group": "Q170564",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369176150",
+          "subject_qid": "Q170564",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.014",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "Why does Buzz Lightyear's arrival trigger Woody's fear of replacement and the story's central rivalry?",
+      "split": "test",
+      "subject_qids": [
+        "Q171048"
+      ],
+      "targets": [
+        {
+          "content_hash": "949830f11d8bbf6b17f0dc6dab550184cb39802940afcb79cb979842c6c71d62",
+          "group": "Q171048",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369240355",
+          "subject_qid": "Q171048",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.015",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Brooks's institutionalization contrast with Andy's insistence on hope beyond prison?",
+      "split": "test",
+      "subject_qids": [
+        "Q172241"
+      ],
+      "targets": [
+        {
+          "content_hash": "cf2d8d497956751133f4e3a1ca2f8f84c26eb65c4872d0ba9a6de1733f277b4e",
+          "group": "Q172241",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367229999",
+          "subject_qid": "Q172241",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.016",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does the Nazis' incomplete medallion information allow Indiana Jones to locate the Ark first?",
+      "split": "test",
+      "subject_qids": [
+        "Q174284"
+      ],
+      "targets": [
+        {
+          "content_hash": "4a6fb1d16f225642837226f9e1f9e73dfce2495944ad09d6db5b897c664bf89d",
+          "group": "Q174284",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367392944",
+          "subject_qid": "Q174284",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.017",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "Why does Max join Furiosa after first trying to steal the War Rig for himself?",
+      "split": "development",
+      "subject_qids": [
+        "Q1757288"
+      ],
+      "targets": [
+        {
+          "content_hash": "c647e2b7dad62138cc9f826739e1a8ed640247616ee1a36a5cb4d60c3d581a91",
+          "group": "Q1757288",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1365076241",
+          "subject_qid": "Q1757288",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.018",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does the murder of Luke's family turn his refusal to leave Tatooine into commitment to the rebellion?",
+      "split": "test",
+      "subject_qids": [
+        "Q17738"
+      ],
+      "targets": [
+        {
+          "content_hash": "f3bf90734aa320a43e4c8287cc333e9c3b22a3df619cbf01dc717377cf465e5b",
+          "group": "Q17738",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369197095",
+          "subject_qid": "Q17738",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.019",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How do Luke's Dagobah training and his friends' Cloud City flight converge in Vader's trap?",
+      "split": "test",
+      "subject_qids": [
+        "Q181795"
+      ],
+      "targets": [
+        {
+          "content_hash": "8c17438ff410e8b2f973aa19284e8563cdd85f4b6225de3483f33aa648ef323d",
+          "group": "Q181795",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368316066",
+          "subject_qid": "Q181795",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.020",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Willard's upriver assignment become a confrontation with Kurtz and the morality of the war itself?",
+      "split": "test",
+      "subject_qids": [
+        "Q182692"
+      ],
+      "targets": [
+        {
+          "content_hash": "42b1814f62dfce01f9cfe430e9f78c79aafc092480dc7b9494d2e80f56192705",
+          "group": "Q182692",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368203734",
+          "subject_qid": "Q182692",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.021",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Llewelyn Moss's discovery of the money connect him, Chigurh, and Bell in a three-way pursuit?",
+      "split": "development",
+      "subject_qids": [
+        "Q183081"
+      ],
+      "targets": [
+        {
+          "content_hash": "0e2f8eb473b4cb63d1ec7f748d4e03b821dabf201839b500097b7b1fbaff6032",
+          "group": "Q183081",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368790650",
+          "subject_qid": "Q183081",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.022",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Roy Batty's demand for more life connect his confrontation with Tyrell to his final encounter with Deckard?",
+      "split": "test",
+      "subject_qids": [
+        "Q184843"
+      ],
+      "targets": [
+        {
+          "content_hash": "0cb5130d632f4d98011a6ad8c1db89cb183ae8dfa731ef4343d6bf9d06a043d7",
+          "group": "Q184843",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367785310",
+          "subject_qid": "Q184843",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.023",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Mayor Vaughn's refusal to close the beaches enlarge Brody's conflict beyond the shark itself?",
+      "split": "test",
+      "subject_qids": [
+        "Q189505"
+      ],
+      "targets": [
+        {
+          "content_hash": "6cc7c5d95d0e6c01104d633c6ec3d84f23cdebb36ed0bad010648edd3005c6c6",
+          "group": "Q189505",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367325238",
+          "subject_qid": "Q189505",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.024",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Kikuchiyo's revelation about farmers change the samurai's understanding of the village alliance?",
+      "split": "test",
+      "subject_qids": [
+        "Q189540"
+      ],
+      "targets": [
+        {
+          "content_hash": "2f0d427c8373010633ffa11d4ad9f43b705f7054bd8bc313fd06196115fbcf48",
+          "group": "Q189540",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367643737",
+          "subject_qid": "Q189540",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.025",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does the Norwegian dog introduce a hidden threat that makes the Antarctic crew distrust one another?",
+      "split": "development",
+      "subject_qids": [
+        "Q210756"
+      ],
+      "targets": [
+        {
+          "content_hash": "8957887acaac9c7b619a5cba727c3f20040c88b152a74832edb4fff81e7198b4",
+          "group": "Q210756",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367457241",
+          "subject_qid": "Q210756",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.026",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Jake's divided loyalty collapse after the destruction of Hometree?",
+      "split": "test",
+      "subject_qids": [
+        "Q24871"
+      ],
+      "targets": [
+        {
+          "content_hash": "dfa9fed1e4163e92d6a30ebdad464d31ddf8228c1ea7ff82d083a2d770186018",
+          "group": "Q24871",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367616893",
+          "subject_qid": "Q24871",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.027",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Chris turn the Armitage family's coercive methods against them during his escape?",
+      "split": "test",
+      "subject_qids": [
+        "Q25136235"
+      ],
+      "targets": [
+        {
+          "content_hash": "812fee6a795aff29f38a8823c3c0323b7f61185b3732685bcf428d0ad01585a2",
+          "group": "Q25136235",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369089602",
+          "subject_qid": "Q25136235",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.028",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Aaron Davis's identity as the Prowler turn Miles's refusal to surrender into a personal loss?",
+      "split": "test",
+      "subject_qids": [
+        "Q29588607"
+      ],
+      "targets": [
+        {
+          "content_hash": "2ce5e6662b431795f30683a9b578c468a6de3a05dbc166fb79d91e8be61aec33",
+          "group": "Q29588607",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367996074",
+          "subject_qid": "Q29588607",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.029",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does the search for the Heart of the Ocean frame Rose's account of the disaster and her relationship with Jack?",
+      "split": "development",
+      "subject_qids": [
+        "Q44578"
+      ],
+      "targets": [
+        {
+          "content_hash": "a07d6b5b71c4342859979a3f4bfaa5f5401cece8d5e0ae208ec0618dce7b60c9",
+          "group": "Q44578",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369245790",
+          "subject_qid": "Q44578",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.030",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Travis Bickle's isolation develop into preparation for public violence?",
+      "split": "test",
+      "subject_qids": [
+        "Q47221"
+      ],
+      "targets": [
+        {
+          "content_hash": "f8813ea63ffe5986333478202e244b5c9520151e8e8ad72e2498b5098d578917",
+          "group": "Q47221",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368618742",
+          "subject_qid": "Q47221",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.031",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does the attack on Vito Corleone pull Michael from family outsider into the center of the crime war?",
+      "split": "test",
+      "subject_qids": [
+        "Q47703"
+      ],
+      "targets": [
+        {
+          "content_hash": "b4b302186754df55ab1a38ae24e0ddaa6204eefc3906536d4d3820fbef5dddbb",
+          "group": "Q47703",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367608322",
+          "subject_qid": "Q47703",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.032",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does witnessing the ghetto liquidation change Schindler from war profiteer into rescuer?",
+      "split": "test",
+      "subject_qids": [
+        "Q483941"
+      ],
+      "targets": [
+        {
+          "content_hash": "d87734588dd139d4f70cb10a55fc5a1b4266b0fd06dac741935d69a24854383f",
+          "group": "Q483941",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1366673364",
+          "subject_qid": "Q483941",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.033",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does repeated confinement in the same day force Phil to change what he values?",
+      "split": "development",
+      "subject_qids": [
+        "Q488655"
+      ],
+      "targets": [
+        {
+          "content_hash": "377f7e0ae99675dd34beaedbf0701d73c3cca48e984c0434f6b1e91f9772e1b6",
+          "group": "Q488655",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1366147064",
+          "subject_qid": "Q488655",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.034",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does detention expose the home pressures hidden beneath the students' school stereotypes?",
+      "split": "test",
+      "subject_qids": [
+        "Q499152"
+      ],
+      "targets": [
+        {
+          "content_hash": "e2aeddb1b525fd8734bc1936246d017c9aa5a9e0290f039f9eed3a532ef4769e",
+          "group": "Q499152",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368941430",
+          "subject_qid": "Q499152",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.035",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does the toxicology result reverse the apparent cause of Harlan's death and expose Ransom's plan?",
+      "split": "test",
+      "subject_qids": [
+        "Q57982486"
+      ],
+      "targets": [
+        {
+          "content_hash": "6a95b122e66c0d9f3806fb6931d05338180a430379e54fc0ff3d65043e5f91c2",
+          "group": "Q57982486",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367145623",
+          "subject_qid": "Q57982486",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.036",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Ki-woo's forged tutoring role open the Park household to the rest of the Kim family?",
+      "split": "test",
+      "subject_qids": [
+        "Q61448040"
+      ],
+      "targets": [
+        {
+          "content_hash": "de19e0a3ae1d433b247d0a248f45fc89e4c112013e409ba049940c4201ea63d5",
+          "group": "Q61448040",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368533970",
+          "subject_qid": "Q61448040",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.037",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Theodore's relationship with Samantha deepen while their human and artificial forms of growth diverge?",
+      "split": "development",
+      "subject_qids": [
+        "Q788822"
+      ],
+      "targets": [
+        {
+          "content_hash": "26b6c155047d4ddb5967e164eaaec41ce9f78621f64b5e5461942743b626d6a0",
+          "group": "Q788822",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367859801",
+          "subject_qid": "Q788822",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.038",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Neo's search for the truth place the Agents' control against Morpheus's guidance?",
+      "split": "test",
+      "subject_qids": [
+        "Q83495"
+      ],
+      "targets": [
+        {
+          "content_hash": "644cdb0a6dab3e0929a158baae3ac8e84cbf7ed5ea012b6efa520465633c8c0f",
+          "group": "Q83495",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367816872",
+          "subject_qid": "Q83495",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "plot_character_structure.039",
+      "category": "plot_character_structure",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Hogarth teach the Giant that he can choose to be a hero rather than the weapon others expect?",
+      "split": "test",
+      "subject_qids": [
+        "Q867283"
+      ],
+      "targets": [
+        {
+          "content_hash": "61179c20ecc71df50c7689c0ff910222d07759c1d23039b147d75ea3bfa163e9",
+          "group": "Q867283",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368383839",
+          "subject_qid": "Q867283",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "plot_character_structure.040",
+      "category": "plot_character_structure",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.plot_character_structure",
+      "question_text": "How does Marty's attempt to save George in 1955 endanger Marty's own existence?",
+      "split": "test",
+      "subject_qids": [
+        "Q91540"
+      ],
+      "targets": [
+        {
+          "content_hash": "88f316bc4b3deae9b39d69674164c73aabd0c955d4cd0d958e27def2fe4f49ef",
+          "group": "Q91540",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1365140017",
+          "subject_qid": "Q91540",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.001",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did Kubrick and Clarke develop the screenplay and novel together while settling on the film's title?",
+      "split": "development",
+      "subject_qids": [
+        "Q103474"
+      ],
+      "targets": [
+        {
+          "content_hash": "468889e1cc9808329c22cbf2474d73e44c8f8f8e6a26092fb0f849651f83ffcb",
+          "group": "Q103474",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/writing",
+          "source_revision": "1368386837",
+          "subject_qid": "Q103474",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.002",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did Dan O'Bannon's failed Dune work connect him with artists who later shaped Alien?",
+      "split": "test",
+      "subject_qids": [
+        "Q103569"
+      ],
+      "targets": [
+        {
+          "content_hash": "bfb26d23c1791b1129556f731c95dc29b9a6fe4026cbca8e4a8dd3e74f9bedb9",
+          "group": "Q103569",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/writing",
+          "source_revision": "1368902493",
+          "subject_qid": "Q103569",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.003",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did the production use film stock, lenses, and a modest budget to create a larger visual scale?",
+      "split": "test",
+      "subject_qids": [
+        "Q104123"
+      ],
+      "targets": [
+        {
+          "content_hash": "fa2181081eef52fada9da327680f6b656a43fdcc39b18db0077126288f1a701e",
+          "group": "Q104123",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/filming",
+          "source_revision": "1368985571",
+          "subject_qid": "Q104123",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.004",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "What research changed Pixar's original idea for explaining the passengers' physical decline aboard the Axiom?",
+      "split": "test",
+      "subject_qids": [
+        "Q104905"
+      ],
+      "targets": [
+        {
+          "content_hash": "43400e49a24d9a0113c35582e6554797662d75018043ac2c24d4d18a2463bfed",
+          "group": "Q104905",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/writing",
+          "source_revision": "1368035533",
+          "subject_qid": "Q104905",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.005",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why did Alan Rickman's American accent enable the writers to add an encounter between McClane and Gruber before the finale?",
+      "split": "development",
+      "subject_qids": [
+        "Q105598"
+      ],
+      "targets": [
+        {
+          "content_hash": "6cdb630f771c05b93df0557ffd97b42b154343cae4084f761e30dd0784115e08",
+          "group": "Q105598",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/re-write",
+          "source_revision": "1368498378",
+          "subject_qid": "Q105598",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.006",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did shooting E.T. largely in chronological order affect the child actors and the emotional farewell?",
+      "split": "test",
+      "subject_qids": [
+        "Q11621"
+      ],
+      "targets": [
+        {
+          "content_hash": "649b9237df9245381c93328d30eb1c7ec360c37a29228c069130758f2ace231b",
+          "group": "Q11621",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/filming",
+          "source_revision": "1368107181",
+          "subject_qid": "Q11621",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.007",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did Nolan and Hoytema combine IMAX photography, practical sets, and on-location work for Interstellar?",
+      "split": "test",
+      "subject_qids": [
+        "Q13417189"
+      ],
+      "targets": [
+        {
+          "content_hash": "115b65173ec6df8197aae970e488d4627c6dfa950245d6b6719254a40b3d5439",
+          "group": "Q13417189",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/principal-photography",
+          "source_revision": "1369247590",
+          "subject_qid": "Q13417189",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.008",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Which real places, folklore, and personal observations informed Miyazaki's development of Spirited Away?",
+      "split": "test",
+      "subject_qids": [
+        "Q155653"
+      ],
+      "targets": [
+        {
+          "content_hash": "7a6b0fd9262a780d0f4538e934db0386cfe7aff4d6f285ddcfb788e4c848eb69",
+          "group": "Q155653",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/development-and-inspiration",
+          "source_revision": "1366776118",
+          "subject_qid": "Q155653",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.009",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did Hitchcock use a television crew and cost-conscious production methods to make Psycho?",
+      "split": "development",
+      "subject_qids": [
+        "Q163038"
+      ],
+      "targets": [
+        {
+          "content_hash": "5e63ffaa686f596690ff1fec67e9e6137a4c380bc620457e1dfa808584049196",
+          "group": "Q163038",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/pre-production",
+          "source_revision": "1368981671",
+          "subject_qid": "Q163038",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.010",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did the designers balance realism, mobility, and menace in the Batsuit, Joker, and Two-Face effects?",
+      "split": "test",
+      "subject_qids": [
+        "Q163872"
+      ],
+      "targets": [
+        {
+          "content_hash": "97ec9dac4198adbad835005032e202148dd0803479cdcd0f0ed190baef5b323a",
+          "group": "Q163872",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/special-effects-and-design",
+          "source_revision": "1368945348",
+          "subject_qid": "Q163872",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.011",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why was Ireland chosen to recreate the Normandy landings, and what preparation did the production undertake?",
+      "split": "test",
+      "subject_qids": [
+        "Q165817"
+      ],
+      "targets": [
+        {
+          "content_hash": "5048fb8872d667f29db461d3085a1621fe87ea18bc87a45e1bcefc96a4b08d7b",
+          "group": "Q165817",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/pre-production",
+          "source_revision": "1367130814",
+          "subject_qid": "Q165817",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.012",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did Jurassic Park divide dinosaur work between animatronics, puppetry, and computer-generated imagery?",
+      "split": "test",
+      "subject_qids": [
+        "Q167726"
+      ],
+      "targets": [
+        {
+          "content_hash": "92f8c4cf7d2192878248bb2e428b3b0a22fd4c5460d57505a01cd1d393dc7186",
+          "group": "Q167726",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/dinosaurs-on-screen/list",
+          "source_revision": "1369261019",
+          "subject_qid": "Q167726",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.013",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why did James Cameron describe Robert Patrick's T-1000 as a Porsche-like contrast to Schwarzenegger's Terminator?",
+      "split": "development",
+      "subject_qids": [
+        "Q170564"
+      ],
+      "targets": [
+        {
+          "content_hash": "2aed008a0d23a5cf49de7be323ca0b2a6cba365eece01777ca2cc3eb2fd41fce",
+          "group": "Q170564",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/casting",
+          "source_revision": "1369176150",
+          "subject_qid": "Q170564",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.014",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did the McKee seminar and Joss Whedon's revisions influence Toy Story's character-driven obstacles?",
+      "split": "test",
+      "subject_qids": [
+        "Q171048"
+      ],
+      "targets": [
+        {
+          "content_hash": "b8bb4f2a60bcd50da271165f6cd3238995ee5fff7a4609b46f044e26afa87dbc",
+          "group": "Q171048",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/writing",
+          "source_revision": "1369240355",
+          "subject_qid": "Q171048",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.015",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How was Andy's sewer escape created as a practical production sequence?",
+      "split": "test",
+      "subject_qids": [
+        "Q172241"
+      ],
+      "targets": [
+        {
+          "content_hash": "74ea6123aa9c5d85400f95a9cca178d86839f6efc80717fb8b678d7beb34698d",
+          "group": "Q172241",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/filming",
+          "source_revision": "1367229999",
+          "subject_qid": "Q172241",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.016",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did the filmmakers turn a modern adventure idea into a quest built from old serial conventions and the Ark?",
+      "split": "test",
+      "subject_qids": [
+        "Q174284"
+      ],
+      "targets": [
+        {
+          "content_hash": "50f2ee7634938bc2d19403116fb71fe95c37b77461a82d0eb2d0ee481a6fee25",
+          "group": "Q174284",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/conception",
+          "source_revision": "1367392944",
+          "subject_qid": "Q174284",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.017",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why did Fury Road spend years in development before its vehicles, route, and production plan became feasible?",
+      "split": "development",
+      "subject_qids": [
+        "Q1757288"
+      ],
+      "targets": [
+        {
+          "content_hash": "12404fccbe36920331c6f14bce3978f568411a7364bcf684afaa3d19a5364564",
+          "group": "Q1757288",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/development",
+          "source_revision": "1365076241",
+          "subject_qid": "Q1757288",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.018",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did weather, malfunctioning props, and the Tunisia location complicate the filming of Star Wars?",
+      "split": "test",
+      "subject_qids": [
+        "Q17738"
+      ],
+      "targets": [
+        {
+          "content_hash": "ee3b4fe8676e8949b12267989111dd1c74d851e18521a75d0c2285af6103d266",
+          "group": "Q17738",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/filming",
+          "source_revision": "1369197095",
+          "subject_qid": "Q17738",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.019",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did the screenplay pass through Leigh Brackett, George Lucas, and Lawrence Kasdan during development?",
+      "split": "test",
+      "subject_qids": [
+        "Q181795"
+      ],
+      "targets": [
+        {
+          "content_hash": "a67c063d6afb9c75eb3f3f001dfecbd9016379298daaa44909320cce30863eb5",
+          "group": "Q181795",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/writing",
+          "source_revision": "1368316066",
+          "subject_qid": "Q181795",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.020",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why were editing and audio construction unusually demanding during Apocalypse Now's post-production?",
+      "split": "test",
+      "subject_qids": [
+        "Q182692"
+      ],
+      "targets": [
+        {
+          "content_hash": "0740cacb136ffd32a26fc6cab706bad0a79a7b93a2ae5e797fd6c4de53439a48",
+          "group": "Q182692",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/post-production-and-audio",
+          "source_revision": "1368203734",
+          "subject_qid": "Q182692",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.021",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "What did the Coens preserve or alter when adapting No Country for Old Men from the novel?",
+      "split": "development",
+      "subject_qids": [
+        "Q183081"
+      ],
+      "targets": [
+        {
+          "content_hash": "6ed0226a9c160b6f6a196a3a9143cfe6abf748681cee14aa89f0157c94a959a4",
+          "group": "Q183081",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/writing/differences-from-the-novel",
+          "source_revision": "1368790650",
+          "subject_qid": "Q183081",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.022",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why was Rutger Hauer cast as Roy Batty before Ridley Scott had met him?",
+      "split": "test",
+      "subject_qids": [
+        "Q184843"
+      ],
+      "targets": [
+        {
+          "content_hash": "297870f5c43767663a2d896843cb5a5d7f3a30eb00fe82238ea5961fed490336",
+          "group": "Q184843",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/casting",
+          "source_revision": "1367785310",
+          "subject_qid": "Q184843",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.023",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did the three mechanical sharks nicknamed Bruce reshape the filming of Jaws when they repeatedly failed?",
+      "split": "test",
+      "subject_qids": [
+        "Q189505"
+      ],
+      "targets": [
+        {
+          "content_hash": "128953ee18f2a6a5823871a447baebdbac566924862224b0bdd51fc9577599b1",
+          "group": "Q189505",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/filming",
+          "source_revision": "1367325238",
+          "subject_qid": "Q189505",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.024",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did weather, locations, horses, and Kurosawa's methods make Seven Samurai's filming unusually difficult?",
+      "split": "test",
+      "subject_qids": [
+        "Q189540"
+      ],
+      "targets": [
+        {
+          "content_hash": "f3a87c5107ad5f7ea09538b660e8206ef04f9219983ff305366a9796079cfc3d",
+          "group": "Q189540",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/filming",
+          "source_revision": "1367643737",
+          "subject_qid": "Q189540",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.025",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why did the writers return to the original novella instead of simply remaking the earlier film adaptation?",
+      "split": "development",
+      "subject_qids": [
+        "Q210756"
+      ],
+      "targets": [
+        {
+          "content_hash": "04fb96e3fe8a157e17055b36a23b02a481c11a7bbc035341c50745056f9e3394",
+          "group": "Q210756",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/writing",
+          "source_revision": "1367457241",
+          "subject_qid": "Q210756",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.026",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why was the relatively unknown Sam Worthington selected to lead Avatar?",
+      "split": "test",
+      "subject_qids": [
+        "Q24871"
+      ],
+      "targets": [
+        {
+          "content_hash": "799d239704b821d0f1ae0b023c390e701cbafb60bb6f70b0d707bd1cdc61cc1f",
+          "group": "Q24871",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/casting",
+          "source_revision": "1367616893",
+          "subject_qid": "Q24871",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.027",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did filming locations and practical production choices create the Armitage estate and the Sunken Place?",
+      "split": "test",
+      "subject_qids": [
+        "Q25136235"
+      ],
+      "targets": [
+        {
+          "content_hash": "18d4c27fdb4f3affdea20a6ae73af2441883edb5dcaceb3e1fc85dae0499579f",
+          "group": "Q25136235",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/filming",
+          "source_revision": "1369089602",
+          "subject_qid": "Q25136235",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.028",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did the filmmakers keep Miles Morales central while developing a story with several Spider-people?",
+      "split": "test",
+      "subject_qids": [
+        "Q29588607"
+      ],
+      "targets": [
+        {
+          "content_hash": "c2a6b264a3e9105ec4b9649aaede3464b0815bde53c1530203c852376e488810",
+          "group": "Q29588607",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/development",
+          "source_revision": "1367996074",
+          "subject_qid": "Q29588607",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.029",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did the large water sets and ship reconstruction shape Titanic's filming process?",
+      "split": "development",
+      "subject_qids": [
+        "Q44578"
+      ],
+      "targets": [
+        {
+          "content_hash": "a895b7c8d5412e0b6fa64392f1cb5c9d53ccd7fe828f29a3c6b1e18338618470",
+          "group": "Q44578",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/filming",
+          "source_revision": "1369245790",
+          "subject_qid": "Q44578",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.030",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did Paul Schrader's insomnia, isolation, and personal crisis inform the Taxi Driver screenplay?",
+      "split": "test",
+      "subject_qids": [
+        "Q47221"
+      ],
+      "targets": [
+        {
+          "content_hash": "7eef532502e7a5fddfac1be8f927b3214146e4cbb145d0cb2da76a7013b63526",
+          "group": "Q47221",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/development",
+          "source_revision": "1368618742",
+          "subject_qid": "Q47221",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.031",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why did Paramount resist the casting of Marlon Brando and Al Pacino, and how were those decisions overcome?",
+      "split": "test",
+      "subject_qids": [
+        "Q47703"
+      ],
+      "targets": [
+        {
+          "content_hash": "6e19d668697306f2f651f73ed2fad60f35b18e00ba555044da60abb93cad27cd",
+          "group": "Q47703",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/casting",
+          "source_revision": "1367608322",
+          "subject_qid": "Q47703",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.032",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did handheld camerawork, black-and-white photography, and limited storyboarding create the film's documentary quality?",
+      "split": "test",
+      "subject_qids": [
+        "Q483941"
+      ],
+      "targets": [
+        {
+          "content_hash": "c458edfb1ab11a278c056417ff52209dafa4ea8eed23049c971d3c72715a6639",
+          "group": "Q483941",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/cinematography",
+          "source_revision": "1366673364",
+          "subject_qid": "Q483941",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.033",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why did scouting more than sixty towns lead the filmmakers to choose Woodstock instead of Punxsutawney?",
+      "split": "development",
+      "subject_qids": [
+        "Q488655"
+      ],
+      "targets": [
+        {
+          "content_hash": "05a575ce73dc305a9487e276d571d1b4a3dd36a37fc5b8b79099b2604bd9f651",
+          "group": "Q488655",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/preproduction",
+          "source_revision": "1366147064",
+          "subject_qid": "Q488655",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.034",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did casting changes involving Emilio Estevez and Judd Nelson shape the final ensemble?",
+      "split": "test",
+      "subject_qids": [
+        "Q499152"
+      ],
+      "targets": [
+        {
+          "content_hash": "82372f2948f692c0c9ad50c053e22218bf59936d42068f04c321303a5a873bb0",
+          "group": "Q499152",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/casting",
+          "source_revision": "1368941430",
+          "subject_qid": "Q499152",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.035",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did the filmmakers source and integrate the mansion's automata and decorative objects?",
+      "split": "test",
+      "subject_qids": [
+        "Q57982486"
+      ],
+      "targets": [
+        {
+          "content_hash": "638813cf8f35296281fcd5536b714eb2202fd5ac0fb5b8001fdcbcfe3fddb3ad",
+          "group": "Q57982486",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/set-design",
+          "source_revision": "1367145623",
+          "subject_qid": "Q57982486",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.036",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How was the Park house designed and built to control blocking, class perspective, and camera movement?",
+      "split": "test",
+      "subject_qids": [
+        "Q61448040"
+      ],
+      "targets": [
+        {
+          "content_hash": "a0585479e081d1c8065a9f80df5d19dd66cd0ec24409e3cc674b2d65df4fc7ac",
+          "group": "Q61448040",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/filming",
+          "source_revision": "1368533970",
+          "subject_qid": "Q61448040",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.037",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did Spike Jonze's personal experiences and script development shape Her?",
+      "split": "development",
+      "subject_qids": [
+        "Q788822"
+      ],
+      "targets": [
+        {
+          "content_hash": "56303a7698730254816c77f8321a7a0628bd37ae556a468dc08a881a5deea7ce",
+          "group": "Q788822",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/development",
+          "source_revision": "1367859801",
+          "subject_qid": "Q788822",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.038",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How were layered sound design and music used to distinguish the Matrix's action and virtual world?",
+      "split": "test",
+      "subject_qids": [
+        "Q83495"
+      ],
+      "targets": [
+        {
+          "content_hash": "0607e82877e98b0c384ae9e840b961ff71a839edc70ddcddd42c0dd2e320cac3",
+          "group": "Q83495",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/sound-effects-and-music",
+          "source_revision": "1367816872",
+          "subject_qid": "Q83495",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "production_craft.039",
+      "category": "production_craft",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "How did animating the Giant with computer graphics on twos help it fit the hand-drawn world?",
+      "split": "test",
+      "subject_qids": [
+        "Q867283"
+      ],
+      "targets": [
+        {
+          "content_hash": "e3596396a786d4f155ef04519c3308edcd6eec50051254534140c4758a05eecf",
+          "group": "Q867283",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/animation",
+          "source_revision": "1368383839",
+          "subject_qid": "Q867283",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "production_craft.040",
+      "category": "production_craft",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "craft.production",
+      "question_text": "Why did replacing Eric Stoltz with Michael J. Fox require the production to restart major scenes?",
+      "split": "test",
+      "subject_qids": [
+        "Q91540"
+      ],
+      "targets": [
+        {
+          "content_hash": "63ace0ce67bd165dae826e8783fb2ef94f7bee15f4739c44e9973efa8c59ef05",
+          "group": "Q91540",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "production/casting",
+          "source_revision": "1365140017",
+          "subject_qid": "Q91540",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.001",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Why did some early critics find 2001 baffling or dull while others treated it as a major cinematic achievement?",
+      "split": "development",
+      "subject_qids": [
+        "Q103474"
+      ],
+      "targets": [
+        {
+          "content_hash": "c191125088ada835b08323ebccfc564ef7d47c4221086f5bd3f71ec87ff9f87e",
+          "group": "Q103474",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception-and-legacy/critical-response",
+          "source_revision": "1368386837",
+          "subject_qid": "Q103474",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.002",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did Alien's reputation change after reviews initially dismissed it as an expensive haunted-house movie?",
+      "split": "test",
+      "subject_qids": [
+        "Q103569"
+      ],
+      "targets": [
+        {
+          "content_hash": "711d453a448fdaf0845424ba01eebb70ae32f81b5bed05d2f78b90043257ec69",
+          "group": "Q103569",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy/critical-reassessment",
+          "source_revision": "1368902493",
+          "subject_qid": "Q103569",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.003",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Which aspects of Pulp Fiction's dialogue, structure, and genre mixture became influential after release?",
+      "split": "test",
+      "subject_qids": [
+        "Q104123"
+      ],
+      "targets": [
+        {
+          "content_hash": "689fa82418d402f1132b91efd73644d83b52ce8a07f3636f17ebad0e03540b95",
+          "group": "Q104123",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy-and-influence",
+          "source_revision": "1368985571",
+          "subject_qid": "Q104123",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.004",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did critics interpret WALL-E as both an accessible romance and a warning about consumption and environmental neglect?",
+      "split": "test",
+      "subject_qids": [
+        "Q104905"
+      ],
+      "targets": [
+        {
+          "content_hash": "1195acbeec3c2ee54fef4eb62adca88182baa33d6a04d235dffb3a31ef5f1f79",
+          "group": "Q104905",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/critical-response",
+          "source_revision": "1368035533",
+          "subject_qid": "Q104905",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.005",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Why did Die Hard's vulnerable everyman hero become a template for later action films?",
+      "split": "development",
+      "subject_qids": [
+        "Q105598"
+      ],
+      "targets": [
+        {
+          "content_hash": "10a1f8c65a6f227fe49b25865bc7239663c9192100fb5dd0c53c0199612cfe51",
+          "group": "Q105598",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy/critical-reassessment",
+          "source_revision": "1368498378",
+          "subject_qid": "Q105598",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.006",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Why was E.T.'s low-priced VHS release considered unusual, and what sales result followed?",
+      "split": "test",
+      "subject_qids": [
+        "Q11621"
+      ],
+      "targets": [
+        {
+          "content_hash": "812cf952052a3fb31ba15772dca98e04bc4d28fcc40dc2a512900297dbf3f886",
+          "group": "Q11621",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/home-media",
+          "source_revision": "1368107181",
+          "subject_qid": "Q11621",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.007",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "What made Interstellar's South Korean box-office performance especially notable?",
+      "split": "test",
+      "subject_qids": [
+        "Q13417189"
+      ],
+      "targets": [
+        {
+          "content_hash": "4cafaf89c003018c8bde0dc1a8321a457a89b0c82d4e54f729b4c0a8c8d4ed6d",
+          "group": "Q13417189",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/box-office",
+          "source_revision": "1369247590",
+          "subject_qid": "Q13417189",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.008",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did critics and later polls establish Spirited Away's international reputation?",
+      "split": "test",
+      "subject_qids": [
+        "Q155653"
+      ],
+      "targets": [
+        {
+          "content_hash": "2d97e82ac75228e842c5b72a067f72349ca6586cda13a4d3d55b8adaf0074fb9",
+          "group": "Q155653",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/critical-response",
+          "source_revision": "1366776118",
+          "subject_qid": "Q155653",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.009",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did Psycho's editing, shower scene, and audience manipulation influence later horror filmmaking?",
+      "split": "development",
+      "subject_qids": [
+        "Q163038"
+      ],
+      "targets": [
+        {
+          "content_hash": "81cb9ec4b1d727730b8457983ac5f33972758b9436777160a930a35311341087",
+          "group": "Q163038",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy",
+          "source_revision": "1368981671",
+          "subject_qid": "Q163038",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.010",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Why were Heath Ledger's posthumous acting awards a landmark for comic-book films?",
+      "split": "test",
+      "subject_qids": [
+        "Q163872"
+      ],
+      "targets": [
+        {
+          "content_hash": "8e1bed85784ea70364781d719cd1072669da947d9b3111719a46db24a64ea8af",
+          "group": "Q163872",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/accolades",
+          "source_revision": "1368945348",
+          "subject_qid": "Q163872",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.011",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did Saving Private Ryan's opening battle reshape later depictions of combat on film and television?",
+      "split": "test",
+      "subject_qids": [
+        "Q165817"
+      ],
+      "targets": [
+        {
+          "content_hash": "1fa2c78c330888540f3515ba75eeabfcad17b7fe92b20a280860c462d2e6d1e4",
+          "group": "Q165817",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy/cultural-influence",
+          "source_revision": "1367130814",
+          "subject_qid": "Q165817",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.012",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Why is Jurassic Park's use of computer-generated dinosaurs regarded as a filmmaking landmark?",
+      "split": "test",
+      "subject_qids": [
+        "Q167726"
+      ],
+      "targets": [
+        {
+          "content_hash": "5d97d3f4d71afb1af0700e21c9f47eb7cf8b93113d0e7941c299c60914b1d274",
+          "group": "Q167726",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy/impact",
+          "source_revision": "1369261019",
+          "subject_qid": "Q167726",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.013",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did Terminator 2's digital effects change expectations for computer-generated characters?",
+      "split": "development",
+      "subject_qids": [
+        "Q170564"
+      ],
+      "targets": [
+        {
+          "content_hash": "e07ddadb4c5914d317b15930b6e036fde2e074caa970ca30f0acfc6481ac2cf5",
+          "group": "Q170564",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy/cultural-influence",
+          "source_revision": "1369176150",
+          "subject_qid": "Q170564",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.014",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Why was Toy Story's Academy Special Achievement Award historically significant?",
+      "split": "test",
+      "subject_qids": [
+        "Q171048"
+      ],
+      "targets": [
+        {
+          "content_hash": "27646f4dd3e6d406d1dc40eab1674bc00ce391c15e5bb0f22e46eca6cc3acc3d",
+          "group": "Q171048",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/accolades",
+          "source_revision": "1369240355",
+          "subject_qid": "Q171048",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.015",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did The Shawshank Redemption grow from an underperforming release into an enduring audience favorite?",
+      "split": "test",
+      "subject_qids": [
+        "Q172241"
+      ],
+      "targets": [
+        {
+          "content_hash": "2ba480928db9aa390e03d4982516c6f7dfe6b00c4eb6230703ee5f31d3885828",
+          "group": "Q172241",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy/cultural-influence",
+          "source_revision": "1367229999",
+          "subject_qid": "Q172241",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.016",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did critics evaluate Raiders as both a modern blockbuster and a revival of adventure serials?",
+      "split": "test",
+      "subject_qids": [
+        "Q174284"
+      ],
+      "targets": [
+        {
+          "content_hash": "64f6cc8ff65e18e362e11b581558c4938b208a3e66f8cc5c3fd9147bba0a26a6",
+          "group": "Q174284",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/critical-response",
+          "source_revision": "1367392944",
+          "subject_qid": "Q174284",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.017",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "What qualities led critics to treat Fury Road as an unusually accomplished action film?",
+      "split": "development",
+      "subject_qids": [
+        "Q1757288"
+      ],
+      "targets": [
+        {
+          "content_hash": "bd3f4b437bfc817aa5579d7d7a9f9e44860b7f876156bb2dab1e08f9ed9ac779",
+          "group": "Q1757288",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/critical-response",
+          "source_revision": "1365076241",
+          "subject_qid": "Q1757288",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.018",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Which technical achievements were recognized when Star Wars dominated its Academy Awards categories?",
+      "split": "test",
+      "subject_qids": [
+        "Q17738"
+      ],
+      "targets": [
+        {
+          "content_hash": "6068860a88d801d4ce9fef9a5efc5f0862dbec086eae6f03d6b8846d976c1b4a",
+          "group": "Q17738",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/accolades",
+          "source_revision": "1369197095",
+          "subject_qid": "Q17738",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.019",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How was The Empire Strikes Back recognized by major award bodies after release?",
+      "split": "test",
+      "subject_qids": [
+        "Q181795"
+      ],
+      "targets": [
+        {
+          "content_hash": "35dca1e82e83191c7e075a1c8dad5354409630531e0cc55bfd946a77471acb1a",
+          "group": "Q181795",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/accolades",
+          "source_revision": "1368316066",
+          "subject_qid": "Q181795",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.020",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did later critics and audience polls establish Apocalypse Now as a defining war film?",
+      "split": "test",
+      "subject_qids": [
+        "Q182692"
+      ],
+      "targets": [
+        {
+          "content_hash": "37f4546daad73c7036abb5acb90ee0c5350666ffe478b18646cb816ee61c853f",
+          "group": "Q182692",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy",
+          "source_revision": "1368203734",
+          "subject_qid": "Q182692",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.021",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did No Country for Old Men's awards distinguish its writing, direction, and performances?",
+      "split": "development",
+      "subject_qids": [
+        "Q183081"
+      ],
+      "targets": [
+        {
+          "content_hash": "5d42d9ecafcb6ee4c61996882f3724b4ccac7ddfc074af59111abf74a8e11082",
+          "group": "Q183081",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception-and-legacy/accolades",
+          "source_revision": "1368790650",
+          "subject_qid": "Q183081",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.022",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Which aspects of Blade Runner's design and cinematography received formal awards recognition?",
+      "split": "test",
+      "subject_qids": [
+        "Q184843"
+      ],
+      "targets": [
+        {
+          "content_hash": "00a0e08cc0b583db82f8cc73ad08365d5efa739b921d2f07b66d018c867410b2",
+          "group": "Q184843",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/awards-and-nominations",
+          "source_revision": "1367785310",
+          "subject_qid": "Q184843",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.023",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "What did critics praise and criticize about Jaws when it first opened?",
+      "split": "test",
+      "subject_qids": [
+        "Q189505"
+      ],
+      "targets": [
+        {
+          "content_hash": "55236d0a96919c127074b62c2c9f2877615eeaafeb711386dbb79b53c33e46f9",
+          "group": "Q189505",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/critical-reception",
+          "source_revision": "1367325238",
+          "subject_qid": "Q189505",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.024",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did international festival and award recognition help establish Seven Samurai's reputation?",
+      "split": "test",
+      "subject_qids": [
+        "Q189540"
+      ],
+      "targets": [
+        {
+          "content_hash": "bb7e9a8264404a6c91471ec5eb91c5c6fb4d98b887d4bd702492f93d0f7e5a91",
+          "group": "Q189540",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/accolades",
+          "source_revision": "1367643737",
+          "subject_qid": "Q189540",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.025",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Why were The Thing's creature effects praised by some reviewers and reviled by others?",
+      "split": "development",
+      "subject_qids": [
+        "Q210756"
+      ],
+      "targets": [
+        {
+          "content_hash": "9e8daaa6513d44c077c6c2f1fdea7a73969feb033d35f52002fce91a11e1fd16",
+          "group": "Q210756",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/critical-reception",
+          "source_revision": "1367457241",
+          "subject_qid": "Q210756",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.026",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did commentators reach conflicting political, religious, and racial readings of Avatar?",
+      "split": "test",
+      "subject_qids": [
+        "Q24871"
+      ],
+      "targets": [
+        {
+          "content_hash": "40a5e78b069ef50008a4fae9a515409e99b90a318abd0ea844c6aa3c4e58418c",
+          "group": "Q24871",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/thematic-analysis",
+          "source_revision": "1367616893",
+          "subject_qid": "Q24871",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.027",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Why did Get Out's awards campaign and genre classification become part of its reception story?",
+      "split": "test",
+      "subject_qids": [
+        "Q25136235"
+      ],
+      "targets": [
+        {
+          "content_hash": "6f58ded029f23e474ed9409f982b626e8cdb22131536f79ac57e13b86e26ef70",
+          "group": "Q25136235",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/accolades",
+          "source_revision": "1369089602",
+          "subject_qid": "Q25136235",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.028",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did animation professionals describe Spider-Verse's influence on later studio animation?",
+      "split": "test",
+      "subject_qids": [
+        "Q29588607"
+      ],
+      "targets": [
+        {
+          "content_hash": "702212e4dd6e31441de61f93538b0565733217aad8932b6c30c0cb177750e218",
+          "group": "Q29588607",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/industry-response-and-legacy",
+          "source_revision": "1367996074",
+          "subject_qid": "Q29588607",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.029",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Which box-office milestones made Titanic an unprecedented global theatrical success?",
+      "split": "development",
+      "subject_qids": [
+        "Q44578"
+      ],
+      "targets": [
+        {
+          "content_hash": "98555d542f9ad57833f9db9f38820a75809cb797ef43487db0a19e25de101091",
+          "group": "Q44578",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/box-office",
+          "source_revision": "1369245790",
+          "subject_qid": "Q44578",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.030",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did festival and awards recognition contribute to Taxi Driver's standing?",
+      "split": "test",
+      "subject_qids": [
+        "Q47221"
+      ],
+      "targets": [
+        {
+          "content_hash": "cd1e26e81ecbb081b68acbcb950f7c1f705f8d4379d152298b1b4fae13a4a592",
+          "group": "Q47221",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/accolades",
+          "source_revision": "1368618742",
+          "subject_qid": "Q47221",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.031",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did The Godfather's theatrical earnings and reissues establish its blockbuster status?",
+      "split": "test",
+      "subject_qids": [
+        "Q47703"
+      ],
+      "targets": [
+        {
+          "content_hash": "26f76d281548ede31486446ada37b29d076392f120972c8ffe05b31ba8562e87",
+          "group": "Q47703",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/box-office",
+          "source_revision": "1367608322",
+          "subject_qid": "Q47703",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.032",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Which major awards confirmed Schindler's List's critical standing?",
+      "split": "test",
+      "subject_qids": [
+        "Q483941"
+      ],
+      "targets": [
+        {
+          "content_hash": "35746ac50dc3b17141e6247bd34f29ad4d92899ef7169bf2544178fb7902ed50",
+          "group": "Q483941",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/accolades",
+          "source_revision": "1366673364",
+          "subject_qid": "Q483941",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.033",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did Groundhog Day become a cultural shorthand for repetitive situations?",
+      "split": "development",
+      "subject_qids": [
+        "Q488655"
+      ],
+      "targets": [
+        {
+          "content_hash": "bf369705019d97258c4fd769ac3baab6815daafe51af9df4febb038d33068d02",
+          "group": "Q488655",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy/cultural-impact",
+          "source_revision": "1366147064",
+          "subject_qid": "Q488655",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.034",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Why did some original reviews criticize The Breakfast Club even while praising parts of its cast?",
+      "split": "test",
+      "subject_qids": [
+        "Q499152"
+      ],
+      "targets": [
+        {
+          "content_hash": "22e31beef06ffdbd7785b97b3772f8136282f034d8801817ff7d05267349c0fd",
+          "group": "Q499152",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/critical-response",
+          "source_revision": "1368941430",
+          "subject_qid": "Q499152",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.035",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Which nominations recognized Knives Out's screenplay and ensemble?",
+      "split": "test",
+      "subject_qids": [
+        "Q57982486"
+      ],
+      "targets": [
+        {
+          "content_hash": "3713619255948fc804e3cb62e5f485d8e7255d1f0ba24d2d1f6dfb1060fe6376",
+          "group": "Q57982486",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/accolades",
+          "source_revision": "1367145623",
+          "subject_qid": "Q57982486",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.036",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did critics connect Parasite's genre shifts to its critique of class inequality?",
+      "split": "test",
+      "subject_qids": [
+        "Q61448040"
+      ],
+      "targets": [
+        {
+          "content_hash": "f213098aecea79ad554cb0dac223a4d8aab4883b87b9663332e676d727b78485",
+          "group": "Q61448040",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/critical-response",
+          "source_revision": "1368533970",
+          "subject_qid": "Q61448040",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.037",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Why have retrospective writers found Her's comparatively optimistic human-AI relationship newly relevant?",
+      "split": "development",
+      "subject_qids": [
+        "Q788822"
+      ],
+      "targets": [
+        {
+          "content_hash": "2827aa78a14548b48617881412c62b8aaaa2a9de7672cf3b3624746a16eaffe5",
+          "group": "Q788822",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy",
+          "source_revision": "1367859801",
+          "subject_qid": "Q788822",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.038",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How did bullet time and The Matrix's visual grammar influence later filmmaking?",
+      "split": "test",
+      "subject_qids": [
+        "Q83495"
+      ],
+      "targets": [
+        {
+          "content_hash": "6dbd3f211aa31422048228c5419237dd9e59726f402be21d47e2a70d05f267b1",
+          "group": "Q83495",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy/filmmaking",
+          "source_revision": "1367816872",
+          "subject_qid": "Q83495",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "reception_legacy.039",
+      "category": "reception_legacy",
+      "challenge_tags": [
+        "indirect_paraphrase"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "Which animation awards recognized The Iron Giant despite its weak theatrical performance?",
+      "split": "test",
+      "subject_qids": [
+        "Q867283"
+      ],
+      "targets": [
+        {
+          "content_hash": "47c3e5e8605ca46c62f4ec7ed724d5a67968dabae0fb1e0f0f12b89c163d36bf",
+          "group": "Q867283",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "reception/visible-anchor-awards-accolades-text-accolades",
+          "source_revision": "1368383839",
+          "subject_qid": "Q867283",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "reception_legacy.040",
+      "category": "reception_legacy",
+      "challenge_tags": [],
+      "evidence_class": "narrative_extraction",
+      "question_id": "reception.reception_legacy",
+      "question_text": "How has Back to the Future's reputation held up in modern critical and audience rankings?",
+      "split": "test",
+      "subject_qids": [
+        "Q91540"
+      ],
+      "targets": [
+        {
+          "content_hash": "99671968d8964acece85ce80c8a13a2c3181642bd86e7e3973a415eb991444ce",
+          "group": "Q91540",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "legacy/modern-reception",
+          "source_revision": "1365140017",
+          "subject_qid": "Q91540",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.001",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of 2001: A Space Odyssey?",
+      "split": "development",
+      "subject_qids": [
+        "Q103474"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q103474",
+          "kind": "assertion",
+          "object_qid": "Q2001",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q103474",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.002",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Birdman?",
+      "split": "test",
+      "subject_qids": [
+        "Q214013"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q214013",
+          "kind": "assertion",
+          "object_qid": "Q55215",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q214013",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.003",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of BlacKkKlansman?",
+      "split": "test",
+      "subject_qids": [
+        "Q218458"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q218458",
+          "kind": "assertion",
+          "object_qid": "Q51566",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q218458",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.004",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Alien?",
+      "split": "test",
+      "subject_qids": [
+        "Q103569"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q103569",
+          "kind": "assertion",
+          "object_qid": "Q56005",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q103569",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.005",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Aliens?",
+      "split": "development",
+      "subject_qids": [
+        "Q104814"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q104814",
+          "kind": "assertion",
+          "object_qid": "Q42574",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q104814",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.006",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed All About Eve?",
+      "split": "test",
+      "subject_qids": [
+        "Q200299"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q200299",
+          "kind": "assertion",
+          "object_qid": "Q51583",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q200299",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.007",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of All the President's Men?",
+      "split": "test",
+      "subject_qids": [
+        "Q466781"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q466781",
+          "kind": "assertion",
+          "object_qid": "Q51519",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q466781",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.008",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Amadeus?",
+      "split": "test",
+      "subject_qids": [
+        "Q190956"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q190956",
+          "kind": "assertion",
+          "object_qid": "Q51525",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q190956",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.009",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of A Man for All Seasons?",
+      "split": "development",
+      "subject_qids": [
+        "Q218999"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q218999",
+          "kind": "assertion",
+          "object_qid": "Q55420",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q218999",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.010",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed A Beautiful Mind?",
+      "split": "test",
+      "subject_qids": [
+        "Q106428"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q106428",
+          "kind": "assertion",
+          "object_qid": "Q103646",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q106428",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.011",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Argo?",
+      "split": "test",
+      "subject_qids": [
+        "Q59653"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q59653",
+          "kind": "assertion",
+          "object_qid": "Q483118",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q59653",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.012",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed A Streetcar Named Desire?",
+      "split": "test",
+      "subject_qids": [
+        "Q212129"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q212129",
+          "kind": "assertion",
+          "object_qid": "Q72717",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q212129",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.013",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Avatar?",
+      "split": "development",
+      "subject_qids": [
+        "Q24871"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q24871",
+          "kind": "assertion",
+          "object_qid": "Q42574",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q24871",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.014",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Back to the Future?",
+      "split": "test",
+      "subject_qids": [
+        "Q91540"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q91540",
+          "kind": "assertion",
+          "object_qid": "Q187364",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q91540",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.015",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Black Hawk Down?",
+      "split": "test",
+      "subject_qids": [
+        "Q221384"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q221384",
+          "kind": "assertion",
+          "object_qid": "Q56005",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q221384",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.016",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Blood Diamond?",
+      "split": "test",
+      "subject_qids": [
+        "Q74958"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q74958",
+          "kind": "assertion",
+          "object_qid": "Q314142",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q74958",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.017",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Breakfast at Tiffany's?",
+      "split": "development",
+      "subject_qids": [
+        "Q193066"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q193066",
+          "kind": "assertion",
+          "object_qid": "Q56093",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q193066",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.018",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Breathless?",
+      "split": "test",
+      "subject_qids": [
+        "Q86427"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q86427",
+          "kind": "assertion",
+          "object_qid": "Q53001",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q86427",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.019",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Cast Away?",
+      "split": "test",
+      "subject_qids": [
+        "Q213411"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q213411",
+          "kind": "assertion",
+          "object_qid": "Q187364",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q213411",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.020",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Dawn of the Dead?",
+      "split": "test",
+      "subject_qids": [
+        "Q219155"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q219155",
+          "kind": "assertion",
+          "object_qid": "Q51511",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q219155",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.021",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Dazed and Confused?",
+      "split": "development",
+      "subject_qids": [
+        "Q39975"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q39975",
+          "kind": "assertion",
+          "object_qid": "Q40035",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q39975",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.022",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Dead Poets Society?",
+      "split": "test",
+      "subject_qids": [
+        "Q106316"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q106316",
+          "kind": "assertion",
+          "object_qid": "Q55424",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q106316",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.023",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Deliverance?",
+      "split": "test",
+      "subject_qids": [
+        "Q814778"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q814778",
+          "kind": "assertion",
+          "object_qid": "Q55277",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q814778",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.024",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Die Hard?",
+      "split": "test",
+      "subject_qids": [
+        "Q105598"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q105598",
+          "kind": "assertion",
+          "object_qid": "Q270639",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q105598",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.025",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Die Hard with a Vengeance?",
+      "split": "development",
+      "subject_qids": [
+        "Q106871"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q106871",
+          "kind": "assertion",
+          "object_qid": "Q270639",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q106871",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.026",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed District 9?",
+      "split": "test",
+      "subject_qids": [
+        "Q201819"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q201819",
+          "kind": "assertion",
+          "object_qid": "Q715838",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q201819",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.027",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Dog Day Afternoon?",
+      "split": "test",
+      "subject_qids": [
+        "Q458656"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q458656",
+          "kind": "assertion",
+          "object_qid": "Q51559",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q458656",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.028",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Down by Law?",
+      "split": "test",
+      "subject_qids": [
+        "Q192409"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q192409",
+          "kind": "assertion",
+          "object_qid": "Q191755",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q192409",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.029",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Dr. Strangelove?",
+      "split": "development",
+      "subject_qids": [
+        "Q105702"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q105702",
+          "kind": "assertion",
+          "object_qid": "Q2001",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q105702",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.030",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed For a Few Dollars More?",
+      "split": "test",
+      "subject_qids": [
+        "Q510657"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q510657",
+          "kind": "assertion",
+          "object_qid": "Q164562",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q510657",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.031",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Frankenweenie?",
+      "split": "test",
+      "subject_qids": [
+        "Q217182"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q217182",
+          "kind": "assertion",
+          "object_qid": "Q56008",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q217182",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.032",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Enter the Dragon?",
+      "split": "test",
+      "subject_qids": [
+        "Q331617"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q331617",
+          "kind": "assertion",
+          "object_qid": "Q1888426",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q331617",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.033",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Evil Dead II?",
+      "split": "development",
+      "subject_qids": [
+        "Q750028"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q750028",
+          "kind": "assertion",
+          "object_qid": "Q275402",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q750028",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.034",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Fight Club?",
+      "split": "test",
+      "subject_qids": [
+        "Q190050"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q190050",
+          "kind": "assertion",
+          "object_qid": "Q184903",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q190050",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.035",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Finding Neverland?",
+      "split": "test",
+      "subject_qids": [
+        "Q208204"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q208204",
+          "kind": "assertion",
+          "object_qid": "Q28497",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q208204",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.036",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Gladiator?",
+      "split": "test",
+      "subject_qids": [
+        "Q128518"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q128518",
+          "kind": "assertion",
+          "object_qid": "Q56005",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q128518",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.037",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Goldfinger?",
+      "split": "development",
+      "subject_qids": [
+        "Q106440"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q106440",
+          "kind": "assertion",
+          "object_qid": "Q363653",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q106440",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.038",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Goodfellas?",
+      "split": "test",
+      "subject_qids": [
+        "Q42047"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q42047",
+          "kind": "assertion",
+          "object_qid": "Q41148",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q42047",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "objective_fact.039",
+      "category": "objective_fact",
+      "challenge_tags": [
+        "role_paraphrase"
+      ],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Which filmmaker was at the helm of Good Will Hunting?",
+      "split": "test",
+      "subject_qids": [
+        "Q193835"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q193835",
+          "kind": "assertion",
+          "object_qid": "Q25186",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q193835",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": false,
+      "case_id": "objective_fact.040",
+      "category": "objective_fact",
+      "challenge_tags": [],
+      "evidence_class": "source_fact",
+      "question_id": "credit.director",
+      "question_text": "Who directed Hachi: A Dog's Tale?",
+      "split": "test",
+      "subject_qids": [
+        "Q59249"
+      ],
+      "targets": [
+        {
+          "content_hash": null,
+          "group": "Q59249",
+          "kind": "assertion",
+          "object_qid": "Q316051",
+          "predicate": "director",
+          "section_locator": null,
+          "source_revision": null,
+          "subject_qid": "Q59249",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.001",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Her and Terminator 2 imagine different kinds of learning relationship between humans and artificial intelligence?",
+      "split": "development",
+      "subject_qids": [
+        "Q788822",
+        "Q170564"
+      ],
+      "targets": [
+        {
+          "content_hash": "e0e523730550a0e8635e0d0ffc66127e205c252e858c4e04040d559b97237132",
+          "group": "Q788822",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367859801",
+          "subject_qid": "Q788822",
+          "value_hash": null
+        },
+        {
+          "content_hash": "783b334d0c335656a5a7e6a24e8c5115643ec27f4c3e3ebcf50bb1e89217b4c3",
+          "group": "Q170564",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369176150",
+          "subject_qid": "Q170564",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.002",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Blade Runner and The Iron Giant let artificial beings define humanity beyond their assigned purpose?",
+      "split": "test",
+      "subject_qids": [
+        "Q184843",
+        "Q867283"
+      ],
+      "targets": [
+        {
+          "content_hash": "8c4a7f365b140a8e447bffc855d9570ed4ee8e132b99ae1ec1c1a8b596c8699f",
+          "group": "Q184843",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367785310",
+          "subject_qid": "Q184843",
+          "value_hash": null
+        },
+        {
+          "content_hash": "61179c20ecc71df50c7689c0ff910222d07759c1d23039b147d75ea3bfa163e9",
+          "group": "Q867283",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368383839",
+          "subject_qid": "Q867283",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.003",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do The Matrix and WALL-E portray automated systems maintaining control over passive human populations?",
+      "split": "test",
+      "subject_qids": [
+        "Q83495",
+        "Q104905"
+      ],
+      "targets": [
+        {
+          "content_hash": "f7b96187407f2f7d75fa44fd537609faf69abd866fa719180d49d0de349f1911",
+          "group": "Q83495",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367816872",
+          "subject_qid": "Q83495",
+          "value_hash": null
+        },
+        {
+          "content_hash": "0938dc7ddb319aa00364d97ba1f0b645f2554b882b3d12375117195751e237a5",
+          "group": "Q104905",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368035533",
+          "subject_qid": "Q104905",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.004",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Jaws and Jurassic Park turn an official's ignored warning into a wider public disaster?",
+      "split": "test",
+      "subject_qids": [
+        "Q189505",
+        "Q167726"
+      ],
+      "targets": [
+        {
+          "content_hash": "6cc7c5d95d0e6c01104d633c6ec3d84f23cdebb36ed0bad010648edd3005c6c6",
+          "group": "Q189505",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367325238",
+          "subject_qid": "Q189505",
+          "value_hash": null
+        },
+        {
+          "content_hash": "56a194c16839d6c44ef1a4d18bb99de59a0429fc416237fa929badcc3b7b308e",
+          "group": "Q167726",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369261019",
+          "subject_qid": "Q167726",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.005",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do The Dark Knight and No Country for Old Men use an antagonist to pressure an existing moral and legal order?",
+      "split": "development",
+      "subject_qids": [
+        "Q163872",
+        "Q183081"
+      ],
+      "targets": [
+        {
+          "content_hash": "d31ee43975c3b7dce1cd5c7c23f77e9434c1c489d639f5014d1c0e4d4429d7e8",
+          "group": "Q163872",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368945348",
+          "subject_qid": "Q163872",
+          "value_hash": null
+        },
+        {
+          "content_hash": "0e2f8eb473b4cb63d1ec7f748d4e03b821dabf201839b500097b7b1fbaff6032",
+          "group": "Q183081",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368790650",
+          "subject_qid": "Q183081",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.006",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do The Godfather and Parasite make family advancement depend on entry into a more powerful household or institution?",
+      "split": "test",
+      "subject_qids": [
+        "Q47703",
+        "Q61448040"
+      ],
+      "targets": [
+        {
+          "content_hash": "b4b302186754df55ab1a38ae24e0ddaa6204eefc3906536d4d3820fbef5dddbb",
+          "group": "Q47703",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367608322",
+          "subject_qid": "Q47703",
+          "value_hash": null
+        },
+        {
+          "content_hash": "de19e0a3ae1d433b247d0a248f45fc89e4c112013e409ba049940c4201ea63d5",
+          "group": "Q61448040",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368533970",
+          "subject_qid": "Q61448040",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.007",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How does a threat to family change the young protagonist's commitment in Star Wars and Back to the Future?",
+      "split": "test",
+      "subject_qids": [
+        "Q17738",
+        "Q91540"
+      ],
+      "targets": [
+        {
+          "content_hash": "f3bf90734aa320a43e4c8287cc333e9c3b22a3df619cbf01dc717377cf465e5b",
+          "group": "Q17738",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369197095",
+          "subject_qid": "Q17738",
+          "value_hash": null
+        },
+        {
+          "content_hash": "88f316bc4b3deae9b39d69674164c73aabd0c955d4cd0d958e27def2fe4f49ef",
+          "group": "Q91540",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1365140017",
+          "subject_qid": "Q91540",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.008",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do E.T. and The Iron Giant build drama around a child protecting a misunderstood nonhuman visitor?",
+      "split": "test",
+      "subject_qids": [
+        "Q11621",
+        "Q867283"
+      ],
+      "targets": [
+        {
+          "content_hash": "bdb6d933e1990281d4e835548b43183c545603e21aac22a79b800efef61ea836",
+          "group": "Q11621",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368107181",
+          "subject_qid": "Q11621",
+          "value_hash": null
+        },
+        {
+          "content_hash": "61179c20ecc71df50c7689c0ff910222d07759c1d23039b147d75ea3bfa163e9",
+          "group": "Q867283",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368383839",
+          "subject_qid": "Q867283",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.009",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do The Shawshank Redemption and Groundhog Day use repeated confinement to test whether a person can transform?",
+      "split": "development",
+      "subject_qids": [
+        "Q172241",
+        "Q488655"
+      ],
+      "targets": [
+        {
+          "content_hash": "2fd62ad919f918fda460269d2643f01723365ec359ffdc7934e85bb6c8bc193c",
+          "group": "Q172241",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367229999",
+          "subject_qid": "Q172241",
+          "value_hash": null
+        },
+        {
+          "content_hash": "377f7e0ae99675dd34beaedbf0701d73c3cca48e984c0434f6b1e91f9772e1b6",
+          "group": "Q488655",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1366147064",
+          "subject_qid": "Q488655",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.010",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Psycho and Get Out turn an apparently hospitable private home into a trap?",
+      "split": "test",
+      "subject_qids": [
+        "Q163038",
+        "Q25136235"
+      ],
+      "targets": [
+        {
+          "content_hash": "4823a5fde0d5e1bd3e4cc58ec69e02551d8a82164d033317d7c8b11ad3ef41d2",
+          "group": "Q163038",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368981671",
+          "subject_qid": "Q163038",
+          "value_hash": null
+        },
+        {
+          "content_hash": "812fee6a795aff29f38a8823c3c0323b7f61185b3732685bcf428d0ad01585a2",
+          "group": "Q25136235",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369089602",
+          "subject_qid": "Q25136235",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.011",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Raiders of the Lost Ark and 2001 connect a dangerous quest with knowledge humanity may not control?",
+      "split": "test",
+      "subject_qids": [
+        "Q174284",
+        "Q103474"
+      ],
+      "targets": [
+        {
+          "content_hash": "4a6fb1d16f225642837226f9e1f9e73dfce2495944ad09d6db5b897c664bf89d",
+          "group": "Q174284",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367392944",
+          "subject_qid": "Q174284",
+          "value_hash": null
+        },
+        {
+          "content_hash": "6c11996b5f563648f0416dbaeaffcc6b14dbc30cb963e11a2b70ca2a629c0fe0",
+          "group": "Q103474",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368386837",
+          "subject_qid": "Q103474",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.012",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Seven Samurai and Saving Private Ryan put group duty in conflict with individual survival?",
+      "split": "test",
+      "subject_qids": [
+        "Q189540",
+        "Q165817"
+      ],
+      "targets": [
+        {
+          "content_hash": "2f0d427c8373010633ffa11d4ad9f43b705f7054bd8bc313fd06196115fbcf48",
+          "group": "Q189540",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367643737",
+          "subject_qid": "Q189540",
+          "value_hash": null
+        },
+        {
+          "content_hash": "1997c94fb3f42eecdab04fffad19de7772485ec66c7d078726b96fe395283edb",
+          "group": "Q165817",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367130814",
+          "subject_qid": "Q165817",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.013",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How does a divided outsider join a resistance movement in Fury Road and Avatar?",
+      "split": "development",
+      "subject_qids": [
+        "Q1757288",
+        "Q24871"
+      ],
+      "targets": [
+        {
+          "content_hash": "c647e2b7dad62138cc9f826739e1a8ed640247616ee1a36a5cb4d60c3d581a91",
+          "group": "Q1757288",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1365076241",
+          "subject_qid": "Q1757288",
+          "value_hash": null
+        },
+        {
+          "content_hash": "dfa9fed1e4163e92d6a30ebdad464d31ddf8228c1ea7ff82d083a2d770186018",
+          "group": "Q24871",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367616893",
+          "subject_qid": "Q24871",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.014",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Titanic and Interstellar test personal bonds through extreme separation and lost time?",
+      "split": "test",
+      "subject_qids": [
+        "Q44578",
+        "Q13417189"
+      ],
+      "targets": [
+        {
+          "content_hash": "1d69efacadd61dee9b0182c78f37b3070ba32074bf7d844b3e937bff3aedb7bf",
+          "group": "Q44578",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369245790",
+          "subject_qid": "Q44578",
+          "value_hash": null
+        },
+        {
+          "content_hash": "fdf548114a107c69b8c62c97928e3dd946b23396f1b827e43f68fdb3bc8f91e5",
+          "group": "Q13417189",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369247590",
+          "subject_qid": "Q13417189",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.015",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Pulp Fiction and Knives Out use reordered revelation to reframe a crime story?",
+      "split": "test",
+      "subject_qids": [
+        "Q104123",
+        "Q57982486"
+      ],
+      "targets": [
+        {
+          "content_hash": "b236f3c6915a853075b163234d91c777d55de23f2e5c02bd253cc6fda2c8c955",
+          "group": "Q104123",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "narrative-structure",
+          "source_revision": "1368985571",
+          "subject_qid": "Q104123",
+          "value_hash": null
+        },
+        {
+          "content_hash": "6a95b122e66c0d9f3806fb6931d05338180a430379e54fc0ff3d65043e5f91c2",
+          "group": "Q57982486",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367145623",
+          "subject_qid": "Q57982486",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.016",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Alien and The Thing turn a confined crew against a disguised extraterrestrial threat?",
+      "split": "test",
+      "subject_qids": [
+        "Q103569",
+        "Q210756"
+      ],
+      "targets": [
+        {
+          "content_hash": "3de34d2438585176585bd2e4c890f405f75927b9dba6aba02dbcf08397aad031",
+          "group": "Q103569",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368902493",
+          "subject_qid": "Q103569",
+          "value_hash": null
+        },
+        {
+          "content_hash": "8957887acaac9c7b619a5cba727c3f20040c88b152a74832edb4fff81e7198b4",
+          "group": "Q210756",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367457241",
+          "subject_qid": "Q210756",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.017",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Die Hard and The Dark Knight pit a hero with incomplete information against a planning mastermind?",
+      "split": "development",
+      "subject_qids": [
+        "Q105598",
+        "Q163872"
+      ],
+      "targets": [
+        {
+          "content_hash": "91cf1d4005301e4b831fc7cf0f555c001bfd24adb24ab29db21ab44fe82d0ce1",
+          "group": "Q105598",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368498378",
+          "subject_qid": "Q105598",
+          "value_hash": null
+        },
+        {
+          "content_hash": "d31ee43975c3b7dce1cd5c7c23f77e9434c1c489d639f5014d1c0e4d4429d7e8",
+          "group": "Q163872",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368945348",
+          "subject_qid": "Q163872",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.018",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do The Breakfast Club and Toy Story build ensemble conflict from fear of social replacement?",
+      "split": "test",
+      "subject_qids": [
+        "Q499152",
+        "Q171048"
+      ],
+      "targets": [
+        {
+          "content_hash": "e2aeddb1b525fd8734bc1936246d017c9aa5a9e0290f039f9eed3a532ef4769e",
+          "group": "Q499152",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368941430",
+          "subject_qid": "Q499152",
+          "value_hash": null
+        },
+        {
+          "content_hash": "949830f11d8bbf6b17f0dc6dab550184cb39802940afcb79cb979842c6c71d62",
+          "group": "Q171048",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369240355",
+          "subject_qid": "Q171048",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.019",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Schindler's List and Saving Private Ryan frame rescue as a moral duty rather than a simple victory?",
+      "split": "test",
+      "subject_qids": [
+        "Q483941",
+        "Q165817"
+      ],
+      "targets": [
+        {
+          "content_hash": "0005d76673b719c765f8628a75be821e8f737e2fda84b838d440f5eaf84b1adb",
+          "group": "Q483941",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1366673364",
+          "subject_qid": "Q483941",
+          "value_hash": null
+        },
+        {
+          "content_hash": "1997c94fb3f42eecdab04fffad19de7772485ec66c7d078726b96fe395283edb",
+          "group": "Q165817",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367130814",
+          "subject_qid": "Q165817",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.020",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Terminator 2 and The Matrix use a machine or guide to resist a future-controlling system?",
+      "split": "test",
+      "subject_qids": [
+        "Q170564",
+        "Q83495"
+      ],
+      "targets": [
+        {
+          "content_hash": "783b334d0c335656a5a7e6a24e8c5115643ec27f4c3e3ebcf50bb1e89217b4c3",
+          "group": "Q170564",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369176150",
+          "subject_qid": "Q170564",
+          "value_hash": null
+        },
+        {
+          "content_hash": "644cdb0a6dab3e0929a158baae3ac8e84cbf7ed5ea012b6efa520465633c8c0f",
+          "group": "Q83495",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367816872",
+          "subject_qid": "Q83495",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.021",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Apocalypse Now and Taxi Driver turn an outward mission into an inward descent?",
+      "split": "development",
+      "subject_qids": [
+        "Q182692",
+        "Q47221"
+      ],
+      "targets": [
+        {
+          "content_hash": "42b1814f62dfce01f9cfe430e9f78c79aafc092480dc7b9494d2e80f56192705",
+          "group": "Q182692",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368203734",
+          "subject_qid": "Q182692",
+          "value_hash": null
+        },
+        {
+          "content_hash": "fe637ded7c1f7fd4a1550aee346fa729750140d4ad69d68c3628f571a8e96c0c",
+          "group": "Q47221",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368618742",
+          "subject_qid": "Q47221",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.022",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How does mentor loss force a young hero to accept a larger role in Spider-Verse and Star Wars?",
+      "split": "test",
+      "subject_qids": [
+        "Q29588607",
+        "Q17738"
+      ],
+      "targets": [
+        {
+          "content_hash": "2ce5e6662b431795f30683a9b578c468a6de3a05dbc166fb79d91e8be61aec33",
+          "group": "Q29588607",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367996074",
+          "subject_qid": "Q29588607",
+          "value_hash": null
+        },
+        {
+          "content_hash": "f3bf90734aa320a43e4c8287cc333e9c3b22a3df619cbf01dc717377cf465e5b",
+          "group": "Q17738",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369197095",
+          "subject_qid": "Q17738",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.023",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Spirited Away and Get Out trap an outsider under the rules of an unfamiliar household or world?",
+      "split": "test",
+      "subject_qids": [
+        "Q155653",
+        "Q25136235"
+      ],
+      "targets": [
+        {
+          "content_hash": "eb09a44a8456ff3e8c2fbb53644d4bfd3b322a28499c5485759cab7054c0d8b7",
+          "group": "Q155653",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1366776118",
+          "subject_qid": "Q155653",
+          "value_hash": null
+        },
+        {
+          "content_hash": "812fee6a795aff29f38a8823c3c0323b7f61185b3732685bcf428d0ad01585a2",
+          "group": "Q25136235",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369089602",
+          "subject_qid": "Q25136235",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.024",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Avatar and Parasite use physical space to make hierarchy visible?",
+      "split": "test",
+      "subject_qids": [
+        "Q24871",
+        "Q61448040"
+      ],
+      "targets": [
+        {
+          "content_hash": "dfa9fed1e4163e92d6a30ebdad464d31ddf8228c1ea7ff82d083a2d770186018",
+          "group": "Q24871",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367616893",
+          "subject_qid": "Q24871",
+          "value_hash": null
+        },
+        {
+          "content_hash": "de19e0a3ae1d433b247d0a248f45fc89e4c112013e409ba049940c4201ea63d5",
+          "group": "Q61448040",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368533970",
+          "subject_qid": "Q61448040",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.025",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do WALL-E and Interstellar make ecological collapse the pressure behind survival beyond Earth?",
+      "split": "development",
+      "subject_qids": [
+        "Q104905",
+        "Q13417189"
+      ],
+      "targets": [
+        {
+          "content_hash": "72dd572150dce1bf83f1b170011e7505faa1f62b97fefec5f0264e1c709fa6a4",
+          "group": "Q104905",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368035533",
+          "subject_qid": "Q104905",
+          "value_hash": null
+        },
+        {
+          "content_hash": "273427a14717452970dbfa09cd92130b7ea02fcdf071672381aabedaa49894dc",
+          "group": "Q13417189",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369247590",
+          "subject_qid": "Q13417189",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.026",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Jaws and The Thing let uncertainty about a threat fracture collective trust?",
+      "split": "test",
+      "subject_qids": [
+        "Q189505",
+        "Q210756"
+      ],
+      "targets": [
+        {
+          "content_hash": "6cc7c5d95d0e6c01104d633c6ec3d84f23cdebb36ed0bad010648edd3005c6c6",
+          "group": "Q189505",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367325238",
+          "subject_qid": "Q189505",
+          "value_hash": null
+        },
+        {
+          "content_hash": "8957887acaac9c7b619a5cba727c3f20040c88b152a74832edb4fff81e7198b4",
+          "group": "Q210756",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367457241",
+          "subject_qid": "Q210756",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.027",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do The Godfather and The Dark Knight blur legitimacy while institutions bargain with crime?",
+      "split": "test",
+      "subject_qids": [
+        "Q47703",
+        "Q163872"
+      ],
+      "targets": [
+        {
+          "content_hash": "b4b302186754df55ab1a38ae24e0ddaa6204eefc3906536d4d3820fbef5dddbb",
+          "group": "Q47703",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367608322",
+          "subject_qid": "Q47703",
+          "value_hash": null
+        },
+        {
+          "content_hash": "0c98618eb2852b91943607a64d143eecfd2ee2ec50cf6c173d79c08b0cb90d0c",
+          "group": "Q163872",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368945348",
+          "subject_qid": "Q163872",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.028",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Blade Runner and Her approach artificial personhood through memory and emotional growth?",
+      "split": "test",
+      "subject_qids": [
+        "Q184843",
+        "Q788822"
+      ],
+      "targets": [
+        {
+          "content_hash": "8c4a7f365b140a8e447bffc855d9570ed4ee8e132b99ae1ec1c1a8b596c8699f",
+          "group": "Q184843",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367785310",
+          "subject_qid": "Q184843",
+          "value_hash": null
+        },
+        {
+          "content_hash": "26b6c155047d4ddb5967e164eaaec41ce9f78621f64b5e5461942743b626d6a0",
+          "group": "Q788822",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367859801",
+          "subject_qid": "Q788822",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.029",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How does altered time force personal responsibility in Groundhog Day and Back to the Future?",
+      "split": "development",
+      "subject_qids": [
+        "Q488655",
+        "Q91540"
+      ],
+      "targets": [
+        {
+          "content_hash": "377f7e0ae99675dd34beaedbf0701d73c3cca48e984c0434f6b1e91f9772e1b6",
+          "group": "Q488655",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1366147064",
+          "subject_qid": "Q488655",
+          "value_hash": null
+        },
+        {
+          "content_hash": "88f316bc4b3deae9b39d69674164c73aabd0c955d4cd0d958e27def2fe4f49ef",
+          "group": "Q91540",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1365140017",
+          "subject_qid": "Q91540",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.030",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Jurassic Park and Alien show corporate or scientific ambition unleashing a creature threat?",
+      "split": "test",
+      "subject_qids": [
+        "Q167726",
+        "Q103569"
+      ],
+      "targets": [
+        {
+          "content_hash": "56a194c16839d6c44ef1a4d18bb99de59a0429fc416237fa929badcc3b7b308e",
+          "group": "Q167726",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369261019",
+          "subject_qid": "Q167726",
+          "value_hash": null
+        },
+        {
+          "content_hash": "3de34d2438585176585bd2e4c890f405f75927b9dba6aba02dbcf08397aad031",
+          "group": "Q103569",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368902493",
+          "subject_qid": "Q103569",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.031",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Fury Road and Seven Samurai form reluctant alliances to protect a vulnerable group?",
+      "split": "test",
+      "subject_qids": [
+        "Q1757288",
+        "Q189540"
+      ],
+      "targets": [
+        {
+          "content_hash": "c647e2b7dad62138cc9f826739e1a8ed640247616ee1a36a5cb4d60c3d581a91",
+          "group": "Q1757288",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1365076241",
+          "subject_qid": "Q1757288",
+          "value_hash": null
+        },
+        {
+          "content_hash": "70b2ea51b8771624618f5aecd34bd83601e2d25d407ccd5030d3ba5f0d20e6c6",
+          "group": "Q189540",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367643737",
+          "subject_qid": "Q189540",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.032",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How does an individual moral awakening unfold inside historical catastrophe in Titanic and Schindler's List?",
+      "split": "test",
+      "subject_qids": [
+        "Q44578",
+        "Q483941"
+      ],
+      "targets": [
+        {
+          "content_hash": "a07d6b5b71c4342859979a3f4bfaa5f5401cece8d5e0ae208ec0618dce7b60c9",
+          "group": "Q44578",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369245790",
+          "subject_qid": "Q44578",
+          "value_hash": null
+        },
+        {
+          "content_hash": "d87734588dd139d4f70cb10a55fc5a1b4266b0fd06dac741935d69a24854383f",
+          "group": "Q483941",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1366673364",
+          "subject_qid": "Q483941",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.033",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Psycho and No Country for Old Men destabilize the audience's expectation of a secure protagonist?",
+      "split": "development",
+      "subject_qids": [
+        "Q163038",
+        "Q183081"
+      ],
+      "targets": [
+        {
+          "content_hash": "198b5797fab1aaff59b99c04a09ba964900dfb85896188525a5505c9f64d365c",
+          "group": "Q163038",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368981671",
+          "subject_qid": "Q163038",
+          "value_hash": null
+        },
+        {
+          "content_hash": "0e2f8eb473b4cb63d1ec7f748d4e03b821dabf201839b500097b7b1fbaff6032",
+          "group": "Q183081",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368790650",
+          "subject_qid": "Q183081",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.034",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Raiders and Star Wars turn personal pressure into commitment to a serial-style quest?",
+      "split": "test",
+      "subject_qids": [
+        "Q174284",
+        "Q17738"
+      ],
+      "targets": [
+        {
+          "content_hash": "4a6fb1d16f225642837226f9e1f9e73dfce2495944ad09d6db5b897c664bf89d",
+          "group": "Q174284",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367392944",
+          "subject_qid": "Q174284",
+          "value_hash": null
+        },
+        {
+          "content_hash": "6dd94f992abc239cea8fde7f6fe320b3b970c67cf68ec25ea78bd1f03e4da086",
+          "group": "Q17738",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369197095",
+          "subject_qid": "Q17738",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.035",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Pulp Fiction and The Breakfast Club organize several character perspectives into one connected structure?",
+      "split": "test",
+      "subject_qids": [
+        "Q104123",
+        "Q499152"
+      ],
+      "targets": [
+        {
+          "content_hash": "b236f3c6915a853075b163234d91c777d55de23f2e5c02bd253cc6fda2c8c955",
+          "group": "Q104123",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "narrative-structure",
+          "source_revision": "1368985571",
+          "subject_qid": "Q104123",
+          "value_hash": null
+        },
+        {
+          "content_hash": "3f0ee47593fbb8d47d9bdac30389ea97889a6ebec6055767c71f9b66d170bf14",
+          "group": "Q499152",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368941430",
+          "subject_qid": "Q499152",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.036",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Knives Out and Get Out hide a coercive system inside a wealthy household?",
+      "split": "test",
+      "subject_qids": [
+        "Q57982486",
+        "Q25136235"
+      ],
+      "targets": [
+        {
+          "content_hash": "1ecbcca1af97d33db4a3c0b32ab82601b40ee137b8f0dde10141bf34ff589da8",
+          "group": "Q57982486",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367145623",
+          "subject_qid": "Q57982486",
+          "value_hash": null
+        },
+        {
+          "content_hash": "e2743d9b0a838c64ad2402cf967363dbd0d24c97564d0739b4103ced26ef7e8d",
+          "group": "Q25136235",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369089602",
+          "subject_qid": "Q25136235",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.037",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do E.T. and WALL-E use a small signal and a mostly nonverbal bond to drive a journey home?",
+      "split": "development",
+      "subject_qids": [
+        "Q11621",
+        "Q104905"
+      ],
+      "targets": [
+        {
+          "content_hash": "ac3e6f159bf9cd435af3846435de484c00b8d98e54bee2a45d2b4ede9d67c8bc",
+          "group": "Q11621",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368107181",
+          "subject_qid": "Q11621",
+          "value_hash": null
+        },
+        {
+          "content_hash": "72dd572150dce1bf83f1b170011e7505faa1f62b97fefec5f0264e1c709fa6a4",
+          "group": "Q104905",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368035533",
+          "subject_qid": "Q104905",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.038",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do Toy Story and The Iron Giant let a nonhuman protagonist choose an identity beyond an assigned role?",
+      "split": "test",
+      "subject_qids": [
+        "Q171048",
+        "Q867283"
+      ],
+      "targets": [
+        {
+          "content_hash": "949830f11d8bbf6b17f0dc6dab550184cb39802940afcb79cb979842c6c71d62",
+          "group": "Q171048",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369240355",
+          "subject_qid": "Q171048",
+          "value_hash": null
+        },
+        {
+          "content_hash": "61179c20ecc71df50c7689c0ff910222d07759c1d23039b147d75ea3bfa163e9",
+          "group": "Q867283",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368383839",
+          "subject_qid": "Q867283",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.039",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How do 2001 and Interstellar combine cosmic travel, artificial intelligence, and human survival?",
+      "split": "test",
+      "subject_qids": [
+        "Q103474",
+        "Q13417189"
+      ],
+      "targets": [
+        {
+          "content_hash": "d48d2aaa77b4177ed052a93640d4e0c9255f458bbfcef0af4ee0b5ae435b776c",
+          "group": "Q103474",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368386837",
+          "subject_qid": "Q103474",
+          "value_hash": null
+        },
+        {
+          "content_hash": "273427a14717452970dbfa09cd92130b7ea02fcdf071672381aabedaa49894dc",
+          "group": "Q13417189",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1369247590",
+          "subject_qid": "Q13417189",
+          "value_hash": null
+        }
+      ]
+    },
+    {
+      "adversarial": true,
+      "case_id": "cross_film_comparison.040",
+      "category": "cross_film_comparison",
+      "challenge_tags": [
+        "multi_subject",
+        "analogy_without_shared_keywords"
+      ],
+      "evidence_class": "narrative_extraction",
+      "question_id": "story.cross_film_comparison",
+      "question_text": "How does a wartime mission become a moral test rather than only a tactical objective in Apocalypse Now and Saving Private Ryan?",
+      "split": "test",
+      "subject_qids": [
+        "Q182692",
+        "Q165817"
+      ],
+      "targets": [
+        {
+          "content_hash": "42b1814f62dfce01f9cfe430e9f78c79aafc092480dc7b9494d2e80f56192705",
+          "group": "Q182692",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1368203734",
+          "subject_qid": "Q182692",
+          "value_hash": null
+        },
+        {
+          "content_hash": "1997c94fb3f42eecdab04fffad19de7772485ec66c7d078726b96fe395283edb",
+          "group": "Q165817",
+          "kind": "narrative_passage",
+          "object_qid": null,
+          "predicate": null,
+          "section_locator": "plot",
+          "source_revision": "1367130814",
+          "subject_qid": "Q165817",
+          "value_hash": null
+        }
+      ]
+    }
+  ],
+  "version": "cinegraph-retrieval-benchmark-v1"
+}

@@ -79,3 +79,23 @@ def reciprocal_rank_fusion(rankings: Iterable[Iterable[str]], *, cutoff: int, co
                 sequence += 1
             scores[identifier] = scores.get(identifier, 0.0) + 1 / (constant + rank)
     return sorted(scores, key=lambda identifier: (-scores[identifier], first_seen[identifier]))[:cutoff]
+
+
+def weighted_reciprocal_rank_fusion(
+    rankings: Iterable[tuple[Iterable[str], float]], *, cutoff: int, constant: int = 60,
+) -> list[str]:
+    """Fuse unlike rankers while preserving an explicit, testable lane weight."""
+    if constant <= 0:
+        raise ValueError("RRF constant must be positive.")
+    scores: dict[str, float] = {}
+    first_seen: dict[str, int] = {}
+    sequence = 0
+    for ranking, weight in rankings:
+        if weight <= 0:
+            raise ValueError("RRF weights must be positive.")
+        for rank, identifier in enumerate(ranking, start=1):
+            if identifier not in first_seen:
+                first_seen[identifier] = sequence
+                sequence += 1
+            scores[identifier] = scores.get(identifier, 0.0) + weight / (constant + rank)
+    return sorted(scores, key=lambda identifier: (-scores[identifier], first_seen[identifier]))[:cutoff]
