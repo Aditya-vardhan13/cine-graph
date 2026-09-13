@@ -336,6 +336,9 @@ class AssertionEvidence(Base):
     __table_args__ = (UniqueConstraint("assertion_id", "evidence_type", "reference", name="uq_assertion_evidence"),)
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     assertion_id: Mapped[UUID] = mapped_column(ForeignKey("assertions.id"), nullable=False, index=True)
+    source_assertion_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("source_assertions.id"), unique=True, index=True
+    )
     evidence_type: Mapped[str] = mapped_column(String(50), nullable=False)
     reference: Mapped[str] = mapped_column(String(500), nullable=False)
     note: Mapped[str | None] = mapped_column(Text)

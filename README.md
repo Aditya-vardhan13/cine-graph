@@ -12,6 +12,7 @@ CineGraph begins as a public-data cinema intelligence platform. Phase A ingests 
 - The vetted 1,000-film English selection has been parsed locally into 24,446 attributable Wikipedia passages; raw snapshots and the local database remain outside Git
 - Critical essays and reviews now have a separate attribution-and-rights model: an interpretation remains attached to its author and source rather than becoming an anonymous catalog fact
 - Local hybrid evidence retrieval passes a balanced 200-question benchmark; the held-out 150-case split reaches 100% Recall@10 and 0.845 MRR@10 while preserving source pointers
+- The raw-statement projector converts only allow-listed current Wikidata statements into the existing `Assertion` graph and links every projected row directly to its immutable `SourceAssertion`
 
 The local database is intentionally excluded from Git. Regenerate it from the source instead of committing scraped/derived data.
 
@@ -29,6 +30,11 @@ PYTHONPATH=backend python -m app.services.cmu_movie_summaries --archive /path/to
 PYTHONPATH=backend python -m app.services.cmu_wikidata_reconcile --page-size 100
 # Backfill the additive canonical-entity and evidence layer from an existing catalog.
 PYTHONPATH=backend python -m app.services.backfill_evidence_core
+# Project current retained raw statements into the operational Assertion graph.
+# Generated JSON/HTML coverage reports remain local under data/.
+PYTHONPATH=backend python -m app.services.source_assertion_projection \
+  --collection english-1000-retained-narrative-v1 \
+  --report-dir data/evaluation/source-assertion-projection-v1
 # Extract a retained English Wikipedia revision into attributable passages.
 # This command does not fetch pages: run the revision-snapshot adapter first.
 PYTHONPATH=backend python -m app.services.wikipedia_research Q163872 --curate-pilot --quality
@@ -55,6 +61,11 @@ at startup; an older local catalog is stamped at the documented legacy baseline
 and upgraded in place, never reset. The evidence-core backfill is a separate,
 idempotent command so operators can observe it before any API reads switch to
 the new projections.
+
+Raw-statement projection is also explicit and idempotent. It reads no network
+source, selects only the latest retained successful snapshot for each Wikidata
+object, retracts projections from superseded snapshots, and never promotes an
+unclassified work target to a reviewed film relationship.
 
 Run checks:
 

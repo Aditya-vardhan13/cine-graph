@@ -45,7 +45,7 @@ def test_health_and_catalogue_are_served_from_real_postgresql() -> None:
     with create_engine(DATABASE_URL).connect() as connection:
         assert connection.scalar(text("SELECT count(*) FROM films")) == 2
         assert connection.scalar(text("SELECT count(*) FROM film_provenance")) == 2
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260901_13"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260912_14"
         assert connection.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm')")) is True
         assert connection.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')")) is True
         assert connection.scalar(text("SELECT to_regclass('public.ix_films_canonical_title_trgm')")) == "ix_films_canonical_title_trgm"
