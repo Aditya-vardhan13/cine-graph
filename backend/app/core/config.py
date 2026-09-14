@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     source_request_interval_seconds: float = 1.0
     openalex_request_interval_seconds: float = 2.0
     crossref_request_interval_seconds: float = 2.0
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    research_collection_code: str = "english-1000-retained-narrative-v1"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

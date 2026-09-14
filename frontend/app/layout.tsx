@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import "./styles.css";
 import "./quality.css";
+import "./story-comparison.css";
 
 export const metadata: Metadata = {
   title: "CineGraph · Cinema Explorer",
-  description: "Explore public, provenance-backed film metadata.",
+  description: "Compare films through source-backed story, craft, and reception evidence.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

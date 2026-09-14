@@ -52,5 +52,8 @@ def test_narrative_section_candidates_are_declared_before_ranking() -> None:
         question_id="craft.production", evidence_class="narrative_extraction",
     ) == ("production",)
     assert narrative_section_candidates(
+        question_id="character.transformation", evidence_class="narrative_extraction",
+    ) == ("plot", "narrative-structure")
+    assert narrative_section_candidates(
         question_id="reception.legacy", evidence_class="narrative_extraction",
     ) == ("reception", "reception-and-legacy", "legacy", "legacy-and-influence")

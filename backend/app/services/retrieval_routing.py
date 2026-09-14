@@ -85,6 +85,8 @@ def narrative_section_candidates(*, question_id: str, evidence_class: str | None
         return ("plot", "narrative-structure")
     if normalized_id.startswith("story."):
         return ("plot",)
+    if normalized_id.startswith("character."):
+        return ("plot", "narrative-structure")
     if normalized_id.startswith("structure."):
         return ("narrative-structure", "structure")
     if normalized_id.startswith("craft."):

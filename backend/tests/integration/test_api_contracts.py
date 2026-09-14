@@ -86,6 +86,10 @@ def test_search_detail_comparison_and_lineage_return_evidence_backed_contracts()
     assert edges[0]["target_title"] == "The Dark Knight"
     assert edges[0]["evidence_url"] == "https://www.wikidata.org/wiki/Q163872"
 
+    exact = api_get("/api/v1/films?q=batman%20begins&limit=5")
+    assert exact.status_code == 200
+    assert exact.json()[0]["title"] == "Batman Begins"
+
 
 def test_preprocessing_uses_real_postgresql_rows_and_preserves_narrative_lineage() -> None:
     with Session(create_engine(DATABASE_URL)) as db:
@@ -93,22 +97,22 @@ def test_preprocessing_uses_real_postgresql_rows_and_preserves_narrative_lineage
         second = build_evidence_chunks(db, collection_code="integration-narrative-v1")
         report = evidence_chunk_quality_report(db, collection_code="integration-narrative-v1")
 
-    assert first["passages_requested"] == 1
-    assert first["passages_eligible"] == 1
+    assert first["passages_requested"] == 2
+    assert first["passages_eligible"] == 2
     assert first["chunks_created"] + first["chunks_reused"] >= 1
     assert second["chunks_created"] == 0
     assert second["chunks_reused"] >= 1
     assert report["quality_status_counts"]["eligible"] >= 1
-    assert report["eligible_chunks_per_film"]["films_with_eligible_chunks"] == 1
+    assert report["eligible_chunks_per_film"]["films_with_eligible_chunks"] == 2
 
     with create_engine(DATABASE_URL).connect() as connection:
-        row = connection.execute(text(
+        rows = connection.execute(text(
             "SELECT chunk.source_snapshot_id = passage.source_snapshot_id "
             "FROM evidence_chunks AS chunk "
             "JOIN narrative_passages AS passage ON passage.id = chunk.narrative_passage_id "
             "WHERE chunk.quality_status = 'eligible'"
-        )).scalar_one()
-        assert row is True
+        )).scalars().all()
+        assert rows and all(rows)
 
 
 def test_pgvector_index_preserves_chunk_lineage_and_cosine_ordering() -> None:
@@ -171,3 +175,33 @@ def test_persisted_lexical_retrieval_returns_source_linked_evidence() -> None:
     assert result.evidence
     assert result.evidence[0].source_snapshot_id
     assert result.evidence[0].matched_by == ("lexical",)
+
+
+def test_story_comparison_returns_two_sided_attributable_evidence() -> None:
+    with Session(create_engine(DATABASE_URL)) as db:
+        build_evidence_chunks(db, collection_code="integration-narrative-v1")
+
+    begins = api_get("/api/v1/research/films?q=batman%20begins&limit=1").json()[0]
+    knight = api_get("/api/v1/research/films?q=dark%20knight&limit=1").json()[0]
+    response = httpx.post(
+        f"{API_URL}/api/v1/comparisons/story",
+        json={
+            "first_entity_id": begins["entity_id"],
+            "second_entity_id": knight["entity_id"],
+            "question": "How does becoming a public symbol change Batman's moral choices?",
+            "retrieval_method": "lexical",
+        },
+        timeout=5.0,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["retrieval_method"] == "lexical"
+    assert payload["degraded"] is False
+    assert payload["first"]["title"] == "Batman Begins"
+    assert payload["second"]["title"] == "The Dark Knight"
+    paired = [lens for lens in payload["lenses"] if lens["first_evidence"] and lens["second_evidence"]]
+    assert paired
+    assert paired[0]["first_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/Batman_Begins"
+    assert paired[0]["second_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/The_Dark_Knight"
+    assert all(lens["writer_prompt"] for lens in payload["lenses"])

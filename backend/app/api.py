@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import get_settings
 from app.db import get_db
 from app.models import (
     Assertion, CanonicalEntity, CorpusRecord, DataSource, ExternalWorkRelationship, Film, FilmCredit, FilmGenre, FilmProvenance,
@@ -15,10 +16,16 @@ from app.models import (
 from app.schemas import (
     CreditOut, FilmDetail, FilmListItem, GraphEdge, GraphNode, GraphOut, HealthOut,
     CorpusQualityOut, CorpusSourceQuality, FilmComparison, FilmLineageOut, LanguageEditionOut, LineageEdgeOut, PersonDetail, ProvenanceOut,
-    SimilarFilmOut, SimilarityFactor,
+    ResearchFilmOut, SimilarFilmOut, SimilarityFactor, StoryComparisonEvidenceOut, StoryComparisonLensOut,
+    StoryComparisonOut, StoryComparisonRequest,
 )
+from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod
+from app.services.ollama_embeddings import OllamaEmbeddingClient
+from app.services.research_catalog import ResearchFilm, search_research_films
+from app.services.story_comparison import compare_story_evidence
 
 router = APIRouter(prefix="/api/v1")
+settings = get_settings()
 LANGUAGE_EDITION_ORDER = {"en": 0, "te": 1, "hi": 2, "ta": 3}
 
 
@@ -32,6 +39,18 @@ def film_item(film: Film) -> FilmListItem:
         id=film.id, title=film.canonical_title, release_date=film.release_date,
         runtime_minutes=film.runtime_minutes, genres=sorted({link.genre.label for link in film.genres}),
         language_code=film.original_language_code,
+    )
+
+
+def research_film_item(film: ResearchFilm) -> ResearchFilmOut:
+    return ResearchFilmOut(
+        entity_id=film.entity_id,
+        film_id=film.film_id,
+        title=film.title,
+        release_date=film.release_date,
+        runtime_minutes=film.runtime_minutes,
+        genres=list(film.genres),
+        language_code=film.language_code,
     )
 
 
@@ -210,14 +229,43 @@ def list_films(
     db: Session = Depends(get_db),
 ) -> list[FilmListItem]:
     query = select(Film).options(selectinload(Film.genres).selectinload(FilmGenre.genre)).where(Film.review_status == "published")
+    relevance = None
     if q:
-        query = query.where(Film.canonical_title.ilike(f"%{q.strip()}%"))
+        normalized_query = q.strip()
+        lowered_title = func.lower(Film.canonical_title)
+        lowered_query = normalized_query.casefold()
+        query = query.where(Film.canonical_title.ilike(f"%{normalized_query}%"))
+        relevance = case(
+            (lowered_title == lowered_query, 0),
+            (lowered_title.like(f"{lowered_query}%"), 1),
+            else_=2,
+        )
     if genre:
         query = query.join(FilmGenre).join(Genre).where(Genre.label.ilike(genre.strip()))
     if decade:
         query = query.where(Film.release_date >= datetime(decade, 1, 1), Film.release_date < datetime(decade + 10, 1, 1))
-    films = db.scalars(query.order_by(Film.release_date.desc(), Film.canonical_title).offset(offset).limit(limit)).unique().all()
+    ordering = (
+        (relevance, func.length(Film.canonical_title), Film.release_date.desc(), Film.canonical_title)
+        if relevance is not None
+        else (Film.release_date.desc(), Film.canonical_title)
+    )
+    films = db.scalars(query.order_by(*ordering).offset(offset).limit(limit)).unique().all()
     return [film_item(film) for film in films]
+
+
+@router.get("/research/films", response_model=list[ResearchFilmOut])
+def research_films(
+    q: str = Query(min_length=1, max_length=200),
+    limit: int = Query(default=8, ge=1, le=20),
+    db: Session = Depends(get_db),
+) -> list[ResearchFilmOut]:
+    films = search_research_films(
+        db,
+        query_text=q,
+        limit=limit,
+        collection_code=settings.research_collection_code,
+    )
+    return [research_film_item(film) for film in films]
 
 
 @router.get("/lineage/entry-points", response_model=list[FilmListItem])
@@ -252,6 +300,56 @@ def compare_films(first_id: UUID, second_id: UUID, db: Session = Depends(get_db)
         if signals else "No direct metadata connection was found in the current catalog."
     )
     return FilmComparison(first=film_item(first), second=film_item(second), summary=summary, signals=signals)
+
+
+@router.post("/comparisons/story", response_model=StoryComparisonOut)
+def compare_film_stories(
+    request: StoryComparisonRequest,
+    db: Session = Depends(get_db),
+) -> StoryComparisonOut:
+    try:
+        result = compare_story_evidence(
+            db,
+            first_entity_id=request.first_entity_id,
+            second_entity_id=request.second_entity_id,
+            question=request.question,
+            requested_method=NarrativeRetrievalMethod(request.retrieval_method),
+            embedding_client=OllamaEmbeddingClient(base_url=settings.ollama_base_url),
+            collection_code=settings.research_collection_code,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return StoryComparisonOut(
+        question=result.question,
+        first=research_film_item(result.first),
+        second=research_film_item(result.second),
+        requested_method=result.requested_method,
+        retrieval_method=result.retrieval_method,
+        degraded=result.degraded,
+        fallback_reason=result.fallback_reason,
+        summary=result.summary,
+        caution=result.caution,
+        lenses=[
+            StoryComparisonLensOut(
+                identifier=lens.identifier,
+                label=lens.label,
+                research_question=lens.research_question,
+                writer_prompt=lens.writer_prompt,
+                first_evidence=(
+                    StoryComparisonEvidenceOut(**lens.first_evidence.__dict__)
+                    if lens.first_evidence else None
+                ),
+                second_evidence=(
+                    StoryComparisonEvidenceOut(**lens.second_evidence.__dict__)
+                    if lens.second_evidence else None
+                ),
+            )
+            for lens in result.lenses
+        ],
+    )
 
 
 @router.get("/films/{film_id}/lineage", response_model=FilmLineageOut)

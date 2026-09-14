@@ -24,6 +24,7 @@ services:
       API_CORS_ORIGINS: http://localhost:3001
       RAW_SNAPSHOT_ROOT: /var/lib/cinegraph-test/raw-snapshots
       ENVIRONMENT: integration
+      RESEARCH_COLLECTION_CODE: integration-narrative-v1
     ports:
       - "8001:8000"
     volumes:

@@ -13,6 +13,7 @@ CineGraph begins as a public-data cinema intelligence platform. Phase A ingests 
 - Critical essays and reviews now have a separate attribution-and-rights model: an interpretation remains attached to its author and source rather than becoming an anonymous catalog fact
 - Local hybrid evidence retrieval passes a balanced 200-question benchmark; the held-out 150-case split reaches 100% Recall@10 and 0.845 MRR@10 while preserving source pointers
 - The raw-statement projector converts only allow-listed current Wikidata statements into the existing `Assertion` graph and links every projected row directly to its immutable `SourceAssertion`
+- The writer's comparison desk searches all 1,000 canonical research films and places source-linked story, character, craft, and reception passages side by side for a user-defined question
 
 The local database is intentionally excluded from Git. Regenerate it from the source instead of committing scraped/derived data.
 
@@ -90,6 +91,8 @@ path and passage-level evidence. Embeddings index only eligible licensed
 passages; similarity can suggest a route but cannot publish a claim. See
 [docs/hybrid-retrieval-benchmark-v1.md](docs/hybrid-retrieval-benchmark-v1.md)
 for the versioned gate, held-out results, latency, and known coverage debt.
+The first product-facing consumer of this layer is documented in
+[docs/story-comparison-v1.md](docs/story-comparison-v1.md).
 
 ## Critical essay contract
 

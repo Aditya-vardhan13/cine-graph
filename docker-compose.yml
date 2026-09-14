@@ -20,10 +20,13 @@ services:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/cinegraph
       API_CORS_ORIGINS: http://localhost:3000
       RAW_SNAPSHOT_ROOT: /var/lib/cinegraph/raw-snapshots
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
     ports:
       - "8000:8000"
     volumes:
       - raw_snapshots:/var/lib/cinegraph/raw-snapshots
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

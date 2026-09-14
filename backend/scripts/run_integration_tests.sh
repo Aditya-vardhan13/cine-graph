@@ -1,7 +1,10 @@
 #!/bin/sh
 set -eu
 
-compose_file="../docker-compose.integration.yml"
+script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+repo_root=$(CDPATH= cd -- "$script_dir/../.." && pwd)
+compose_file="$repo_root/docker-compose.integration.yml"
+backend_dir="$repo_root/backend"
 
 docker compose -f "$compose_file" up --build -d
 
@@ -27,4 +30,4 @@ fi
 CINEGRAPH_RUN_INTEGRATION=1 \
 CINEGRAPH_INTEGRATION_API_URL=http://127.0.0.1:8001 \
 CINEGRAPH_TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:5433/cinegraph_test \
-PYTHONPATH=. "$test_python" -m pytest -m integration tests -q
+PYTHONPATH="$backend_dir" "$test_python" -m pytest -m integration "$backend_dir/tests" -q

@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -82,6 +83,56 @@ class FilmComparison(BaseModel):
     second: FilmListItem
     summary: str
     signals: list[SimilarityFactor]
+
+
+class ResearchFilmOut(BaseModel):
+    entity_id: UUID
+    film_id: UUID | None
+    title: str
+    release_date: date | None
+    runtime_minutes: int | None
+    genres: list[str]
+    language_code: str
+
+
+class StoryComparisonRequest(BaseModel):
+    first_entity_id: UUID
+    second_entity_id: UUID
+    question: str = Field(min_length=12, max_length=400)
+    retrieval_method: Literal["hybrid", "lexical"] = "hybrid"
+
+
+class StoryComparisonEvidenceOut(BaseModel):
+    chunk_id: str
+    section_title: str
+    section_locator: str
+    excerpt: str
+    source_url: str
+    source_revision: str | None
+    source_license: str
+    matched_by: list[str]
+
+
+class StoryComparisonLensOut(BaseModel):
+    identifier: str
+    label: str
+    research_question: str
+    writer_prompt: str
+    first_evidence: StoryComparisonEvidenceOut | None
+    second_evidence: StoryComparisonEvidenceOut | None
+
+
+class StoryComparisonOut(BaseModel):
+    question: str
+    first: ResearchFilmOut
+    second: ResearchFilmOut
+    requested_method: str
+    retrieval_method: str
+    degraded: bool
+    fallback_reason: str | None
+    summary: str
+    caution: str
+    lenses: list[StoryComparisonLensOut]
 
 
 class LineageEdgeOut(BaseModel):

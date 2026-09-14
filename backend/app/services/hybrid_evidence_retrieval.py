@@ -85,6 +85,29 @@ def _active_index(db: Session, *, model_name: str) -> tuple[EmbeddingIndexRun, E
     return row
 
 
+def embed_narrative_queries(
+    db: Session,
+    *,
+    question_texts: list[str],
+    client: OllamaEmbeddingClient | None = None,
+    model_name: str = "qwen3-embedding:0.6b",
+) -> tuple[list[float], ...]:
+    """Embed several retrieval questions once so film scopes can share vectors."""
+    if not question_texts or any(not question.strip() for question in question_texts):
+        raise ValueError("Narrative retrieval questions cannot be empty.")
+    _, model = _active_index(db, model_name=model_name)
+    profile = OllamaEmbeddingProfile(
+        model=model.model_name,
+        dimensions=model.dimension,
+        query_instruction=model.query_instruction,
+    )
+    vectors = (client or OllamaEmbeddingClient()).embed(
+        [profile.query_input(question) for question in question_texts],
+        profile=profile,
+    )
+    return tuple(vectors)
+
+
 def _section_conditions(*, question_id: str, evidence_class: str):
     section_candidates = narrative_section_candidates(question_id=question_id, evidence_class=evidence_class)
     if not section_candidates:

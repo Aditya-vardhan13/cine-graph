@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CorpusQuality, Film, FilmLineage, Health, year } from "../lib/api";
+import { StoryComparisonWorkbench } from "./story-comparison";
 
 type Props = { health: Health | null; corpusQuality: CorpusQuality | null; initialFilms: Film[]; lineageEntryPoints: Film[]; initialError: string | null };
 
@@ -110,6 +111,8 @@ export function Explorer({ health, corpusQuality, initialFilms, lineageEntryPoin
         <div className="quality-metrics"><Metric label="Release events" value={metric(corpusQuality.release_events)} /><Metric label="Explicit work links" value={metric(corpusQuality.explicit_work_relationships)} /><Metric label="Reference sources" value={metric(corpusQuality.sources.length)} /></div>
         <div className="source-quality-list">{corpusQuality.sources.map((source) => <article key={source.source_name}><div><span>{source.source_name}</span><small>{source.license}</small></div><p>{metric(source.records)} source records <i>·</i> {metric(source.matched)} reconciled <i>·</i> {metric(source.narrative_documents)} narrative documents</p></article>)}</div>
       </section>}
+
+      <StoryComparisonWorkbench />
 
       <section className="connection-lens">
         <div className="lens-copy"><p className="eyebrow">Story lineage</p><h2>Start with one film.</h2><p>Trace its direct installment, adaptation and source-material routes. Similarity never becomes a claim.</p>{lineageEntryPoints.length > 0 && <div className="lineage-entry-points"><span>Try a proven route</span>{lineageEntryPoints.slice(0, 6).map((film) => <button key={film.id} onClick={() => chooseFilm(film)}>{film.title}</button>)}</div>}</div>

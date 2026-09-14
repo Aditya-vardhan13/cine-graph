@@ -60,6 +60,47 @@ export type FilmComparison = {
   signals: ConnectionSignal[];
 };
 
+export type StoryComparisonEvidence = {
+  chunk_id: string;
+  section_title: string;
+  section_locator: string;
+  excerpt: string;
+  source_url: string;
+  source_revision: string | null;
+  source_license: string;
+  matched_by: string[];
+};
+
+export type ResearchFilm = {
+  entity_id: string;
+  film_id: string | null;
+  title: string;
+  release_date: string | null;
+  runtime_minutes: number | null;
+  genres: string[];
+  language_code: string;
+};
+
+export type StoryComparison = {
+  question: string;
+  first: ResearchFilm;
+  second: ResearchFilm;
+  requested_method: string;
+  retrieval_method: string;
+  degraded: boolean;
+  fallback_reason: string | null;
+  summary: string;
+  caution: string;
+  lenses: Array<{
+    identifier: string;
+    label: string;
+    research_question: string;
+    writer_prompt: string;
+    first_evidence: StoryComparisonEvidence | null;
+    second_evidence: StoryComparisonEvidence | null;
+  }>;
+};
+
 export type LineageEdge = {
   assertion_id: string;
   predicate: string;

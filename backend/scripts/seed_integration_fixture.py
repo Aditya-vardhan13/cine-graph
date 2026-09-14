@@ -65,7 +65,7 @@ def seed() -> None:
         db.add_all([english, source])
         db.flush()
         batch = IngestionBatch(source_id=source.id, external_reference="integration-fixture-v1", records_received=2, records_published=2)
-        begins_entity = CanonicalEntity(entity_kind="film", canonical_label="Batman Begins", wikidata_id="Q166262")
+        begins_entity = CanonicalEntity(entity_kind="film", canonical_label="Batman Begins (2005 film)", wikidata_id="Q166262")
         knight_entity = CanonicalEntity(entity_kind="film", canonical_label="The Dark Knight", wikidata_id="Q163872")
         nolan_entity = CanonicalEntity(entity_kind="person", canonical_label="Christopher Nolan", wikidata_id="Q25191")
         db.add_all([batch, begins_entity, knight_entity, nolan_entity])
@@ -108,7 +108,7 @@ def seed() -> None:
         collection = ReferenceCollection(
             code="integration-narrative-v1",
             title="Integration Narrative Collection",
-            description="A one-film attributable fixture used only by the local PostgreSQL integration suite.",
+            description="A two-film attributable fixture used only by the local PostgreSQL integration suite.",
             language_code="en",
             selection_method="recorded integration fixture",
             selection_version="v1",
@@ -121,7 +121,13 @@ def seed() -> None:
             object_kind="article",
             canonical_url="https://en.wikipedia.org/wiki/The_Dark_Knight",
         )
-        db.add(source_object)
+        begins_source_object = SourceObject(
+            source_id=wikipedia_source.id,
+            external_id="Batman_Begins",
+            object_kind="article",
+            canonical_url="https://en.wikipedia.org/wiki/Batman_Begins",
+        )
+        db.add_all([source_object, begins_source_object])
         db.flush()
         snapshot = SourceSnapshot(
             source_object_id=source_object.id,
@@ -132,7 +138,16 @@ def seed() -> None:
             attribution_url=source_object.canonical_url,
             parser_version="fixture-v1",
         )
-        db.add(snapshot)
+        begins_snapshot = SourceSnapshot(
+            source_object_id=begins_source_object.id,
+            canonical_url=begins_source_object.canonical_url,
+            source_revision="integration-revision-1",
+            content_hash="b" * 64,
+            license="CC BY-SA 4.0",
+            attribution_url=begins_source_object.canonical_url,
+            parser_version="fixture-v1",
+        )
+        db.add_all([snapshot, begins_snapshot])
         db.flush()
         passage_text = (
             "Batman, Gordon, and Harvey Dent work together to dismantle Gotham's organised crime. "
@@ -140,11 +155,23 @@ def seed() -> None:
             "Dent is presented as the lawful public alternative to Batman, while the antagonist repeatedly forces choices that change the stakes. "
             "The final decision leaves Batman carrying blame so the city can retain a public symbol of hope."
         )
+        begins_passage_text = (
+            "Bruce Wayne returns to Gotham and turns fear, training, and inherited wealth into the Batman identity. "
+            "His conflict with Ra's al Ghul tests whether justice can reject execution while still confronting systemic corruption. "
+            "The ending establishes escalation: Batman becomes a public symbol whose presence also attracts theatrical criminals."
+        )
         db.add_all([
             ReferenceCollectionMembership(
                 collection_code=collection.code,
-                entity_id=knight_entity.id,
+                entity_id=begins_entity.id,
                 selection_position=1,
+                selection_signals={"recorded_fixture": True},
+                source_reference=begins_source_object.canonical_url,
+            ),
+            ReferenceCollectionMembership(
+                collection_code=collection.code,
+                entity_id=knight_entity.id,
+                selection_position=2,
                 selection_signals={"recorded_fixture": True},
                 source_reference=source_object.canonical_url,
             ),
@@ -156,6 +183,17 @@ def seed() -> None:
                 ordinal=0,
                 content=passage_text,
                 content_hash="p" * 64,
+                citation_markers=["fixture"],
+                extraction_version="fixture-v1",
+            ),
+            NarrativePassage(
+                subject_entity_id=begins_entity.id,
+                source_snapshot_id=begins_snapshot.id,
+                section_locator="plot",
+                section_title="Plot",
+                ordinal=0,
+                content=begins_passage_text,
+                content_hash="q" * 64,
                 citation_markers=["fixture"],
                 extraction_version="fixture-v1",
             ),
