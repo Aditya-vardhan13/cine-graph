@@ -13,6 +13,7 @@ from app.services.retrieval_benchmark import (
     load_benchmark,
     validate_benchmark,
 )
+from app.services.retrieval_benchmark_runner import run_benchmark
 
 
 def _target(qid: str, group: str | None = None) -> BenchmarkTarget:
@@ -96,3 +97,7 @@ def test_v1_fixture_is_balanced_and_contains_only_evidence_fingerprints() -> Non
     assert all(target.content_hash or target.object_qid or target.value_hash for case in benchmark.cases for target in case.targets)
     payload = json.loads(fixture.read_text(encoding="utf-8"))
     assert all("content" not in target for case in payload["cases"] for target in case["targets"])
+
+
+def test_benchmark_runner_imports_with_current_retrieval_scope() -> None:
+    assert callable(run_benchmark)

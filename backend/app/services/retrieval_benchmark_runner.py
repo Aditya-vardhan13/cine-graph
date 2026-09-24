@@ -27,10 +27,10 @@ from app.models import (
 )
 from app.services.hybrid_evidence_retrieval import (
     NarrativeRetrievalMethod,
-    _active_index,
     retrieve_narrative_candidates,
 )
 from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
+from app.services.retrieval_scope import resolve_retrieval_scope
 from app.services.retrieval_benchmark import (
     BenchmarkCase,
     BenchmarkTarget,
@@ -199,7 +199,10 @@ def run_benchmark(
         raise ValueError(f"No benchmark cases for split {split!r}")
     qids = {qid for case in cases for qid in case.subject_qids}
     entity_ids = _entity_ids(db, qids)
-    index_run, model = _active_index(db, model_name=model_name)
+    scope = resolve_retrieval_scope(db, collection_code=collection_code, model_name=model_name)
+    index_run, model = scope.index_run, scope.model
+    if index_run is None or model is None:
+        raise ValueError(f"No compatible complete embedding index exists for {collection_code!r}.")
     target_groups_by_case = {
         case.case_id: _target_groups(db, case=case, chunk_run_id=index_run.evidence_chunk_run_id)
         for case in cases
@@ -246,6 +249,7 @@ def run_benchmark(
                         candidate_limit=candidate_limit,
                         model_name=model_name,
                         query_vector=vectors[case.case_id] if method != NarrativeRetrievalMethod.LEXICAL else None,
+                        scope=scope,
                     )
                     rankings_by_group[qid] = [item.chunk_id for item in result.evidence]
                     database_latencies[method.value].append(result.database_ranking_milliseconds)

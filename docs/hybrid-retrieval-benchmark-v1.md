@@ -1,6 +1,7 @@
 # Hybrid retrieval benchmark v1
 
-Status: local quality gate implemented and passed on 2026-09-06.
+Status: local quality gate implemented and passed on 2026-09-06; rerun on the
+recovered source index on 2026-09-24 (results below).
 
 ## What this proves
 
@@ -97,9 +98,38 @@ reviewed `Assertion` rows. Objective-fact cases therefore use an honest
 40-film subset of that intersection. This benchmark does not claim 1,000-film
 structured coverage and semantic retrieval does not fill that gap.
 
-The next data task is an additive projector from retained source assertions to
-the existing `Assertion` operational projection. It must not introduce a
-second live fact source.
+At this baseline, the next data task was an additive projector from retained
+source assertions to the existing `Assertion` operational projection. It must
+not introduce a second live fact source. The projector has since run; see the
+current-state section below.
+
+## Recovered-index rerun (2026-09-24)
+
+The additive source-assertion projector has since run. The local database now
+has at least one reviewed operational assertion for 1,000/1,000 collection
+entities, and all 200 benchmark target fingerprints resolve against the
+recovered chunk run `0892ebfc-8b33-4051-95da-4a239b288e40`. This supersedes
+the 128-film coverage figure above, which is the historical baseline, not the
+current state.
+
+The frozen 150-case held-out split was rerun against embedding index
+`0adc1904-7788-4f65-8622-1e449b1f612e` without changing its questions or
+labels. Complete-case recall@10 was **0.9933** and MRR@10 was **0.8332**;
+the acceptance gate passed. Hybrid narrative recall was 0.9917 over 120
+cases. One gold target was not retrieved in the top ten: `production_craft.012`
+asks how *Jurassic Park* divided dinosaur effects among animatronics, puppetry,
+and CGI. The sole labeled target is a long dinosaur-by-dinosaur list; the top
+retrieved passages instead come from the article's directly relevant effects
+section. This case needs independent label adjudication before it is used to
+tune ranking. The assistant-reviewed benchmark is not expert-validated, and
+these scores measure evidence retrieval, not whether a writer finds the result
+helpful.
+
+Assertion coverage is also not the same as source-byte integrity: 906 original
+Wikidata snapshot descriptors remain unavailable locally. Their dependent
+assertions retain explicit evidence links, but must not be treated as fully
+reverified source claims until the underlying bytes are recovered or replaced
+through a separately reviewed source path.
 
 ## Reproduce locally
 
