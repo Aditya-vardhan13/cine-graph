@@ -14,6 +14,7 @@ from app.models import (
     Assertion, CanonicalEntity, DataSource, EmbeddingIndexRun, EmbeddingModel,
     EvidenceChunk, EvidenceChunkRun, EvidenceEmbedding, LanguageEdition,
     NarrativePassage, ReferenceCollection, ReferenceCollectionMembership, SourceObject, SourceSnapshot,
+    ResearchAnswer, ResearchAnswerEvidence,
 )
 from app.schemas import CorpusQualityOut, ResearchFilmOut
 from app.services.corpus_quality import corpus_quality_report
@@ -22,6 +23,7 @@ from app.services.evidence_preprocessing import ChunkConfiguration, build_eviden
 from app.services.embedding_artifacts import document_cache_key, embedding_configuration_hash
 from app.services.embedding_index import _ordered_chunks_and_contents, instruction_hash
 from app.services.embedding_index_reuse import create_exact_reuse_index, plan_exact_embedding_reuse
+from app.services.embedding_evaluation import _evaluation_rows
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.research_catalog import search_research_films
 from app.services.retrieval_scope import resolve_retrieval_scope
@@ -237,6 +239,66 @@ def test_recovered_chunk_run_reuses_vectors_only_for_exact_indexed_documents(res
             research_db, source_index_id=source_index.id, target_chunk_run_id=target_run.id,
         )
     research_db.rollback()
+
+
+def test_retrieval_evaluation_maps_reviewed_passages_across_exact_source_recovery(research_db):
+    result = build_evidence_chunks(research_db, collection_code=COLLECTION)
+    run = research_db.get(EvidenceChunkRun, result["run_id"])
+    current_chunks = list(research_db.scalars(select(EvidenceChunk).where(
+        EvidenceChunk.preprocessing_run_id == run.id,
+        EvidenceChunk.quality_status == "eligible",
+    )))
+    assert current_chunks
+    current_passage = research_db.get(NarrativePassage, current_chunks[0].narrative_passage_id)
+    current_snapshot = research_db.get(SourceSnapshot, current_passage.source_snapshot_id)
+    source_object = research_db.get(SourceObject, current_snapshot.source_object_id)
+
+    old_snapshot = SourceSnapshot(
+        source_object_id=source_object.id,
+        source_revision=current_snapshot.source_revision,
+        canonical_url=current_snapshot.canonical_url,
+        content_hash=hashlib.sha256(b"recovered full-page payload").hexdigest(),
+        license=current_snapshot.license,
+        fetch_status="success",
+        parser_version="recovered-test-v2",
+    )
+    research_db.add(old_snapshot)
+    research_db.flush()
+    old_passage = NarrativePassage(
+        subject_entity_id=current_passage.subject_entity_id,
+        source_snapshot_id=old_snapshot.id,
+        section_locator=current_passage.section_locator,
+        section_title=current_passage.section_title,
+        ordinal=current_passage.ordinal,
+        language_code=current_passage.language_code,
+        content=current_passage.content,
+        content_hash=current_passage.content_hash,
+        citation_markers=list(current_passage.citation_markers),
+        extraction_version="recovered-test-v2",
+    )
+    answer = ResearchAnswer(
+        subject_entity_id=current_passage.subject_entity_id,
+        question_id="story.plot_character_structure",
+        question_text="What story conflict is shown in this passage?",
+        answer="A source-linked answer for integration coverage.",
+        evidence_class="narrative_extraction",
+        answer_version="test-v1",
+        review_status="published",
+    )
+    research_db.add_all([old_passage, answer])
+    research_db.flush()
+    research_db.add(ResearchAnswerEvidence(
+        research_answer_id=answer.id,
+        narrative_passage_id=old_passage.id,
+        evidence_locator="plot",
+    ))
+    research_db.flush()
+
+    eligible_chunks, queries = _evaluation_rows(research_db, run)
+    query = next(item for item in queries if item["research_answer_id"] == str(answer.id))
+    expected_ids = {str(chunk.id) for chunk in eligible_chunks if chunk.narrative_passage_id == current_passage.id}
+    assert expected_ids
+    assert query["target_chunk_ids"] == expected_ids
 
 
 def test_coverage_counts_passages_without_legacy_documents(research_db):

@@ -20,7 +20,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import CanonicalEntity, EvidenceChunk, EvidenceChunkRun, ResearchAnswer, ResearchAnswerEvidence
+from app.models import (
+    CanonicalEntity,
+    EvidenceChunk,
+    EvidenceChunkRun,
+    NarrativePassage,
+    ResearchAnswer,
+    ResearchAnswerEvidence,
+    SourceObject,
+    SourceSnapshot,
+)
 from app.services.lexical_retrieval import Bm25Index, reciprocal_rank_fusion
 from app.services.embedding_artifacts import DOCUMENT_REPRESENTATION, document_cache_key
 from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
@@ -90,15 +99,32 @@ def _evaluation_rows(db: Session, run: EvidenceChunkRun) -> tuple[list[EvidenceC
     for chunk in chunks:
         chunk_ids_by_passage[chunk.narrative_passage_id].add(str(chunk.id))
 
+    current_passage_ids = set(chunk_ids_by_passage)
+    current_passage_keys: dict[tuple[Any, ...], set[str]] = defaultdict(set)
+    for passage, snapshot, source_object in db.execute(
+        select(NarrativePassage, SourceSnapshot, SourceObject)
+        .join(SourceSnapshot, SourceSnapshot.id == NarrativePassage.source_snapshot_id)
+        .join(SourceObject, SourceObject.id == SourceSnapshot.source_object_id)
+        .where(NarrativePassage.id.in_(current_passage_ids))
+    ):
+        key = _passage_source_version_key(passage, snapshot, source_object)
+        if key is not None:
+            current_passage_keys[key].update(chunk_ids_by_passage[passage.id])
+
     answers: dict[object, dict[str, Any]] = {}
     rows = db.execute(
-        select(ResearchAnswer, ResearchAnswerEvidence.narrative_passage_id)
+        select(ResearchAnswer, NarrativePassage, SourceSnapshot, SourceObject)
         .join(ResearchAnswerEvidence, ResearchAnswerEvidence.research_answer_id == ResearchAnswer.id)
-        .where(ResearchAnswerEvidence.narrative_passage_id.is_not(None))
+        .join(NarrativePassage, NarrativePassage.id == ResearchAnswerEvidence.narrative_passage_id)
+        .join(SourceSnapshot, SourceSnapshot.id == NarrativePassage.source_snapshot_id)
+        .join(SourceObject, SourceObject.id == SourceSnapshot.source_object_id)
         .order_by(ResearchAnswer.id)
     ).all()
-    for answer, passage_id in rows:
-        target_chunk_ids = chunk_ids_by_passage.get(passage_id, set())
+    for answer, passage, snapshot, source_object in rows:
+        target_chunk_ids = chunk_ids_by_passage.get(passage.id)
+        if not target_chunk_ids:
+            key = _passage_source_version_key(passage, snapshot, source_object)
+            target_chunk_ids = current_passage_keys.get(key, set()) if key is not None else set()
         if not target_chunk_ids:
             continue
         entry = answers.setdefault(str(answer.id), {
@@ -111,6 +137,25 @@ def _evaluation_rows(db: Session, run: EvidenceChunkRun) -> tuple[list[EvidenceC
         })
         entry["target_chunk_ids"].update(target_chunk_ids)
     return chunks, list(answers.values())
+
+
+def _passage_source_version_key(
+    passage: NarrativePassage,
+    snapshot: SourceSnapshot,
+    source_object: SourceObject,
+) -> tuple[Any, ...] | None:
+    """Identify equivalent passages only within the same pinned source version."""
+    if not snapshot.source_revision or not source_object.canonical_url:
+        return None
+    return (
+        passage.subject_entity_id,
+        passage.language_code,
+        source_object.canonical_url,
+        snapshot.source_revision,
+        passage.section_locator,
+        passage.ordinal,
+        passage.content_hash,
+    )
 
 
 def _model_metadata(model: Any, model_name: str) -> dict[str, Any]:

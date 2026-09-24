@@ -58,11 +58,22 @@ on film, language, section, text, and content hash, as well as the prior
 index's document cache key. This avoids redundant inference over unchanged
 text; it does not count as a new model evaluation.
 
-The database-side copy has passed isolated integration tests. Query serving
-is not yet verified: a read-only query from the API container could not reach
-the host Ollama endpoint configured as `host.docker.internal:11434`, although
-the host endpoint itself responds. Resolve this runtime connection and run the
-retrieval benchmark before making latency or quality claims.
+The database-side copy has passed isolated integration tests. Host-native query
+serving is verified: the 11-question narrative seed returned Recall@10 1.0 and
+MRR@10 1.0, with query-embedding p50/p95 89.7/490.2 ms and database-ranking
+p50/p95 8.6/22.4 ms. A real localhost story-comparison request returned HTTP
+200 with hybrid retrieval, no fallback, and evidence for all five lenses on
+both films. This is a small smoke/regression set, not a held-out quality claim;
+the next benchmark gate remains a substantially broader, independently
+reviewed question set.
+
+The Dockerized API still cannot reach the host Ollama endpoint at
+`host.docker.internal:11434` because Ollama listens only on host loopback. Do
+not widen that listener just to make the container work. For local development,
+keep PostgreSQL in Docker and run API and Next.js natively on localhost; their
+defaults point to the local database, Ollama, and API respectively. If the
+containerized API becomes a requirement, give it an Ollama service on the
+private Compose network rather than exposing the host daemon.
 `python -m app.services.local_retrieval_status` is the read-only trigger for
 checking index completion and unfinished checkpoint files.
 
