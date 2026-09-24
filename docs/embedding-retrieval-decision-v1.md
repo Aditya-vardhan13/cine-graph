@@ -50,7 +50,19 @@ The selected request path is:
 5. rank only source-linked chunks for that film and route in pgvector; and
 6. return the passage, section, source snapshot, score, and candidate label.
 
-All 24,194 eligible chunks are now present in the completed local index run.
+All 24,194 eligible chunks are now present in the completed local index run
+`0adc1904-7788-4f65-8622-1e449b1f612e`, associated with recovered-source chunk
+run `0892ebfc-8b33-4051-95da-4a239b288e40`. The vectors were copied from the
+prior Qwen3 Embedding 0.6B index only after verifying a one-to-one exact match
+on film, language, section, text, and content hash, as well as the prior
+index's document cache key. This avoids redundant inference over unchanged
+text; it does not count as a new model evaluation.
+
+The database-side copy has passed isolated integration tests. Query serving
+is not yet verified: a read-only query from the API container could not reach
+the host Ollama endpoint configured as `host.docker.internal:11434`, although
+the host endpoint itself responds. Resolve this runtime connection and run the
+retrieval benchmark before making latency or quality claims.
 `python -m app.services.local_retrieval_status` is the read-only trigger for
 checking index completion and unfinished checkpoint files.
 

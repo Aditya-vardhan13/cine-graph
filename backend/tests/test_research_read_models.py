@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
@@ -18,6 +19,9 @@ from app.schemas import CorpusQualityOut, ResearchFilmOut
 from app.services.corpus_quality import corpus_quality_report
 from app.services.evidence_coverage import passage_coverage_report
 from app.services.evidence_preprocessing import ChunkConfiguration, build_evidence_chunks
+from app.services.embedding_artifacts import document_cache_key, embedding_configuration_hash
+from app.services.embedding_index import _ordered_chunks_and_contents, instruction_hash
+from app.services.embedding_index_reuse import create_exact_reuse_index, plan_exact_embedding_reuse
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.research_catalog import search_research_films
 from app.services.retrieval_scope import resolve_retrieval_scope
@@ -83,6 +87,156 @@ def test_canonical_metadata_works_without_legacy_profile(research_db):
     assert result.language_code == "en"
     assert result.genre_ids == ["Q471839"]
     assert result.metadata_evidence["release_event"][0]["source_revision"] == "2513891788"
+
+
+def test_recovered_chunk_run_reuses_vectors_only_for_exact_indexed_documents(research_db):
+    source_result = build_evidence_chunks(research_db, collection_code=COLLECTION)
+    source_run = research_db.get(EvidenceChunkRun, source_result["run_id"])
+    source_chunks = list(research_db.scalars(select(EvidenceChunk).where(
+        EvidenceChunk.preprocessing_run_id == source_run.id,
+        EvidenceChunk.quality_status == "eligible",
+    )))
+    assert source_chunks
+    first_chunk = source_chunks[0]
+    second_content = first_chunk.content + " A second distinct passage supports a separate retrieval input."
+    second_chunk = EvidenceChunk(
+        preprocessing_run_id=source_run.id,
+        narrative_passage_id=first_chunk.narrative_passage_id,
+        subject_entity_id=first_chunk.subject_entity_id,
+        source_snapshot_id=first_chunk.source_snapshot_id,
+        language_code=first_chunk.language_code,
+        section_locator=first_chunk.section_locator,
+        section_title=first_chunk.section_title,
+        chunk_ordinal=first_chunk.chunk_ordinal + 1,
+        content=second_content,
+        content_hash=hashlib.sha256(second_content.encode("utf-8")).hexdigest(),
+        word_count=first_chunk.word_count + 9,
+        token_count_estimate=first_chunk.token_count_estimate + 10,
+        sentence_count=first_chunk.sentence_count + 1,
+        quality_status="eligible",
+        quality_flags=[],
+        duplicate_of_chunk_id=None,
+        chunker_version=first_chunk.chunker_version,
+        configuration_hash=first_chunk.configuration_hash,
+    )
+    research_db.add(second_chunk)
+    research_db.flush()
+    source_chunks.append(second_chunk)
+
+    target_hash = hashlib.sha256(b"recovered-source-run").hexdigest()
+    target_run = EvidenceChunkRun(
+        collection_code=COLLECTION,
+        language_code=source_run.language_code,
+        chunker_version=source_run.chunker_version,
+        configuration=dict(source_run.configuration),
+        configuration_hash=target_hash,
+        status="complete",
+        passages_requested=source_run.passages_requested,
+        passages_eligible=source_run.passages_eligible,
+        chunks_created=len(source_chunks),
+        completed_at=datetime.now(timezone.utc),
+    )
+    research_db.add(target_run)
+    research_db.flush()
+    target_chunks = []
+    for source_chunk in source_chunks:
+        target_chunk = EvidenceChunk(
+            preprocessing_run_id=target_run.id,
+            narrative_passage_id=source_chunk.narrative_passage_id,
+            subject_entity_id=source_chunk.subject_entity_id,
+            source_snapshot_id=source_chunk.source_snapshot_id,
+            language_code=source_chunk.language_code,
+            section_locator=source_chunk.section_locator,
+            section_title=source_chunk.section_title,
+            chunk_ordinal=source_chunk.chunk_ordinal,
+            content=source_chunk.content,
+            content_hash=source_chunk.content_hash,
+            word_count=source_chunk.word_count,
+            token_count_estimate=source_chunk.token_count_estimate,
+            sentence_count=source_chunk.sentence_count,
+            quality_status=source_chunk.quality_status,
+            quality_flags=list(source_chunk.quality_flags),
+            duplicate_of_chunk_id=None,
+            chunker_version=source_chunk.chunker_version,
+            configuration_hash=target_hash,
+        )
+        target_chunks.append(target_chunk)
+    research_db.add_all(target_chunks)
+    research_db.flush()
+
+    instruction = "Retrieve exact source-backed film evidence."
+    revision = f"integration-{uuid4().hex}"
+    model = EmbeddingModel(
+        provider="ollama", model_name="qwen3-embedding:0.6b", model_revision=revision,
+        dimension=1024, query_instruction=instruction, instruction_hash=instruction_hash(instruction),
+        license="Apache-2.0",
+    )
+    research_db.add(model)
+    research_db.flush()
+    config_hash = embedding_configuration_hash(
+        model_name=model.model_name, model_revision=model.model_revision,
+        dimension=model.dimension, instruction_hash=model.instruction_hash,
+    )
+    source_index = EmbeddingIndexRun(
+        evidence_chunk_run_id=source_run.id,
+        embedding_model_id=model.id,
+        document_representation="film-section-evidence-v1",
+        configuration={},
+        configuration_hash=config_hash,
+        status="complete",
+        chunks_requested=len(source_chunks),
+        chunks_completed=len(source_chunks),
+        completed_at=datetime.now(timezone.utc),
+    )
+    research_db.add(source_index)
+    research_db.flush()
+    _, source_contents = _ordered_chunks_and_contents(research_db, source_run)
+    cache_key = document_cache_key(
+        provider=model.provider, model_name=model.model_name, dimensions=model.dimension,
+        chunk_run_id=str(source_run.id), chunker_version=source_run.chunker_version,
+        contents=source_contents,
+    )
+    source_index.configuration = {"cache_key": cache_key}
+    expected_vectors = {}
+    for ordinal, source_chunk in enumerate(source_chunks):
+        vector = [float(ordinal + 1)] + [0.0] * 1023
+        expected_vectors[source_chunk.id] = vector
+        research_db.add(EvidenceEmbedding(
+            index_run_id=source_index.id,
+            evidence_chunk_id=source_chunk.id,
+            content_hash=source_chunk.content_hash,
+            embedding=vector,
+        ))
+    research_db.commit()
+
+    plan = plan_exact_embedding_reuse(
+        research_db, source_index_id=source_index.id, target_chunk_run_id=target_run.id,
+    )
+    assert plan["source_cache_key_verified"] is True
+    assert plan["exact_document_pairs"] == len(target_chunks)
+
+    target_index = create_exact_reuse_index(
+        research_db, source_index_id=source_index.id, target_chunk_run_id=target_run.id,
+    )
+    copied = dict(research_db.execute(
+        select(EvidenceEmbedding.evidence_chunk_id, EvidenceEmbedding.embedding).where(
+            EvidenceEmbedding.index_run_id == target_index.id,
+        )
+    ).all())
+    expected_by_content = {chunk.content_hash: expected_vectors[chunk.id] for chunk in source_chunks}
+    assert target_index.status == "complete"
+    assert target_index.chunks_completed == len(target_chunks)
+    assert all(
+        list(copied[chunk.id]) == expected_by_content[chunk.content_hash]
+        for chunk in target_chunks
+    )
+
+    target_chunks[0].content = "Changed text must never inherit a vector."
+    with pytest.raises(ValueError, match="Exact vector reuse rejected"):
+        plan_exact_embedding_reuse(
+            research_db, source_index_id=source_index.id, target_chunk_run_id=target_run.id,
+        )
+    research_db.rollback()
 
 
 def test_coverage_counts_passages_without_legacy_documents(research_db):
