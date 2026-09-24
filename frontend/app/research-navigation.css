@@ -1,0 +1,8 @@
+.research-nav { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; }
+.research-nav a { color: var(--ink); text-decoration: none; }
+.research-nav a:hover, .research-nav a:focus-visible { color: var(--lime); text-decoration: underline; }
+details.quality-board { display: block; }
+details.quality-board summary { cursor: pointer; line-height: 1.5; }
+details.quality-board > p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+#compare, #catalog, #lineage { scroll-margin-top: 24px; }
+@media (max-width: 420px) { .research-nav { gap: 10px; font-size: 12px; } }

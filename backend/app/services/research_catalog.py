@@ -13,7 +13,8 @@ from uuid import UUID
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import CanonicalEntity, Film, FilmGenre, ReferenceCollectionMembership
+from app.models import Assertion, CanonicalEntity, Genre, ReferenceCollectionMembership
+from app.services.research_metadata import METADATA_PREDICATES, MetadataAssertion, display_metadata
 
 
 DEFAULT_RESEARCH_COLLECTION = "english-1000-retained-narrative-v1"
@@ -34,19 +35,40 @@ class ResearchFilm:
     runtime_minutes: int | None
     genres: tuple[str, ...]
     language_code: str
+    release_year: int | None
+    release_basis: str | None
+    genre_ids: tuple[str, ...]
+    original_language_ids: tuple[str, ...]
+    metadata_issues: tuple[str, ...]
+    metadata_evidence: dict[str, list[dict[str, str | None]]]
 
 
-def research_film_from_entity(entity: CanonicalEntity) -> ResearchFilm:
-    profile = entity.film_profile
-    return ResearchFilm(
-        entity_id=entity.id,
-        film_id=profile.id if profile else None,
-        title=profile.canonical_title if profile else display_film_title(entity.canonical_label),
-        release_date=profile.release_date.isoformat() if profile and profile.release_date else None,
-        runtime_minutes=profile.runtime_minutes if profile else None,
-        genres=tuple(sorted(link.genre.label for link in profile.genres)) if profile else (),
-        language_code=profile.original_language_code if profile else "en",
-    )
+def research_films_from_entities(db: Session, entities: list[CanonicalEntity]) -> tuple[ResearchFilm, ...]:
+    if not entities:
+        return ()
+    assertions = db.scalars(select(Assertion).where(
+        Assertion.subject_entity_id.in_([e.id for e in entities]),
+        Assertion.predicate.in_(METADATA_PREDICATES),
+        Assertion.assertion_kind == "source_fact",
+        Assertion.review_status.in_(("resolved", "published")),
+    )).all()
+    genre_ids = {a.value_json.get("wikidata_id") for a in assertions
+                 if a.predicate == "genre" and a.value_json}
+    labels = dict(db.execute(select(Genre.wikidata_id, Genre.label).where(
+        Genre.wikidata_id.in_(genre_ids)
+    )).all()) if genre_ids else {}
+    by_entity: dict[UUID, list[MetadataAssertion]] = {e.id: [] for e in entities}
+    for assertion in assertions:
+        by_entity[assertion.subject_entity_id].append(MetadataAssertion(
+            str(assertion.id), assertion.predicate, assertion.value_json or {},
+            assertion.qualifiers or {}, assertion.review_status, assertion.rank,
+            assertion.source_reference or "", assertion.source_revision,
+        ))
+    return tuple(ResearchFilm(
+        entity_id=entity.id, film_id=entity.film_profile.id if entity.film_profile else None,
+        title=display_film_title(entity.canonical_label),
+        **display_metadata(by_entity[entity.id], genre_labels=labels),
+    ) for entity in entities)
 
 
 def _research_entity_query(collection_code: str):
@@ -56,11 +78,7 @@ def _research_entity_query(collection_code: str):
             ReferenceCollectionMembership,
             ReferenceCollectionMembership.entity_id == CanonicalEntity.id,
         )
-        .options(
-            selectinload(CanonicalEntity.film_profile)
-            .selectinload(Film.genres)
-            .selectinload(FilmGenre.genre)
-        )
+        .options(selectinload(CanonicalEntity.film_profile))
         .where(
             ReferenceCollectionMembership.collection_code == collection_code,
             CanonicalEntity.entity_kind == "film",
@@ -76,7 +94,7 @@ def get_research_film(
     collection_code: str = DEFAULT_RESEARCH_COLLECTION,
 ) -> ResearchFilm | None:
     entity = db.scalar(_research_entity_query(collection_code).where(CanonicalEntity.id == entity_id))
-    return research_film_from_entity(entity) if entity else None
+    return research_films_from_entities(db, [entity])[0] if entity else None
 
 
 def search_research_films(
@@ -106,4 +124,4 @@ def search_research_films(
         .order_by(relevance, func.length(display_label), label)
         .limit(limit)
     ).unique().all()
-    return tuple(research_film_from_entity(entity) for entity in entities)
+    return research_films_from_entities(db, list(entities))

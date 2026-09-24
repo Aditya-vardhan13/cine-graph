@@ -83,19 +83,19 @@ export function Explorer({ health, corpusQuality, initialFilms, lineageEntryPoin
     <main className="shell">
       <header className="topbar">
         <Link href="/" className="brand"><span>C</span> CineGraph</Link>
-        <p>Public-data Cinema Explorer <i>·</i> Phase A</p>
+        <nav className="research-nav" aria-label="Main navigation"><a href="#compare">Compare</a><a href="#catalog">Catalog</a><a href="#lineage">Lineage</a></nav>
       </header>
 
       <section className="hero">
         <div>
-          <p className="eyebrow">English-language catalog</p>
-          <h1>Trace a story<br />to its roots.</h1>
-          <p className="intro">A cinema rabbit hole with receipts. Follow only the direct installment, adaptation and source-material routes the catalog can prove.</p>
+          <p className="eyebrow">Film research for writers</p>
+          <h1>One question.<br />Different films.</h1>
+          <p className="intro">Explore how films approach character, conflict and craft. Read their evidence side by side, then follow the sources.</p>
         </div>
         <aside className="source-card">
           <span className="signal" />
-          <div><strong>Source: Wikidata</strong><small>CC0 structured metadata · provenance retained</small></div>
-          <a href="https://www.wikidata.org/" target="_blank">View source ↗</a>
+          <div><strong>Explore the evidence</strong><small>Wikipedia passages and Wikidata metadata, with sources you can inspect.</small></div>
+          <a href="#compare">Start a comparison ↗</a>
         </aside>
       </section>
 
@@ -106,15 +106,17 @@ export function Explorer({ health, corpusQuality, initialFilms, lineageEntryPoin
         <Metric label="Active edition" value={health?.language_editions.find((edition) => edition.enabled)?.display_name ?? "—"} />
       </section>
 
-      {corpusQuality && <section className="quality-board">
-        <div><p className="eyebrow">Corpus quality board</p><h2>Know what the catalog knows.</h2><p>Facts, relationships and narrative material are counted separately so a connection never looks stronger than its evidence.</p></div>
-        <div className="quality-metrics"><Metric label="Release events" value={metric(corpusQuality.release_events)} /><Metric label="Explicit work links" value={metric(corpusQuality.explicit_work_relationships)} /><Metric label="Reference sources" value={metric(corpusQuality.sources.length)} /></div>
-        <div className="source-quality-list">{corpusQuality.sources.map((source) => <article key={source.source_name}><div><span>{source.source_name}</span><small>{source.license}</small></div><p>{metric(source.records)} source records <i>·</i> {metric(source.matched)} reconciled <i>·</i> {metric(source.narrative_documents)} narrative documents</p></article>)}</div>
-      </section>}
-
       <StoryComparisonWorkbench />
 
-      <section className="connection-lens">
+      {corpusQuality && <details className="quality-board">
+        <summary>Research coverage: {metric(corpusQuality.research.films_with_passages)} films with passages; {metric(corpusQuality.research.indexed_films)} searchable with embeddings</summary>
+        <p>Coverage counts available evidence, not independently verified accuracy. Resolved assertions have passed source-mapping rules; they have not all been reviewed by a person.</p>
+        <div className="quality-metrics"><Metric label="Research passages" value={metric(corpusQuality.research.narrative_passages)} /><Metric label="Indexed chunks" value={metric(corpusQuality.research.indexed_chunks)} /><Metric label="Assertions needing review" value={metric(corpusQuality.research.assertions_requiring_review)} /></div>
+        <p>{metric(corpusQuality.critical_works)} critical-work records · {metric(corpusQuality.critical_claims)} extracted critical claims · {metric(corpusQuality.pending_critical_candidates)} discovery candidates awaiting review. Discovery does not mean the article has been admitted.</p>
+        <div className="source-quality-list">{corpusQuality.sources.map((source) => <article key={source.source_name}><div><span>{source.source_name}</span><small>{source.license}</small></div><p>{metric(source.source_snapshots)} snapshots <i>·</i> {metric(source.narrative_passages)} passages across {metric(source.narrative_films)} films <i>·</i> {metric(source.narrative_documents)} legacy narrative documents</p></article>)}</div>
+      </details>}
+
+      <section id="lineage" className="connection-lens">
         <div className="lens-copy"><p className="eyebrow">Story lineage</p><h2>Start with one film.</h2><p>Trace its direct installment, adaptation and source-material routes. Similarity never becomes a claim.</p>{lineageEntryPoints.length > 0 && <div className="lineage-entry-points"><span>Try a proven route</span>{lineageEntryPoints.slice(0, 6).map((film) => <button key={film.id} onClick={() => chooseFilm(film)}>{film.title}</button>)}</div>}</div>
         <div className="lens-workspace">
           <div className="film-slots single"><FilmSlot film={firstFilm} label="Selected film" onClear={() => { setFirstFilm(null); setLineage(null); }} /></div>
@@ -125,7 +127,7 @@ export function Explorer({ health, corpusQuality, initialFilms, lineageEntryPoin
 
       {(lineage || message) && <section className="connection-result">{message && <p className="notice">{message}</p>}{lineage && <><div><p className="eyebrow">Lineage report</p><h2>{lineage.summary}</h2><p>{lineage.film.title}</p></div><div className="signal-list">{lineage.edges.length ? lineage.edges.map((edge) => <article key={edge.assertion_id}><span>{edge.relation_label} <i>·</i> {edge.direction}</span><b>{edge.target_film?.title ?? edge.target_title}</b><p className="writer-question">{edge.writer_question}</p><small>{edge.target_kind} <i>·</i> {edge.assertion_kind === "source_fact" ? "Source-backed fact" : edge.assertion_kind}</small>{edge.evidence_url && <a href={edge.evidence_url} target="_blank">View evidence ↗</a>}</article>) : <article><span>No typed route for this title</span><b>The catalog has no explicit source relationship for this film yet.</b><small>Try a proven route above. CineGraph will not substitute genre, era or cast overlap for a relationship.</small></article>}</div></>}</section>}
 
-      <section className="catalog">
+      <section id="catalog" className="catalog">
         <div className="catalog-heading">
           <div><p className="eyebrow">Curated entry points</p><h2>Start a rabbit hole</h2></div>
           <p className="catalog-note">Open a film to see its people graph and transparent related-film signals.</p>

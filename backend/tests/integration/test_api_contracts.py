@@ -3,15 +3,17 @@ from __future__ import annotations
 
 import os
 import hashlib
+from uuid import uuid4
 
 import httpx
 import pytest
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
-from app.models import CanonicalEntity, EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding
-from app.services.evidence_preprocessing import build_evidence_chunks, evidence_chunk_quality_report
+from app.models import CanonicalEntity, EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding, SourceSnapshot
+from app.services.evidence_preprocessing import ChunkConfiguration, build_evidence_chunks, evidence_chunk_quality_report
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
+from app.services.retrieval_scope import resolve_retrieval_scope
 
 API_URL = os.environ.get("CINEGRAPH_INTEGRATION_API_URL", "http://127.0.0.1:8001")
 DATABASE_URL = os.environ.get(
@@ -115,6 +117,32 @@ def test_preprocessing_uses_real_postgresql_rows_and_preserves_narrative_lineage
         assert rows and all(rows)
 
 
+def test_preprocessing_refuses_mixed_source_versions_and_scoped_run_selects_one() -> None:
+    with Session(create_engine(DATABASE_URL)) as db:
+        snapshots = list(db.scalars(select(SourceSnapshot).where(SourceSnapshot.parser_version == "fixture-v1")))
+        assert len(snapshots) == 2
+        snapshots[0].parser_version = "fixture-recovered-v1"
+        db.flush()
+        with pytest.raises(ValueError, match="multiple source parser versions"):
+            build_evidence_chunks(db, collection_code="integration-narrative-v1")
+        scoped_passages = db.execute(text(
+            "SELECT count(*) FROM narrative_passages AS passage "
+            "JOIN source_snapshots AS snapshot ON snapshot.id = passage.source_snapshot_id "
+            "WHERE snapshot.parser_version = 'fixture-recovered-v1'"
+        )).scalar_one()
+        assert scoped_passages == 1
+        # The fixture mutation is never committed to the isolated test database.
+        db.rollback()
+
+    with Session(create_engine(DATABASE_URL)) as db:
+        scoped = build_evidence_chunks(
+            db, collection_code="integration-narrative-v1",
+            config=ChunkConfiguration(source_parser_version="fixture-v1"),
+        )
+        assert scoped["passages_requested"] == 2
+        assert scoped["source_parser_version"] == "fixture-v1"
+
+
 def test_pgvector_index_preserves_chunk_lineage_and_cosine_ordering() -> None:
     instruction = "Retrieve direct source evidence."
     instruction_digest = hashlib.sha256(instruction.encode("utf-8")).hexdigest()
@@ -125,7 +153,7 @@ def test_pgvector_index_preserves_chunk_lineage_and_cosine_ordering() -> None:
         chunk_run = db.scalar(text("SELECT preprocessing_run_id FROM evidence_chunks WHERE id = :id"), {"id": chunk})
         content_hash = db.scalar(text("SELECT content_hash FROM evidence_chunks WHERE id = :id"), {"id": chunk})
         model = EmbeddingModel(
-            provider="test-local", model_name="fixture-embedding", model_revision="fixture-v1",
+            provider="test-local", model_name="fixture-embedding", model_revision=f"fixture-{uuid4().hex}",
             dimension=1024, query_instruction=instruction, instruction_hash=instruction_digest,
             license="test-fixture",
         )
@@ -144,7 +172,7 @@ def test_pgvector_index_preserves_chunk_lineage_and_cosine_ordering() -> None:
             content_hash=content_hash, embedding=vector,
         )
         db.add(embedding)
-        db.commit()
+        db.flush()
 
         distance = EvidenceEmbedding.embedding.cosine_distance(vector)
         row = db.execute(
@@ -168,6 +196,7 @@ def test_persisted_lexical_retrieval_returns_source_linked_evidence() -> None:
             question_text="How does the Joker escalate public tests of trust and moral limits?",
             evidence_class="narrative_extraction",
             method=NarrativeRetrievalMethod.LEXICAL,
+            scope=resolve_retrieval_scope(db, collection_code="integration-narrative-v1"),
             limit=5,
         )
 
@@ -198,6 +227,8 @@ def test_story_comparison_returns_two_sided_attributable_evidence() -> None:
     payload = response.json()
     assert payload["retrieval_method"] == "lexical"
     assert payload["degraded"] is False
+    assert payload["preprocessing_run_id"]
+    assert payload["index_run_id"] is None
     assert payload["first"]["title"] == "Batman Begins"
     assert payload["second"]["title"] == "The Dark Knight"
     paired = [lens for lens in payload["lenses"] if lens["first_evidence"] and lens["second_evidence"]]
@@ -205,3 +236,13 @@ def test_story_comparison_returns_two_sided_attributable_evidence() -> None:
     assert paired[0]["first_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/Batman_Begins"
     assert paired[0]["second_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/The_Dark_Knight"
     assert all(lens["writer_prompt"] for lens in payload["lenses"])
+
+
+def test_research_coverage_http_contract_counts_retained_passages():
+    response = api_get("/api/v1/corpus/quality")
+    assert response.status_code == 200
+    result = response.json()
+    assert result["research"]["collection_code"] == "integration-narrative-v1"
+    assert result["research"]["films_with_passages"] == 2
+    assert result["research"]["narrative_passages"] == 2
+    assert sum(source["narrative_passages"] for source in result["sources"]) == 2

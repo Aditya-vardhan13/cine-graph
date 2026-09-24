@@ -23,6 +23,7 @@ from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod
 from app.services.ollama_embeddings import OllamaEmbeddingClient
 from app.services.research_catalog import ResearchFilm, search_research_films
 from app.services.story_comparison import compare_story_evidence
+from app.services.corpus_quality import corpus_quality_report
 
 router = APIRouter(prefix="/api/v1")
 settings = get_settings()
@@ -43,15 +44,7 @@ def film_item(film: Film) -> FilmListItem:
 
 
 def research_film_item(film: ResearchFilm) -> ResearchFilmOut:
-    return ResearchFilmOut(
-        entity_id=film.entity_id,
-        film_id=film.film_id,
-        title=film.title,
-        release_date=film.release_date,
-        runtime_minutes=film.runtime_minutes,
-        genres=list(film.genres),
-        language_code=film.language_code,
-    )
+    return ResearchFilmOut(**film.__dict__)
 
 
 def provenance_for_film(db: Session, film: Film) -> list[ProvenanceOut]:
@@ -192,25 +185,7 @@ def catalog_health(db: Session = Depends(get_db)) -> HealthOut:
 
 @router.get("/corpus/quality", response_model=CorpusQualityOut)
 def corpus_quality(db: Session = Depends(get_db)) -> CorpusQualityOut:
-    """Expose completeness and reconciliation state before presenting catalogue insights."""
-    sources: list[CorpusSourceQuality] = []
-    for source in db.scalars(select(DataSource).order_by(DataSource.name)).all():
-        records = db.scalar(select(func.count()).select_from(CorpusRecord).where(CorpusRecord.source_id == source.id)) or 0
-        matched = db.scalar(select(func.count()).select_from(CorpusRecord).where(CorpusRecord.source_id == source.id, CorpusRecord.match_status == "matched")) or 0
-        review_required = db.scalar(select(func.count()).select_from(CorpusRecord).where(CorpusRecord.source_id == source.id, CorpusRecord.match_status == "review_required")) or 0
-        narrative_documents = db.scalar(
-            select(func.count()).select_from(NarrativeDocument).join(CorpusRecord).where(CorpusRecord.source_id == source.id)
-        ) or 0
-        sources.append(CorpusSourceQuality(
-            source_name=source.name, license=source.license, records=records, matched=matched,
-            review_required=review_required, narrative_documents=narrative_documents,
-        ))
-    return CorpusQualityOut(
-        films=db.scalar(select(func.count()).select_from(Film)) or 0,
-        release_events=db.scalar(select(func.count()).select_from(FilmReleaseEvent)) or 0,
-        explicit_work_relationships=db.scalar(select(func.count()).select_from(ExternalWorkRelationship)) or 0,
-        sources=sources,
-    )
+    return CorpusQualityOut(**corpus_quality_report(db, collection_code=settings.research_collection_code))
 
 
 @router.get("/languages", response_model=list[LanguageEditionOut])
@@ -314,7 +289,10 @@ def compare_film_stories(
             second_entity_id=request.second_entity_id,
             question=request.question,
             requested_method=NarrativeRetrievalMethod(request.retrieval_method),
-            embedding_client=OllamaEmbeddingClient(base_url=settings.ollama_base_url),
+            embedding_client=OllamaEmbeddingClient(
+                base_url=settings.ollama_base_url,
+                timeout_seconds=settings.interactive_embedding_timeout_seconds,
+            ),
             collection_code=settings.research_collection_code,
         )
     except ValueError as exc:
@@ -332,6 +310,8 @@ def compare_film_stories(
         fallback_reason=result.fallback_reason,
         summary=result.summary,
         caution=result.caution,
+        preprocessing_run_id=result.preprocessing_run_id,
+        index_run_id=result.index_run_id,
         lenses=[
             StoryComparisonLensOut(
                 identifier=lens.identifier,

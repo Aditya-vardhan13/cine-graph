@@ -25,6 +25,7 @@ from app.services.hybrid_evidence_retrieval import (
 )
 from app.services.ollama_embeddings import OllamaEmbeddingClient
 from app.services.research_catalog import DEFAULT_RESEARCH_COLLECTION, ResearchFilm, get_research_film
+from app.services.retrieval_scope import resolve_retrieval_scope
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,8 @@ class StoryComparisonResult:
     summary: str
     caution: str
     lenses: tuple[ComparisonLensResult, ...]
+    preprocessing_run_id: str
+    index_run_id: str | None
 
 
 def _source_details(
@@ -159,14 +162,13 @@ def _source_details(
 
 
 def _first_unique(
-    candidates: tuple[HybridRetrievedEvidence, ...], used_chunk_ids: set[str],
+    candidates: tuple[HybridRetrievedEvidence, ...], used_contents: set[str],
 ) -> HybridRetrievedEvidence | None:
     for candidate in candidates:
-        if candidate.chunk_id not in used_chunk_ids:
-            used_chunk_ids.add(candidate.chunk_id)
+        content = " ".join(candidate.content.split()).casefold()
+        if content not in used_contents:
+            used_contents.add(content)
             return candidate
-    if candidates:
-        return candidates[0]
     return None
 
 
@@ -209,6 +211,7 @@ def compare_story_evidence(
 
     actual_method = requested_method
     fallback_reason: str | None = None
+    scope = resolve_retrieval_scope(db, collection_code=collection_code)
 
     def retrieve_all(
         method: NarrativeRetrievalMethod,
@@ -220,6 +223,7 @@ def compare_story_evidence(
                 db,
                 question_texts=research_questions,
                 client=embedding_client,
+                scope=scope,
             )
         else:
             query_vectors = (None,) * len(research_questions)
@@ -237,6 +241,7 @@ def compare_story_evidence(
                 candidate_limit=30,
                 client=embedding_client,
                 query_vector=query_vector,
+                scope=scope,
             )
             second_result = retrieve_narrative_candidates(
                 db,
@@ -248,13 +253,14 @@ def compare_story_evidence(
                 candidate_limit=30,
                 client=embedding_client,
                 query_vector=query_vector,
+                scope=scope,
             )
             rows.append((lens, research_question, first_result, second_result))
         return rows
 
     try:
         retrieved = retrieve_all(requested_method)
-    except (ValueError, httpx.HTTPError):
+    except (ValueError, httpx.HTTPError, RuntimeError):
         if requested_method == NarrativeRetrievalMethod.LEXICAL:
             raise
         actual_method = NarrativeRetrievalMethod.LEXICAL
@@ -299,4 +305,6 @@ def compare_story_evidence(
             "The prompts identify what a writer should compare without promoting an interpretation to fact."
         ),
         lenses=lenses,
+        preprocessing_run_id=str(scope.preprocessing_run_id),
+        index_run_id=str(scope.index_run.id) if scope.index_run and actual_method != NarrativeRetrievalMethod.LEXICAL else None,
     )

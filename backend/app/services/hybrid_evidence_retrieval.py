@@ -19,6 +19,7 @@ from app.models import EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, Evidenc
 from app.services.lexical_retrieval import weighted_reciprocal_rank_fusion
 from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_routing import RetrievalLane, narrative_section_candidates, route_research_question
+from app.services.retrieval_scope import RetrievalScope, resolve_retrieval_scope
 
 
 _LEXICAL_STOPWORDS = frozenset({
@@ -67,22 +68,7 @@ class HybridRetrievalResult:
     query_embedding_milliseconds: float
     database_ranking_milliseconds: float
     evidence: tuple[HybridRetrievedEvidence, ...]
-
-
-def _active_index(db: Session, *, model_name: str) -> tuple[EmbeddingIndexRun, EmbeddingModel]:
-    row = db.execute(
-        select(EmbeddingIndexRun, EmbeddingModel)
-        .join(EmbeddingModel, EmbeddingModel.id == EmbeddingIndexRun.embedding_model_id)
-        .where(
-            EmbeddingIndexRun.status == "complete",
-            EmbeddingModel.provider == "ollama",
-            EmbeddingModel.model_name == model_name,
-        )
-        .order_by(EmbeddingIndexRun.completed_at.desc())
-    ).first()
-    if row is None:
-        raise ValueError(f"No complete local embedding index exists for {model_name!r}.")
-    return row
+    preprocessing_run_id: str = ""
 
 
 def embed_narrative_queries(
@@ -91,11 +77,15 @@ def embed_narrative_queries(
     question_texts: list[str],
     client: OllamaEmbeddingClient | None = None,
     model_name: str = "qwen3-embedding:0.6b",
+    scope: RetrievalScope | None = None,
 ) -> tuple[list[float], ...]:
     """Embed several retrieval questions once so film scopes can share vectors."""
     if not question_texts or any(not question.strip() for question in question_texts):
         raise ValueError("Narrative retrieval questions cannot be empty.")
-    _, model = _active_index(db, model_name=model_name)
+    scope = scope or resolve_retrieval_scope(db, model_name=model_name)
+    model = scope.model
+    if model is None or scope.index_run is None:
+        raise ValueError("No compatible complete embedding index exists for this corpus.")
     profile = OllamaEmbeddingProfile(
         model=model.model_name,
         dimensions=model.dimension,
@@ -131,6 +121,7 @@ def _lexical_rows(
     question_text: str,
     evidence_class: str,
     candidate_limit: int,
+    preprocessing_run_id: UUID,
 ) -> list[tuple[EvidenceChunk, float]]:
     english = literal_column("'english'::regconfig")
     query = func.to_tsquery(english, lexical_tsquery(question_text))
@@ -139,6 +130,7 @@ def _lexical_rows(
     statement = select(EvidenceChunk, score.label("lexical_score")).where(
         EvidenceChunk.subject_entity_id == subject_entity_id,
         EvidenceChunk.quality_status == "eligible",
+        EvidenceChunk.preprocessing_run_id == preprocessing_run_id,
         score > 0,
     )
     section_conditions = _section_conditions(question_id=question_id, evidence_class=evidence_class)
@@ -165,6 +157,7 @@ def _semantic_rows(
         .join(EvidenceEmbedding, EvidenceEmbedding.evidence_chunk_id == EvidenceChunk.id)
         .where(
             EvidenceEmbedding.index_run_id == index_run.id,
+            EvidenceChunk.preprocessing_run_id == index_run.evidence_chunk_run_id,
             EvidenceChunk.subject_entity_id == subject_entity_id,
             EvidenceChunk.quality_status == "eligible",
         )
@@ -203,6 +196,7 @@ def retrieve_narrative_candidates(
     client: OllamaEmbeddingClient | None = None,
     model_name: str = "qwen3-embedding:0.6b",
     query_vector: list[float] | None = None,
+    scope: RetrievalScope | None = None,
 ) -> HybridRetrievalResult:
     """Rank one film's eligible narrative evidence using the requested method."""
     route = route_research_question(question_id=question_id, evidence_class=evidence_class)
@@ -213,11 +207,14 @@ def retrieve_narrative_candidates(
     if not limit <= candidate_limit <= 200:
         raise ValueError("candidate_limit must be between limit and 200")
 
+    scope = scope or resolve_retrieval_scope(db, model_name=model_name)
     index_run: EmbeddingIndexRun | None = None
     model: EmbeddingModel | None = None
     embedding_milliseconds = 0.0
     if method in {NarrativeRetrievalMethod.SEMANTIC, NarrativeRetrievalMethod.HYBRID}:
-        index_run, model = _active_index(db, model_name=model_name)
+        index_run, model = scope.index_run, scope.model
+        if index_run is None or model is None:
+            raise ValueError("No compatible complete embedding index exists for this corpus.")
         profile = OllamaEmbeddingProfile(
             model=model.model_name,
             dimensions=model.dimension,
@@ -242,6 +239,7 @@ def retrieve_narrative_candidates(
         question_text=question_text,
         evidence_class=evidence_class,
         candidate_limit=candidate_limit,
+        preprocessing_run_id=scope.preprocessing_run_id,
     ) if method in {NarrativeRetrievalMethod.LEXICAL, NarrativeRetrievalMethod.HYBRID} else []
     semantic_rows = _semantic_rows(
         db,
@@ -298,4 +296,5 @@ def retrieve_narrative_candidates(
         query_embedding_milliseconds=round(embedding_milliseconds, 3),
         database_ranking_milliseconds=round(ranking_milliseconds, 3),
         evidence=evidence,
+        preprocessing_run_id=str(scope.preprocessing_run_id),
     )

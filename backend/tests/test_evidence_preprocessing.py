@@ -1,6 +1,14 @@
 from app.services.evidence_preprocessing import ChunkConfiguration, chunk_passage, normalize_content
 
 
+def test_source_scope_changes_run_identity_without_changing_legacy_digest() -> None:
+    legacy = ChunkConfiguration()
+    scoped = ChunkConfiguration(source_parser_version="enwiki-pinned-revision-recovery-v1")
+    assert "source_parser_version" not in legacy.payload
+    assert scoped.payload["source_parser_version"] == "enwiki-pinned-revision-recovery-v1"
+    assert legacy.digest != scoped.digest
+
+
 def test_sentence_chunking_is_deterministic_and_keeps_sentence_overlap() -> None:
     configuration = ChunkConfiguration(target_tokens=10, maximum_tokens=13, overlap_tokens=3, minimum_words=1)
     chunks = chunk_passage(

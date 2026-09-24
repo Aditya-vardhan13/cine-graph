@@ -93,6 +93,12 @@ class ResearchFilmOut(BaseModel):
     runtime_minutes: int | None
     genres: list[str]
     language_code: str
+    release_year: int | None
+    release_basis: str | None
+    genre_ids: list[str]
+    original_language_ids: list[str]
+    metadata_issues: list[str]
+    metadata_evidence: dict[str, list[dict[str, str | None]]]
 
 
 class StoryComparisonRequest(BaseModel):
@@ -133,6 +139,8 @@ class StoryComparisonOut(BaseModel):
     summary: str
     caution: str
     lenses: list[StoryComparisonLensOut]
+    preprocessing_run_id: str
+    index_run_id: str | None
 
 
 class LineageEdgeOut(BaseModel):
@@ -182,6 +190,25 @@ class CorpusSourceQuality(BaseModel):
     matched: int
     review_required: int
     narrative_documents: int
+    narrative_passages: int
+    narrative_films: int
+    source_snapshots: int
+    critical_works: int
+
+
+class ResearchCoverageOut(BaseModel):
+    collection_code: str
+    films: int
+    narrative_passages: int
+    films_with_passages: int
+    resolved_assertions: int
+    films_with_resolved_assertions: int
+    assertions_requiring_review: int
+    legacy_profile_films: int
+    preprocessing_run_id: str | None
+    index_run_id: str | None
+    indexed_chunks: int
+    indexed_films: int
 
 
 class CorpusQualityOut(BaseModel):
@@ -189,3 +216,7 @@ class CorpusQualityOut(BaseModel):
     release_events: int
     explicit_work_relationships: int
     sources: list[CorpusSourceQuality]
+    research: ResearchCoverageOut
+    critical_works: int
+    critical_claims: int
+    pending_critical_candidates: int

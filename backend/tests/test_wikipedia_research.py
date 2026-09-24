@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db import Base
 from app.models import CanonicalEntity, NarrativePassage, ResearchAnswer, ResearchAnswerEvidence
-from app.services.wikipedia_research import chunk_section, clean_wikitext, split_sections
+from app.services.wikipedia_research import chunk_section, clean_wikitext, split_sections, snapshot_wikitext
 from tests.postgres_test_db import isolated_postgres_engine
 
 
@@ -19,6 +19,15 @@ def test_section_parser_retains_hierarchy_and_excludes_reference_material() -> N
     ]
     assert clean_wikitext(str(sections[1]["content"])) == "A hero acts."
     assert list(chunk_section("One paragraph.\n\nSecond paragraph.", limit=16)) == ["One paragraph.", "Second paragraph."]
+
+
+def test_versioned_wikitext_parser_accepts_original_and_pinned_recovery_shapes() -> None:
+    original = {"page": {"title": "Example", "revisions": [{"slots": {"main": {"content": "== Plot ==\nA turn."}}}]}}
+    recovered = {"parse": {"title": "Example", "wikitext": "== Plot ==\nA turn."}}
+    assert snapshot_wikitext(original) == ("== Plot ==\nA turn.", "Example", "enwiki-section-passages-v1")
+    assert snapshot_wikitext(recovered) == ("== Plot ==\nA turn.", "Example", "enwiki-section-passages-recovered-v1")
+    with pytest.raises(ValueError):
+        snapshot_wikitext({"parse": {"title": "Example", "wikitext": " "}})
 
 
 def test_research_answer_requires_a_retained_evidence_target() -> None:

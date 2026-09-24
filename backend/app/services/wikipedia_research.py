@@ -15,6 +15,7 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 from urllib.parse import urlparse
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,9 +30,12 @@ from app.models import (
     RawIngestionRun,
     RawIngestionRunSnapshot,
 )
+from app.services.snapshot_integrity import verify_snapshot_file
+from app.services.wikipedia_revision_recovery import ADAPTER_VERSION as RECOVERY_ADAPTER_VERSION
 
 
 EXTRACTION_VERSION = "enwiki-section-passages-v1"
+RECOVERED_EXTRACTION_VERSION = "enwiki-section-passages-recovered-v1"
 ANSWER_VERSION = "deep-research-pilot-v1"
 HEADING = re.compile(r"^(={2,6})\s*(.*?)\s*\1\s*$", re.MULTILINE)
 REF_MARKER = re.compile(r"<ref(?:\s+name\s*=\s*[\"']?([^\s/>\"']+)[\"']?)?[^>]*?(?:/>|>.*?</ref>)", re.IGNORECASE | re.DOTALL)
@@ -120,8 +124,27 @@ def citation_markers(raw_content: str) -> list[str]:
 def _snapshot_payload(snapshot: SourceSnapshot) -> dict:
     if not snapshot.storage_uri:
         raise ValueError("The source snapshot has no retained payload URI.")
+    if verify_snapshot_file(snapshot.storage_uri, snapshot.content_hash, snapshot.byte_size) != "verified":
+        raise ValueError(f"The source snapshot payload is missing or fails its checksum: {snapshot.id}")
     path = Path(urlparse(snapshot.storage_uri).path)
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def snapshot_wikitext(payload: dict) -> tuple[str, str, str]:
+    """Read either source adapter shape without conflating their versions."""
+    page = payload.get("page")
+    if isinstance(page, dict):
+        revisions = page.get("revisions") or []
+        if revisions:
+            content = revisions[0].get("slots", {}).get("main", {}).get("content")
+            if isinstance(content, str) and content.strip():
+                return content, str(page.get("title") or ""), EXTRACTION_VERSION
+    parsed = payload.get("parse")
+    if isinstance(parsed, dict):
+        content = parsed.get("wikitext")
+        if isinstance(content, str) and content.strip():
+            return content, str(parsed.get("title") or ""), RECOVERED_EXTRACTION_VERSION
+    raise ValueError("The retained Wikipedia payload has no supported non-empty wikitext revision.")
 
 
 def _snapshot_for_qid(db: Session, qid: str) -> SourceSnapshot:
@@ -145,7 +168,7 @@ def _entity_for_snapshot(db: Session, qid: str, payload: dict) -> CanonicalEntit
         return entity
     entity = CanonicalEntity(
         entity_kind="film",
-        canonical_label=str(payload["page"].get("title") or qid),
+        canonical_label=str((payload.get("page") or payload.get("parse") or {}).get("title") or qid),
         wikidata_id=qid,
     )
     db.add(entity)
@@ -153,13 +176,30 @@ def _entity_for_snapshot(db: Session, qid: str, payload: dict) -> CanonicalEntit
     return entity
 
 
-def extract_passages(db: Session, qid: str) -> dict[str, object]:
+def extract_passages(db: Session, qid: str, *, recovered_snapshot_id: UUID | None = None) -> dict[str, object]:
     """Persist all non-reference English Wikipedia sections for one film QID."""
     snapshot = _snapshot_for_qid(db, qid)
+    if recovered_snapshot_id is not None:
+        candidate = db.get(SourceSnapshot, recovered_snapshot_id)
+        if not candidate or candidate.parser_version != RECOVERY_ADAPTER_VERSION:
+            raise ValueError("The recovered snapshot does not exist.")
+        proven = db.scalar(
+            select(SourceSnapshot.id)
+            .join(SourceAssertion, SourceAssertion.source_snapshot_id == SourceSnapshot.id)
+            .where(
+                SourceSnapshot.source_object_id == candidate.source_object_id,
+                SourceSnapshot.source_revision == candidate.source_revision,
+                SourceAssertion.source_property == "wikidata_item",
+                SourceAssertion.raw_value["wikidata_id"].as_string() == qid,
+            )
+        )
+        if not proven:
+            raise ValueError("Recovered snapshot does not match the QID's proven page and revision.")
+        snapshot = candidate
     if snapshot.license != "CC BY-SA 4.0" or not snapshot.attribution_url:
         raise ValueError("Narrative extraction requires an attributable CC BY-SA Wikipedia snapshot.")
     payload = _snapshot_payload(snapshot)
-    wikitext = payload["page"]["revisions"][0]["slots"]["main"]["content"]
+    wikitext, _, extraction_version = snapshot_wikitext(payload)
     entity = _entity_for_snapshot(db, qid, payload)
     existing_passages = {
         (item.section_locator, item.ordinal, item.content_hash): item
@@ -187,7 +227,7 @@ def extract_passages(db: Session, qid: str) -> dict[str, object]:
                     content=content,
                     content_hash=digest,
                     citation_markers=citation_markers(raw_chunk),
-                    extraction_version=EXTRACTION_VERSION,
+                    extraction_version=extraction_version,
                 )
                 to_store.append(existing)
                 existing_passages[key] = existing

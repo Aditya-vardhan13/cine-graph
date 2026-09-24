@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -14,6 +15,7 @@ class Settings(BaseSettings):
     openalex_request_interval_seconds: float = 2.0
     crossref_request_interval_seconds: float = 2.0
     ollama_base_url: str = "http://127.0.0.1:11434"
+    interactive_embedding_timeout_seconds: float = Field(default=12.0, ge=1, le=30)
     research_collection_code: str = "english-1000-retained-narrative-v1"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

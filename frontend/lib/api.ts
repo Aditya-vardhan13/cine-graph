@@ -28,6 +28,15 @@ export type CorpusQuality = {
   films: number;
   release_events: number;
   explicit_work_relationships: number;
+  research: {
+    collection_code: string; films: number; narrative_passages: number; films_with_passages: number;
+    resolved_assertions: number; films_with_resolved_assertions: number; assertions_requiring_review: number;
+    legacy_profile_films: number; preprocessing_run_id: string | null; index_run_id: string | null;
+    indexed_chunks: number; indexed_films: number;
+  };
+  critical_works: number;
+  critical_claims: number;
+  pending_critical_candidates: number;
   sources: Array<{
     source_name: string;
     license: string;
@@ -35,6 +44,10 @@ export type CorpusQuality = {
     matched: number;
     review_required: number;
     narrative_documents: number;
+    narrative_passages: number;
+    narrative_films: number;
+    source_snapshots: number;
+    critical_works: number;
   }>;
 };
 
@@ -79,6 +92,12 @@ export type ResearchFilm = {
   runtime_minutes: number | null;
   genres: string[];
   language_code: string;
+  release_year: number | null;
+  release_basis: string | null;
+  genre_ids: string[];
+  original_language_ids: string[];
+  metadata_issues: string[];
+  metadata_evidence: Record<string, Array<{assertion_id: string; source_url: string; source_revision: string | null; review_status: string}>>;
 };
 
 export type StoryComparison = {
@@ -91,6 +110,8 @@ export type StoryComparison = {
   fallback_reason: string | null;
   summary: string;
   caution: string;
+  preprocessing_run_id: string;
+  index_run_id: string | null;
   lenses: Array<{
     identifier: string;
     label: string;

@@ -19,7 +19,7 @@ from typing import Iterable
 from uuid import uuid4
 
 import spacy
-from sqlalchemy import select
+from sqlalchemy import distinct, select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
@@ -48,16 +48,23 @@ class ChunkConfiguration:
     overlap_tokens: int = 50
     minimum_words: int = 40
     normalization_version: str = NORMALIZATION_VERSION
+    source_parser_version: str | None = None
 
     def __post_init__(self) -> None:
         if not (0 < self.minimum_words <= self.target_tokens <= self.maximum_tokens):
             raise ValueError("Chunk sizes must satisfy 0 < minimum_words <= target_tokens <= maximum_tokens.")
         if self.overlap_tokens < 0 or self.overlap_tokens >= self.target_tokens:
             raise ValueError("overlap_tokens must be non-negative and smaller than target_tokens.")
+        if self.source_parser_version is not None and not self.source_parser_version.strip():
+            raise ValueError("source_parser_version must be non-empty when specified.")
 
     @property
     def payload(self) -> dict[str, int | str]:
-        return asdict(self)
+        payload = asdict(self)
+        # Preserve the identity of existing runs created before source scoping.
+        if self.source_parser_version is None:
+            payload.pop("source_parser_version")
+        return payload
 
     @property
     def digest(self) -> str:
@@ -232,8 +239,9 @@ def _passages_for_collection(
     *,
     collection_code: str,
     language_code: str,
+    source_parser_version: str | None,
 ) -> list[tuple[NarrativePassage, str, str | None]]:
-    rows = db.execute(
+    query = (
         select(NarrativePassage, SourceSnapshot.license, SourceSnapshot.attribution_url)
         .join(SourceSnapshot, SourceSnapshot.id == NarrativePassage.source_snapshot_id)
         .join(ReferenceCollectionMembership, ReferenceCollectionMembership.entity_id == NarrativePassage.subject_entity_id)
@@ -248,8 +256,24 @@ def _passages_for_collection(
             NarrativePassage.section_locator,
             NarrativePassage.ordinal,
         )
-    ).all()
+    )
+    if source_parser_version is not None:
+        query = query.where(SourceSnapshot.parser_version == source_parser_version)
+    rows = db.execute(query).all()
     return [(passage, license, attribution_url) for passage, license, attribution_url in rows]
+
+
+def _source_versions_for_collection(db: Session, *, collection_code: str, language_code: str) -> set[str | None]:
+    return set(db.scalars(
+        select(distinct(SourceSnapshot.parser_version))
+        .join(NarrativePassage, NarrativePassage.source_snapshot_id == SourceSnapshot.id)
+        .join(ReferenceCollectionMembership, ReferenceCollectionMembership.entity_id == NarrativePassage.subject_entity_id)
+        .where(
+            ReferenceCollectionMembership.collection_code == collection_code,
+            ReferenceCollectionMembership.status == "included",
+            NarrativePassage.language_code == language_code,
+        )
+    ))
 
 
 def build_evidence_chunks(
@@ -267,8 +291,16 @@ def build_evidence_chunks(
     """
     config = config or ChunkConfiguration()
     _collection(db, collection_code, language_code)
+    versions = _source_versions_for_collection(db, collection_code=collection_code, language_code=language_code)
+    if config.source_parser_version is None and len(versions) > 1:
+        raise ValueError("Collection contains multiple source parser versions; select one in ChunkConfiguration.")
+    if config.source_parser_version is not None and config.source_parser_version not in versions:
+        raise ValueError(f"No passages use source parser version {config.source_parser_version!r} in this collection.")
     run = _run_for(db, collection_code=collection_code, language_code=language_code, config=config)
-    passages = _passages_for_collection(db, collection_code=collection_code, language_code=language_code)
+    passages = _passages_for_collection(
+        db, collection_code=collection_code, language_code=language_code,
+        source_parser_version=config.source_parser_version,
+    )
     existing = {
         (item.narrative_passage_id, item.chunk_ordinal): item
         for item in db.scalars(select(EvidenceChunk).where(
@@ -352,6 +384,7 @@ def build_evidence_chunks(
     return {
         "run_id": str(run.id),
         "collection_code": collection_code,
+        "source_parser_version": config.source_parser_version,
         "passages_requested": len(passages),
         "passages_eligible": passages_eligible,
         "chunks_created": created,
@@ -410,16 +443,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Build or inspect CineGraph's versioned narrative evidence chunks.")
     parser.add_argument("--collection", required=True, help="Explicit reference collection code; no inferred membership.")
     parser.add_argument("--language", default="en")
+    parser.add_argument("--source-parser-version", help="Required when collection passages span source parser versions.")
     parser.add_argument("--build", action="store_true", help="Materialise source-linked chunks for the configured collection.")
     parser.add_argument("--report", action="store_true", help="Print the readiness report for the exact configured run.")
     arguments = parser.parse_args()
     if not arguments.build and not arguments.report:
         parser.error("Specify at least one of --build or --report.")
     with SessionLocal() as db:
+        config = ChunkConfiguration(source_parser_version=arguments.source_parser_version)
         if arguments.build:
-            print(json.dumps(build_evidence_chunks(db, collection_code=arguments.collection, language_code=arguments.language), indent=2))
+            print(json.dumps(build_evidence_chunks(db, collection_code=arguments.collection, language_code=arguments.language, config=config), indent=2))
         if arguments.report:
-            print(json.dumps(evidence_chunk_quality_report(db, collection_code=arguments.collection, language_code=arguments.language), indent=2))
+            print(json.dumps(evidence_chunk_quality_report(db, collection_code=arguments.collection, language_code=arguments.language, config=config), indent=2))
 
 
 if __name__ == "__main__":

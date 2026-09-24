@@ -1,5 +1,7 @@
 # Indian Cinema Intelligence + AI Screenwriting Platform
 
+> **Current execution plan (23 September 2026):** the dated roadmap below is authoritative for the next release. The later MVP/weekend sections remain historical design exploration; they are not permission to skip evidence, writer-task, or deployment gates.
+
 ## 0. Project Status
 
 **Working concept:** A computational Indian-cinema knowledge system combined with an AI-assisted screenplay development workspace.
@@ -40,6 +42,29 @@ films. The detailed schema contract, vocabulary, migration sequence, and phase
 gates are in [Stable cinema knowledge contract](docs/stable-cinema-knowledge-contract.md).
 All Phase A implementation work must follow that contract before adding more
 connection UI or language-specific ingestion.
+
+## Current Phase A roadmap: prove a writer-study loop before adding an editor (2026-09-23)
+
+**Product decision.** Start with the English reference collection to test a repeatable workflow; retain language-neutral film/person/source identities so Telugu, Tamil, Hindi and other editions can be onboarded without rewriting the evidence model. The initial user is a writer studying how films solve a dramatic or craft problem, not a visitor browsing an IMDb-like profile. The first useful outcome is a question, contrasting source-grounded examples, an explicit uncertainty, and a writer-owned note or decision. More titles, a graph visualization, or a similarity score alone do not produce that outcome. The derivation and 20-task acceptance rubric are in [writer-research-product-gate-v1.md](docs/writer-research-product-gate-v1.md).
+
+**Assumptions under test.** We have not yet shown that two-film contrast improves a writer's choices, that the current critical sources cover the questions writers ask, or that a question-first flow is better than deep single-film study. Treat these as testable product hypotheses, not requirements. The theoretical minimum useful session is one decision clarified by locatable evidence; catalog size is a capacity variable, not the success metric.
+
+| Stage | Visible outcome | Exit gate | State |
+| --- | --- | --- | --- |
+| A0 — source integrity | Local integrity report: captured, missing, checksum-verified and revision-equivalent material by source/film | All 1,000 English Wikipedia research-film revisions have a durable new capture and reproduce prior passage keys; missing Wikidata raw sources are restored or dependent facts are explicitly quarantined; source licence and attribution remain intact | In progress: original temporary files were lost; sequential pinned-revision recovery and audit are running. Wikidata recovery/quarantine remains separate. |
+| A1 — evidence-ready corpus | Per-film coverage matrix for identity, plot, character, writing/craft, reception, themes, critical viewpoints and provenance, with missing/contested states | Re-extract new versioned passages, build a single explicitly scoped index, confirm all 1,000 films and no mixed old/new provenance; audit a stratified 100-film sample; enumerate 2021–2025 gaps | Partly built; not passed. |
+| A2 — writer question discovery | User types a dramatic problem and sees a small, diverse set of films with *why each is worth studying* and links to evidence | Offline held-out queries and negative prompts show answerability, contrast and abstention; p50/p95 warm and cold latency measured | Not built. Existing retrieval is film-scoped. |
+| A3 — cited study and comparison | Film-study map plus “shared problem → different choice → effect” cards; fact, critic reading and CineGraph inference are visibly distinct | Two independent reviewers find at least 70% of 20 fresh writer tasks useful, with zero unsupported factual claims in displayed output; failures retained | Early two-film evidence board only; not passed. |
+| A4 — writer-owned research workspace | Save a question, cited passages, competing readings and the writer's own creative move; export a research brief | A writer can return to a saved decision and trace every borrowed observation to its source; no automatic copying into a screenplay | Not built. Full screenplay editor deferred. |
+| A5 — private beta and language onboarding | Repeatable local-to-private deployment, recovery drill and a second-language adapter demonstration | Backup/restore, isolation, authorization, load and cost budgets measured; source and language additions do not change canonical fact rules | Not ready. Do not infer million-film scale from the 1,000-film prototype. |
+
+**Order of work now:** finish A0; expose A1 coverage and repair provenance; evaluate A2/A3 on real writer questions; only then build A4 or grow the catalog. Source expansion is targeted at failed writer tasks, not a fixed essay quota. A genre, plot keyword, shared cast member or vector neighbor is a candidate for study, never itself a claim of artistic influence or shared meaning. The only operational typed-fact write target remains `Assertion`; narrative passages and semantic candidates never silently become facts. Raw payloads, PostgreSQL volumes, embeddings and model weights remain local and out of Git. Ask before each commit.
+
+**A1 implementation checkpoint (23 September 2026).** `backend/app/services/evidence_coverage.py` now reports per-film passage and section-heading coverage for one source version. The first local probe found 15 newly materialized passages for 1/1,000 films; this is an extraction backlog, not evidence that the other 999 articles lack material. The report labels headings as a proxy, not verified content quality. `evidence_preprocessing.py` now refuses an unscoped run when old and recovered passage versions coexist, and a scoped run has a distinct configuration identity. Run the integrity and revision-equivalence audits before extraction, then run `python -m app.services.evidence_coverage --collection english-1000-retained-narrative-v1 --source-parser-version enwiki-pinned-revision-recovery-v1` to inspect progress. Do not build the new chunk or vector index until the 1,000-film recovery and coverage gates pass.
+
+The A0 report must mount every local storage root before calling a URI missing. With both the workspace data root and Docker volume mounted, the existing 4,467 Crossref and 544 OpenAlex snapshots verify. The original Wikipedia and Wikidata temporary roots do not. The integrity report now also counts operational assertions explicitly linked to unavailable source assertions; 67,947 resolved and 866 review-required facts depend on unavailable Wikidata raw bytes in the local corpus. That makes Wikidata recovery or visible quarantine a real gate, not a housekeeping footnote.
+
+The recovered-passage materializer now excludes snapshots whose new-version passages already exist, so small manual batches advance instead of repeatedly reprocessing the first page. The 24 September 2026 checkpoint completed all 1,000 recoveries and exact passage equivalence, materialized 24,446 versioned passages, and built scoped run `0892ebfc-8b33-4051-95da-4a239b288e40` with 24,194 eligible chunks across all 1,000 films. The new embeddings and retrieval benchmark remain gated until model choice, attribution checks, and the unresolved Wikidata raw-source impact are reviewed.
 
 ---
 
@@ -1510,7 +1535,10 @@ This demonstrates the data/graph side of the project.
 
 ---
 
-# 28. First MVP
+# 28. First MVP (historical proposal; superseded by the current Phase A roadmap)
+
+The screenplay-heavy targets below predate the evidence audit and writer-study
+product gate. They are retained as design history, not current exit criteria.
 
 Do NOT start with 10,000 films and a giant UI.
 
@@ -2287,7 +2315,12 @@ That is the product demo I would aim for.
 
 ---
 
-# 45. Definition of Done for the First Serious Version
+# 45. Definition of Done for the First Serious Version (historical proposal)
+
+This checklist is superseded by stages A0–A5 above. In particular, screenplay
+ingestion, automatic generation and an editor are not prerequisites for the
+first writer-study release; source integrity and useful, cited writer decisions
+are.
 
 The first version is successful if it can:
 

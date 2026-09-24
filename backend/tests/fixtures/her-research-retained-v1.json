@@ -1,0 +1,22 @@
+{
+  "title": "Her",
+  "wikidata_id": "Q788822",
+  "metadata_source": "https://www.wikidata.org/wiki/Q788822",
+  "metadata_revision": "2513891788",
+  "metadata_license": "CC0 1.0",
+  "assertions": [
+    {"predicate": "release_event", "value": {"type": "time", "time": "+2013-10-12T00:00:00Z", "precision": 11, "calendar_model": "Q1985727"}},
+    {"predicate": "runtime", "value": {"type": "quantity", "amount": "+126", "unit": "Q7727"}},
+    {"predicate": "original_language", "value": {"type": "wikibase_entity", "wikidata_id": "Q1860"}},
+    {"predicate": "genre", "value": {"type": "wikibase_entity", "wikidata_id": "Q471839"}}
+  ],
+  "note": "Small excerpt of retained local evidence. Metadata values are projected Wikidata values; release territory qualifiers are omitted in this display fixture. Narrative text is unchanged.",
+  "passage": {
+    "source_url": "https://en.wikipedia.org/wiki/Her_(2013_film)",
+    "source_revision": "1367859801",
+    "license": "CC BY-SA 4.0",
+    "section_locator": "plot",
+    "section_title": "Plot",
+    "content": "In a near future Los Angeles, Theodore Twombly is a lonely, introverted man who works for a business that hires professional writers to compose letters for people who are unable to write letters of a personal nature on their own. Depressed by his impending divorce from his childhood sweetheart, Catherine, Theodore purchases a copy of OS¹, an artificially intelligent operating system developed by Element Software, designed to adapt and evolve based on the user's interactions. He decides he wants the OS to have a feminine voice, and she names herself Samantha. Theodore is fascinated by her ability to learn and grow psychologically. They bond over discussions about love and life, including Theodore's reluctance to sign his divorce papers."
+  }
+}
