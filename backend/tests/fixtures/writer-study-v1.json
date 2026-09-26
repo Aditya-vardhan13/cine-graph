@@ -1,0 +1,26 @@
+{
+  "version": "writer-study-v1",
+  "collection": "english-1000-retained-narrative-v1",
+  "tasks": [
+    {"id": "W01", "category": "character_change", "entry": "pair", "films": ["Q47703", "Q184768"], "question": "How does inheriting Vito's power change Michael's idea of protecting his family across the two Godfather films?"},
+    {"id": "W02", "category": "character_change", "entry": "pair", "films": ["Q172241", "Q208263"], "question": "How do hope and care for another prisoner change the central characters in The Shawshank Redemption and The Green Mile?"},
+    {"id": "W03", "category": "moral_dilemma", "entry": "pair", "films": ["Q163872", "Q2345"], "question": "How do The Dark Knight and 12 Angry Men put a character's ethical code under pressure from a frightened group?"},
+    {"id": "W04", "category": "moral_dilemma", "entry": "pair", "films": ["Q221090", "Q83495"], "question": "How do Children of Men and The Matrix make a reluctant protagonist choose between personal safety and a larger cause?"},
+    {"id": "W05", "category": "plot_structure", "entry": "pair", "films": ["Q25188", "Q83495"], "question": "How do Inception and The Matrix reveal the rules of their worlds while escalating a rescue mission?"},
+    {"id": "W06", "category": "plot_structure", "entry": "pair", "films": ["Q167726", "Q103569"], "question": "How do Jurassic Park and Alien turn an enclosed workplace into a sequence of escalating survival problems?"},
+    {"id": "W07", "category": "worldbuilding", "entry": "pair", "films": ["Q21500755", "Q221090"], "question": "How do Blade Runner 2049 and Children of Men reveal a damaged society through the protagonist's ordinary routines?"},
+    {"id": "W08", "category": "worldbuilding", "entry": "pair", "films": ["Q155653", "Q6144664"], "question": "How do Spirited Away and Inside Out make an unfamiliar world legible through a young protagonist's goals?"},
+    {"id": "W09", "category": "craft", "entry": "pair", "films": ["Q1757288", "Q24871"], "question": "How do Mad Max: Fury Road and Avatar use visual design and production technique to clarify action geography?"},
+    {"id": "W10", "category": "craft", "entry": "pair", "films": ["Q167726", "Q170564"], "question": "How do Jurassic Park and Terminator 2 combine physical effects and digital imagery to make impossible characters feel present?"},
+    {"id": "W11", "category": "genre_inversion", "entry": "pair", "films": ["Q25136235", "Q214801"], "question": "How do Get Out and The Truman Show turn an apparently welcoming everyday setting into a trap?"},
+    {"id": "W12", "category": "genre_inversion", "entry": "pair", "films": ["Q210756", "Q103569"], "question": "How do The Thing and Alien use mistrust differently within a familiar monster-survival premise?"},
+    {"id": "W13", "category": "reception_disagreement", "entry": "pair", "films": ["Q180214", "Q15648198"], "question": "How have critics interpreted the pursuit of artistic perfection differently in Black Swan and Whiplash?"},
+    {"id": "W14", "category": "reception_disagreement", "entry": "pair", "films": ["Q185888", "Q21500755"], "question": "Where do critical readings of ambition and identity diverge between The Social Network and Blade Runner 2049?"},
+    {"id": "W15", "category": "unanswerable", "entry": "pair", "films": ["Q47703", "Q184768"], "question": "Which private conversation between the two films' editors caused the final Michael scenes to be cut?"},
+    {"id": "W16", "category": "unanswerable", "entry": "pair", "films": ["Q788822", "Q21500755"], "question": "What percentage of viewers changed their real-world relationships after seeing Her and Blade Runner 2049?"},
+    {"id": "W17", "category": "character_change", "entry": "film_first", "films": ["Q788822"], "question": "Starting with Her, find a contrasting film treatment of intimacy with an artificial companion."},
+    {"id": "W18", "category": "moral_dilemma", "entry": "film_first", "films": ["Q163872"], "question": "Starting with The Dark Knight, find a film that tests a hero's ethics through a different kind of antagonist."},
+    {"id": "W19", "category": "plot_structure", "entry": "question_only", "films": [], "question": "How can a lost heir returning to claim power become tragic rather than triumphant?"},
+    {"id": "W20", "category": "worldbuilding", "entry": "question_only", "films": [], "question": "Which films make human and artificial intelligence partners, and which make that bond frightening?"}
+  ]
+}
