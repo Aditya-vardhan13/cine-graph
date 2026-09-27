@@ -100,7 +100,7 @@ def technical_checks(result: dict[str, Any]) -> dict[str, Any]:
         ),
         "repeated_chunk_ids_by_film": repeated,
         "degraded": result["degraded"],
-        "explicit_abstention_available": False,
+        "explicit_abstention_available": result.get("answerability_status") == "insufficient_evidence",
     }
 
 
@@ -159,12 +159,23 @@ def render_packet(report: dict[str, Any]) -> str:
             f"<section class='task' id='{esc(task['id'])}'><h2>{esc(task['id'])} · {esc(task['category'].replace('_', ' '))}</h2>",
             f"<p class='question'>{esc(task['question'])}</p><p class='status'>Entry: {esc(task['entry'])} · Result: {esc(task['status'])}</p>",
         ]
+        if task.get("discovery"):
+            discovery = task["discovery"]
+            content.append(f"<p>Discovery: {esc(discovery['method'])} · {esc(len(discovery['leads']))} source-linked leads</p>")
+            for lead in discovery["leads"]:
+                content.append(
+                    f"<article><small>{esc(lead['film']['title'])} · {esc(lead['section_title'])}</small>"
+                    f"<p>{esc(lead['excerpt'])}</p><a href='{esc(lead['source_url'])}' target='_blank' "
+                    f"rel='noopener noreferrer'>Source · {esc(lead['source_license'])} · revision {esc(lead['source_revision'])}</a></article>"
+                )
         if task["status"] == "displayed":
             result = task["comparison"]
             content.append(
                 f"<p>{esc(result['first']['title'])} × {esc(result['second']['title'])} · "
                 f"{esc(result['retrieval_method'])} · {esc(task['elapsed_ms'])} ms</p>"
             )
+            if result.get("answerability_status") == "insufficient_evidence":
+                content.append(f"<p class='warn'>Insufficient evidence: {esc(result.get('answerability_reason'))}</p>")
             if result.get("fallback_reason"):
                 content.append(f"<p class='warn'>{esc(result['fallback_reason'])}</p>")
             for lens in result["lenses"]:
@@ -184,7 +195,7 @@ def render_packet(report: dict[str, Any]) -> str:
         elif task["status"] == "unsupported_entry_flow":
             content.append(f"<p class='warn'>{esc(task['reason'])}</p>")
         else:
-            content.append(f"<p class='warn'>{esc(task.get('error', 'No result'))}</p>")
+            content.append(f"<p class='warn'>{esc(task.get('reason') or task.get('error', 'No result'))}</p>")
         content.append("<div class='review'><h3>Independent reviewer judgment</h3>")
         for field in REVIEW_FIELDS:
             content.append(
@@ -195,12 +206,13 @@ def render_packet(report: dict[str, Any]) -> str:
         content.append(f"<label>Task time, seconds<input type='number' min='0' data-task='{esc(task['id'])}' data-field='task_seconds'></label>")
         content.append(f"<label>Evidence and decision notes<textarea data-task='{esc(task['id'])}' data-field='notes'></textarea></label></div></section>")
         sections.append("".join(content))
+    review_version = esc(f"{report.get('version', 'writer-study-v1')}-review")
     return """<!doctype html><html lang='en'><meta charset='utf-8'><title>CineGraph writer study</title>
 <style>body{background:#0b0d13;color:#ececf4;font:16px system-ui;margin:auto;max-width:1200px;padding:28px}p{line-height:1.5}.task,.lens,article{background:#171a25;border:1px solid #30364a;border-radius:14px;padding:18px;margin:16px 0}.question{font-size:1.25rem}.status,.warn{color:#ffce80}.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}article{margin:0;white-space:pre-wrap}small{color:#a8d9f9}a{color:#9bdfd3}.review{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.review h3{grid-column:1/-1}label{display:grid;gap:5px}select,input,textarea{background:#0d1018;color:white;border:1px solid #4a536a;padding:8px}textarea{min-height:70px}button{padding:10px 16px;background:#8c6bff;color:white;border:0;border-radius:8px}@media(max-width:750px){.cards,.review{grid-template-columns:1fr}}</style>
-<h1>CineGraph writer-task study</h1><p>This packet shows the current comparison API's user-visible evidence. It does not claim usefulness or source accuracy. Review independently; do not use retrieval scores to decide. For unsupported flows, judge the product's inability to complete the task. Record your own task time. No scores are sent to a server.</p>
+<h1>CineGraph writer-task study</h1><p>This packet shows captured API evidence, not a browser-usability test. Film-first and question-only tasks automatically use the first discovery lead(s) to form a comparison; judge whether that selection helps. It does not claim usefulness or source accuracy. Review independently; do not use retrieval scores to decide. For unsupported flows, judge the product's inability to complete the task. Record your own task time. No scores are sent to a server.</p>
 <label>Reviewer code (not your name)<input id='reviewer' maxlength='40'></label><button id='export'>Download my review JSON</button>
 """ + "".join(sections) + """
-<script>document.getElementById('export').onclick=()=>{const reviewer=document.getElementById('reviewer').value.trim();if(!reviewer){alert('Enter a reviewer code first.');return}const tasks={};document.querySelectorAll('[data-task]').forEach(el=>{const id=el.dataset.task;(tasks[id]??={})[el.dataset.field]=el.value});const output={version:'writer-study-v1-review',reviewer,created_at:new Date().toISOString(),tasks};const blob=new Blob([JSON.stringify(output,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='writer-study-review-'+reviewer.replace(/[^a-z0-9_-]/gi,'_')+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000)};</script></html>"""
+<script>document.getElementById('export').onclick=()=>{const reviewer=document.getElementById('reviewer').value.trim();if(!reviewer){alert('Enter a reviewer code first.');return}const tasks={};document.querySelectorAll('[data-task]').forEach(el=>{const id=el.dataset.task;(tasks[id]??={})[el.dataset.field]=el.value});const output={version:'""" + review_version + """',reviewer,created_at:new Date().toISOString(),tasks};const blob=new Blob([JSON.stringify(output,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='writer-study-review-'+reviewer.replace(/[^a-z0-9_-]/gi,'_')+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000)};</script></html>"""
 
 
 def aggregate_reviews(report: dict[str, Any], reviews: list[dict[str, Any]]) -> dict[str, Any]:
@@ -212,7 +224,7 @@ def aggregate_reviews(report: dict[str, Any], reviews: list[dict[str, Any]]) -> 
     task_ids = {task["id"] for task in report["tasks"]}
     displayed_ids = {task["id"] for task in report["tasks"] if task["status"] == "displayed"}
     for review in reviews:
-        if review.get("version") != "writer-study-v1-review" or not review.get("reviewer"):
+        if review.get("version") != f"{report['version']}-review" or not review.get("reviewer"):
             raise ValueError("Reviewer export has an invalid version or reviewer code.")
         if set(review.get("tasks", {})) != task_ids:
             raise ValueError("Every reviewer must rate exactly the 20 study tasks.")

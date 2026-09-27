@@ -29,7 +29,7 @@ _GENERIC_WORDS = frozenset({
     "could", "would", "their", "about", "question", "story", "stories", "human",
 })
 _TOPIC_CUES = (
-    (re.compile(r"\b(?:artificial intelligence|a\.i\.|ai)\b", re.I),
+    (re.compile(r"\b(?:artificial intelligence|artificial companions?(?:hip)?|a\.i\.|ai)\b", re.I),
      re.compile(r"\b(?:ai|robots?|androids?|replicants?|machines?)\b|operating system", re.I)),
     (re.compile(r"\b(?:heir|throne|succession)\b", re.I),
      re.compile(r"\b(?:heir|successor|throne|princes?|kings?|queens?|inherit|royal|succession)\b", re.I)),

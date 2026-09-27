@@ -25,6 +25,9 @@ def test_explicit_topic_cue_prevents_generic_semantic_matches() -> None:
     assert _has_required_topic_cues(question, "A human forms a bond with an AI operating system.")
     assert not _has_required_topic_cues(question, "A human forms a bond with a stranger.")
     assert _has_required_topic_cues("How does power corrupt a hero?", "A hero changes.")
+    companion_question = "Starting with Her, find another film where artificial companionship changes human intimacy."
+    assert _has_required_topic_cues(companion_question, "An android forms a relationship with a programmer.")
+    assert not _has_required_topic_cues(companion_question, "Two friends form a loyal human bond.")
 
 
 def test_discovery_ranks_one_attributable_passage_per_film_and_respects_exclusions() -> None:

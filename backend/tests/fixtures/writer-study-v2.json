@@ -1,0 +1,26 @@
+{
+  "version": "writer-study-v2",
+  "collection": "english-1000-retained-narrative-v1",
+  "tasks": [
+    {"id": "V01", "category": "character_change", "entry": "pair", "films": ["Q47703", "Q185888"], "question": "How does gaining power change what each protagonist is willing to sacrifice for belonging?"},
+    {"id": "V02", "category": "character_change", "entry": "pair", "films": ["Q172241", "Q214801"], "question": "How does the hope of escape change the way each protagonist relates to other people?"},
+    {"id": "V03", "category": "moral_dilemma", "entry": "pair", "films": ["Q163872", "Q25136235"], "question": "How does each protagonist respond when a trusted institution becomes part of the threat?"},
+    {"id": "V04", "category": "moral_dilemma", "entry": "pair", "films": ["Q221090", "Q1757288"], "question": "What personal risk does protecting a vulnerable stranger demand in each film?"},
+    {"id": "V05", "category": "plot_structure", "entry": "pair", "films": ["Q103569", "Q210756"], "question": "How does an isolated group lose trust as an unseen threat moves closer?"},
+    {"id": "V06", "category": "plot_structure", "entry": "pair", "films": ["Q25188", "Q83495"], "question": "How does each film delay the explanation of its world while keeping the mission legible?"},
+    {"id": "V07", "category": "worldbuilding", "entry": "pair", "films": ["Q21500755", "Q83495"], "question": "How do manufactured memories shape the protagonist's understanding of reality?"},
+    {"id": "V08", "category": "worldbuilding", "entry": "pair", "films": ["Q6144664", "Q155653"], "question": "How does an unfamiliar world externalize a young protagonist's emotional problem?"},
+    {"id": "V09", "category": "craft", "entry": "pair", "films": ["Q167726", "Q24871"], "question": "Which practical or digital image choices make creatures feel physically present?"},
+    {"id": "V10", "category": "genre_inversion", "entry": "pair", "films": ["Q25136235", "Q214801"], "question": "How does a pleasant everyday environment gradually reveal itself as a trap?"},
+    {"id": "V11", "category": "reception_disagreement", "entry": "pair", "films": ["Q180214", "Q15648198"], "question": "Where do critics disagree about whether artistic obsession is admirable or destructive?"},
+    {"id": "V12", "category": "unanswerable", "entry": "pair", "films": ["Q788822", "Q21500755"], "question": "What percentage of viewers changed their real-world relationships after these films?"},
+    {"id": "V13", "category": "character_change", "entry": "film_first", "films": ["Q788822"], "question": "Starting with Her, find another film where artificial companionship changes human intimacy."},
+    {"id": "V14", "category": "moral_dilemma", "entry": "film_first", "films": ["Q163872"], "question": "Starting with The Dark Knight, find another film where a villain publicly tests a hero's ethical code."},
+    {"id": "V15", "category": "craft", "entry": "film_first", "films": ["Q1757288"], "question": "Starting with Mad Max Fury Road, find another film whose visual design makes a chaotic chase readable."},
+    {"id": "V16", "category": "reception_disagreement", "entry": "film_first", "films": ["Q180214"], "question": "Starting with Black Swan, find a film whose portrayal of artistic ambition critics interpreted differently."},
+    {"id": "V17", "category": "plot_structure", "entry": "question_only", "films": [], "question": "How can a returning heir gain power while losing the family they meant to protect?"},
+    {"id": "V18", "category": "worldbuilding", "entry": "question_only", "films": [], "question": "Which films make a human relationship with artificial intelligence intimate rather than frightening?"},
+    {"id": "V19", "category": "genre_inversion", "entry": "question_only", "films": [], "question": "How can a safe-looking home become the source of a protagonist's danger?"},
+    {"id": "V20", "category": "unanswerable", "entry": "question_only", "films": [], "question": "Which private off-the-record meeting caused a film editor to change the ending?"}
+  ]
+}
