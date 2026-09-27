@@ -65,8 +65,11 @@ def aggregate_passage_reviews(report: dict[str, Any], reviews: list[dict[str, An
     """Measure relevance only after two complete, source-bound human exports."""
     if len(reviews) != 2 or reviews[0].get("reviewer") == reviews[1].get("reviewer"):
         raise ValueError("Exactly two distinct passage reviewers are required.")
+    packet_id = hashlib.sha256(json.dumps(report, sort_keys=True, default=str).encode("utf-8")).hexdigest()
     expected = expected_passage_sources(report)
     for review in reviews:
+        if review.get("packet_id") != packet_id:
+            raise ValueError("Passage review belongs to a different study capture.")
         labels = review.get("passages", {})
         pointers = review.get("passage_sources", {})
         if set(labels) != set(expected) or set(pointers) != set(expected):

@@ -75,7 +75,10 @@ and each passage in the primary comparison pair. The latest local packet is
 contains 44 required passage labels across 20 tasks. Other displayed passages
 remain available for whole-task judgment but are not part of the primary
 passage-relevance metric. Two independent reviewers must export complete
-reviews with distinct codes. From the project root, aggregate them with:
+reviews with distinct codes. The packet shows completion progress; a reviewer
+can download an incomplete draft and resume it from the same capture later.
+Drafts from a different capture are rejected. From the project root, aggregate
+completed reviews with:
 
 ```sh
 PYTHONPATH=backend python -m app.services.writer_study_v2 \
@@ -84,7 +87,7 @@ PYTHONPATH=backend python -m app.services.writer_study_v2 \
 ```
 
 This command rejects missing
-labels, stale source pointers, and incomplete task judgments rather than
+labels, stale packet IDs or source pointers, and incomplete task judgments rather than
 quietly treating them as negative or positive. No human reviews have been
 received, so no usefulness or relevance gate has passed.
 

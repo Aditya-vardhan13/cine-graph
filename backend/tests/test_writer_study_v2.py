@@ -1,4 +1,6 @@
 from collections import Counter
+import hashlib
+import json
 from pathlib import Path
 
 from app.services.writer_study import render_packet, technical_checks
@@ -60,8 +62,9 @@ def test_passage_review_requires_complete_labels_and_matching_source_pointers() 
     pointers = expected_passage_sources(report)
     assert len(pointers) == 4  # Only selected leads and the primary evidence pair.
     labels = dict.fromkeys(pointers, "relevant")
-    first = {"reviewer": "writer-a", "passages": labels, "passage_sources": pointers}
-    second = {"reviewer": "writer-b", "passages": labels, "passage_sources": pointers}
+    packet_id = hashlib.sha256(json.dumps(report, sort_keys=True).encode("utf-8")).hexdigest()
+    first = {"reviewer": "writer-a", "packet_id": packet_id, "passages": labels, "passage_sources": pointers}
+    second = {"reviewer": "writer-b", "packet_id": packet_id, "passages": labels, "passage_sources": pointers}
 
     summary = aggregate_passage_reviews(report, [first, second])
 
@@ -77,3 +80,5 @@ def test_passage_review_requires_complete_labels_and_matching_source_pointers() 
     stale["V01:discovery:lead-1"] = {**stale["V01:discovery:lead-1"], "source_revision": "rev-old"}
     with raises(ValueError, match="stale source"):
         aggregate_passage_reviews(report, [first, {**second, "passage_sources": stale}])
+    with raises(ValueError, match="different study capture"):
+        aggregate_passage_reviews(report, [first, {**second, "packet_id": "older-capture"}])

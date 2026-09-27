@@ -46,7 +46,8 @@ def test_review_packet_escapes_source_and_task_text() -> None:
     assert "&lt;script&gt;" in packet
     assert "Select &lt;two&gt; films." in packet
     assert "<script>alert('x')</script>" not in packet
-    assert "Download my review JSON" in packet
+    assert "Download draft or completed review JSON" in packet
+    assert "Resume this exact packet" in packet
 
 
 def test_v2_packet_labels_each_source_passage_with_stable_context_and_pointer() -> None:
@@ -90,6 +91,8 @@ def test_v2_packet_labels_each_source_passage_with_stable_context_and_pointer() 
     assert "<option value='relevant'>Relevant</option>" in packet
     assert "output.passages={}" in packet
     assert "output.passage_sources={}" in packet
+    assert "packet_id:packetId" in packet
+    assert "A passage source has changed" in packet
 
 
 def test_v1_packet_does_not_change_review_export_shape() -> None:
