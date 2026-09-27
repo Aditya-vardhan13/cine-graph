@@ -2,31 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ResearchDiscovery, ResearchFilm, StoryComparison, StoryComparisonEvidence, year } from "../lib/api";
+import { PinnedEvidence, renderWriterDecisionsMarkdown, WriterDecision } from "../lib/writer-study-export";
 
 const EXAMPLE_QUESTION = "How do these films turn the same idea into different character choices and consequences?";
 const NOTE_STORAGE_KEY = "cinegraph-writer-decisions-v1";
-
-type WriterDecision = {
-  id: string;
-  created_at: string;
-  question: string;
-  films: Array<{ entity_id: string; title: string }>;
-  decision: string;
-  sources: string[];
-  version?: 2;
-  first_mechanism?: string;
-  second_mechanism?: string;
-  contrast?: string;
-  evidence?: PinnedEvidence[];
-};
-
-type PinnedEvidence = {
-  chunk_id: string;
-  film_entity_id: string;
-  section_title: string;
-  source_url: string;
-  source_revision: string | null;
-};
 
 export function StoryComparisonWorkbench() {
   const [first, setFirst] = useState<ResearchFilm | null>(null);
@@ -221,7 +200,7 @@ export function StoryComparisonWorkbench() {
         <button onClick={() => chooseFilm(lead.film)}>Add to comparison</button>
       </article>)}</div> : <p>{discovery.method === "not_run" ? "No film leads were suggested without the required evidence." : "No attributable film leads were found for this question. Try a more specific dramatic situation."}</p>}
     </section>}
-    {result && <ComparisonResult result={result} />}
+    {result && <ComparisonResult key={`${result.first.entity_id}:${result.second.entity_id}:${result.question}`} result={result} />}
   </>;
 }
 
@@ -313,11 +292,11 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
     }
   }
 
-  function exportNotes() {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(notes, null, 2)], { type: "application/json" }));
+  function downloadNotes(contents: string, type: string, filename: string) {
+    const url = URL.createObjectURL(new Blob([contents], { type }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "cinegraph-writer-decisions.json";
+    link.download = filename;
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -336,7 +315,7 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
     </div>
     <label className="decision-field"><span>The meaningful difference</span><textarea value={contrast} onChange={(event) => setContrast(event.target.value)} maxLength={1200} placeholder="The two films share a problem, but differ in…" /></label>
     <label className="decision-field"><span>My original move</span><textarea aria-label="Your creative decision" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={2000} placeholder="For my story, I would…" /></label>
-    <div className="decision-actions"><button disabled={!canSave} onClick={save}>Save this study</button><small>Stored only in this browser. Export a copy to keep it.</small>{notes.length > 0 && <button className="export-notes" onClick={exportNotes}>Export {notes.length} note{notes.length === 1 ? "" : "s"}</button>}</div>
+    <div className="decision-actions"><button disabled={!canSave} onClick={save}>Save this study</button><small>Stored only in this browser. Export a copy to keep it.</small>{notes.length > 0 && <><button className="export-notes" onClick={() => downloadNotes(renderWriterDecisionsMarkdown(notes), "text/markdown", "cinegraph-writer-studies.md")}>Export readable notes</button><button className="export-notes" onClick={() => downloadNotes(JSON.stringify(notes, null, 2), "application/json", "cinegraph-writer-decisions.json")}>Export JSON</button></>}</div>
     {storageError && <p role="alert">{storageError}</p>}
     {current.length > 0 && <div className="saved-decisions"><h4>Saved for this comparison</h4>{current.map((note) => <article key={note.id}>
       {note.first_mechanism && <p><b>{result.first.title}:</b> {note.first_mechanism}</p>}
