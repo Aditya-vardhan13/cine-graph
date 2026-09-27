@@ -194,7 +194,7 @@ def _evidence_dto(
     )
 
 
-def _has_direct_question_anchor(
+def _both_films_have_question_anchor(
     db: Session, *, question: str, first: ResearchFilm, second: ResearchFilm, preprocessing_run_id: UUID,
 ) -> bool:
     terms = substantive_question_terms(question, first.title, second.title)
@@ -203,12 +203,13 @@ def _has_direct_question_anchor(
     english = literal_column("'english'::regconfig")
     query = func.to_tsquery(english, " | ".join(terms))
     document = func.to_tsvector(english, EvidenceChunk.section_title + " " + EvidenceChunk.content)
-    return db.scalar(select(EvidenceChunk.id).where(
+    matched_subjects = set(db.scalars(select(EvidenceChunk.subject_entity_id).where(
         EvidenceChunk.preprocessing_run_id == preprocessing_run_id,
         EvidenceChunk.subject_entity_id.in_((first.entity_id, second.entity_id)),
         EvidenceChunk.quality_status == "eligible",
         document.op("@@")(query),
-    ).limit(1)) is not None
+    ).distinct()).all())
+    return first.entity_id in matched_subjects and second.entity_id in matched_subjects
 
 
 def compare_story_evidence(
@@ -244,7 +245,7 @@ def compare_story_evidence(
             answerability_reason=requirement.explanation,
             lenses=(), preprocessing_run_id=str(scope.preprocessing_run_id), index_run_id=None,
         )
-    if not _has_direct_question_anchor(
+    if not _both_films_have_question_anchor(
         db, question=question, first=first, second=second,
         preprocessing_run_id=scope.preprocessing_run_id,
     ):
@@ -252,10 +253,10 @@ def compare_story_evidence(
             question=question.strip(), first=first, second=second,
             requested_method=requested_method.value,
             retrieval_method="not_run", degraded=False, fallback_reason=None,
-            summary="No direct source lead matches this writing question yet.",
+            summary="No two-sided source lead matches this writing question yet.",
             caution="A missing term match does not prove the films lack this idea; try another phrasing or source.",
             answerability_status="insufficient_evidence",
-            answerability_reason="The selected films' current passages do not directly mention the substantive terms in your question.",
+            answerability_reason="Both selected films need a current passage that directly mentions a substantive term in your question.",
             lenses=(), preprocessing_run_id=str(scope.preprocessing_run_id), index_run_id=None,
         )
 

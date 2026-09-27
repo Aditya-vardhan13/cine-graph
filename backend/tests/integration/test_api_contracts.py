@@ -306,6 +306,21 @@ def test_story_comparison_abstains_when_question_needs_unavailable_primary_recor
     assert no_match.json()["answerability_status"] == "insufficient_evidence"
     assert no_match.json()["lenses"] == []
 
+    one_sided = httpx.post(
+        f"{API_URL}/api/v1/comparisons/story",
+        json={
+            "first_entity_id": begins["entity_id"],
+            "second_entity_id": knight["entity_id"],
+            "question": "Why does Harvey Dent trust the Joker?",
+            "retrieval_method": "lexical",
+        },
+        timeout=5.0,
+    )
+    assert one_sided.status_code == 200
+    assert one_sided.json()["answerability_status"] == "insufficient_evidence"
+    assert one_sided.json()["retrieval_method"] == "not_run"
+    assert one_sided.json()["lenses"] == []
+
 
 def test_research_coverage_http_contract_counts_retained_passages():
     response = api_get("/api/v1/corpus/quality")
