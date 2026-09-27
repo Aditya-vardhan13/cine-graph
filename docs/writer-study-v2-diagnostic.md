@@ -57,3 +57,26 @@ separate browser study is still needed to measure interaction and task time.
 The highest-value engineering follow-up is to improve passage relevance and
 answerability on the failures above. Expanding film count or adding a larger
 model has not been shown to solve them.
+
+## Independent AI proxy diagnosis (not the product gate)
+
+Two read-only agent reviewers independently inspected the captured leads and
+comparison passages. Both marked the same nine of 20 tasks clearly useful.
+One marked two further tasks unclear, the other three; neither result is a
+human-writer score. They agreed on the main failure modes:
+
+1. The five fixed comparison lenses display unrelated production or reception
+   passages even when the question is about a specific story mechanism.
+2. Discovery can match a nearby theme but miss a hard premise, such as a
+   *returning heir*, a *public* ethical test, or intimacy *rather than fear*.
+3. Literal two-sided term matching can abstain on a plausible paraphrased
+   relation, as with the protection question in V04.
+
+The immediate design constraint is therefore not "show more evidence" or
+"add a larger model". A useful answer needs two passages that actually bear
+on the same writer question, plus an explicit account of how the treatments
+differ. The lower-bound interface is one question, one grounded passage per
+film, and a writer-owned contrast; extra lanes earn their place only when
+they add relevant evidence. More hand-coded topic exceptions would overfit
+this development set. Before changing retrieval ranking broadly, obtain
+passage-level relevance judgments and evaluate on a new held-out packet.
