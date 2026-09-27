@@ -53,6 +53,7 @@ def _has_required_topic_cues(question: str, content: str) -> bool:
 @dataclass(frozen=True)
 class DiscoveryLead:
     film: ResearchFilm
+    chunk_id: str
     excerpt: str
     section_title: str
     source_url: str
@@ -190,7 +191,7 @@ def discover_research_films(
     )).all()}
     leads = tuple(
         DiscoveryLead(
-            film=films[chunk.subject_entity_id], excerpt=chunk.content,
+            film=films[chunk.subject_entity_id], chunk_id=str(chunk.id), excerpt=chunk.content,
             section_title=chunk.section_title,
             source_url=snapshots[chunk.source_snapshot_id].attribution_url or snapshots[chunk.source_snapshot_id].canonical_url,
             source_revision=snapshots[chunk.source_snapshot_id].source_revision,

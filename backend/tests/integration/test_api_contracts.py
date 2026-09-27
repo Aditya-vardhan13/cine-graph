@@ -256,6 +256,7 @@ def test_question_first_discovery_returns_source_linked_film_leads() -> None:
     lead = payload["leads"][0]
     assert lead["film"]["title"] == "The Dark Knight"
     assert "Joker" in lead["excerpt"]
+    assert lead["chunk_id"]
     assert lead["source_url"] == "https://en.wikipedia.org/wiki/The_Dark_Knight"
     assert lead["source_license"]
 

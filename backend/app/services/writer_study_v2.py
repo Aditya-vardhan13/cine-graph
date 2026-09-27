@@ -24,6 +24,94 @@ from app.services.writer_study import CATEGORIES, aggregate_reviews, film_ids, r
 
 
 ENTRY_COUNTS = {"pair": 12, "film_first": 4, "question_only": 4}
+PASSAGE_LABELS = frozenset({"relevant", "irrelevant", "unclear"})
+
+
+def expected_passage_sources(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Bind each review control to the captured chunk and immutable source pointer."""
+    expected: dict[str, dict[str, Any]] = {}
+    for task in report["tasks"]:
+        task_id = task["id"]
+        selected_count = 1 if task["entry"] == "film_first" else 2
+        for lead in task.get("discovery", {}).get("leads", [])[:selected_count]:
+            chunk_id = lead.get("chunk_id")
+            if not chunk_id:
+                raise ValueError(f"{task_id}: recapture discovery with passage IDs before review.")
+            expected[f"{task_id}:discovery:{chunk_id}"] = {
+                "task_id": task_id, "kind": "discovery", "chunk_id": chunk_id,
+                "source_url": lead["source_url"], "source_revision": lead["source_revision"],
+                "source_license": lead["source_license"],
+            }
+        lenses = task.get("comparison", {}).get("lenses", [])
+        focus = next((lens for lens in lenses if lens["identifier"] == "central_question"
+                      and lens["first_evidence"] and lens["second_evidence"]), None)
+        if focus is None:
+            focus = next((lens for lens in lenses if lens["first_evidence"] and lens["second_evidence"]), None)
+        for lens in (focus,) if focus else ():
+            for side in ("first", "second"):
+                card = lens.get(f"{side}_evidence")
+                if not card:
+                    continue
+                chunk_id = card["chunk_id"]
+                expected[f"{task_id}:comparison:{lens['identifier']}:{side}:{chunk_id}"] = {
+                    "task_id": task_id, "kind": "comparison", "chunk_id": chunk_id,
+                    "source_url": card["source_url"], "source_revision": card["source_revision"],
+                    "source_license": card["source_license"],
+                }
+    return expected
+
+
+def aggregate_passage_reviews(report: dict[str, Any], reviews: list[dict[str, Any]]) -> dict[str, Any]:
+    """Measure relevance only after two complete, source-bound human exports."""
+    if len(reviews) != 2 or reviews[0].get("reviewer") == reviews[1].get("reviewer"):
+        raise ValueError("Exactly two distinct passage reviewers are required.")
+    expected = expected_passage_sources(report)
+    for review in reviews:
+        labels = review.get("passages", {})
+        pointers = review.get("passage_sources", {})
+        if set(labels) != set(expected) or set(pointers) != set(expected):
+            raise ValueError("Every captured passage needs one source-bound relevance rating.")
+        for passage_id, pointer in expected.items():
+            if labels[passage_id] not in PASSAGE_LABELS or pointers[passage_id] != pointer:
+                raise ValueError(f"{passage_id}: invalid label or stale source pointer.")
+    both_relevant = {
+        passage_id for passage_id in expected
+        if all(review["passages"][passage_id] == "relevant" for review in reviews)
+    }
+    agreement = sum(
+        reviews[0]["passages"][passage_id] == reviews[1]["passages"][passage_id]
+        for passage_id in expected
+    )
+    selected_discovery: list[tuple[str, ...]] = []
+    focus_pairs: list[tuple[str, str]] = []
+    for task in report["tasks"]:
+        leads = task.get("discovery", {}).get("leads", [])
+        if leads:
+            needed = 1 if task["entry"] == "film_first" else 2
+            selected_discovery.append(tuple(
+                f"{task['id']}:discovery:{lead['chunk_id']}" for lead in leads[:needed]
+            ))
+        lenses = task.get("comparison", {}).get("lenses", [])
+        focus = next((lens for lens in lenses if lens["identifier"] == "central_question"
+                      and lens["first_evidence"] and lens["second_evidence"]), None)
+        if focus is None:
+            focus = next((lens for lens in lenses if lens["first_evidence"] and lens["second_evidence"]), None)
+        if focus is not None:
+            focus_pairs.append(tuple(
+                f"{task['id']}:comparison:{focus['identifier']}:{side}:{focus[f'{side}_evidence']['chunk_id']}"
+                for side in ("first", "second")
+            ))
+    return {
+        "rated_passages": len(expected),
+        "both_reviewers_relevant": len(both_relevant),
+        "exact_label_agreement": agreement,
+        "selected_discovery_sets": len(selected_discovery),
+        "selected_discovery_sets_both_relevant": sum(all(item in both_relevant for item in group)
+                                                      for group in selected_discovery),
+        "focus_pairs": len(focus_pairs),
+        "focus_pairs_both_relevant": sum(all(item in both_relevant for item in pair)
+                                         for pair in focus_pairs),
+    }
 
 
 def load_tasks(path: Path) -> dict[str, Any]:
@@ -113,6 +201,7 @@ def main() -> None:
         report = json.loads((args.output_dir / "study.json").read_text(encoding="utf-8"))
         reviews = [json.loads(path.read_text(encoding="utf-8")) for path in args.reviews]
         summary = aggregate_reviews(report, reviews)
+        summary["passage_relevance"] = aggregate_passage_reviews(report, reviews)
         (args.output_dir / "review-summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         print(json.dumps(summary, indent=2))
         return

@@ -174,7 +174,7 @@ export function StoryComparisonWorkbench() {
         </div>
         <div className="live-search compare-search">
           <span className="search-glyph">⌕</span>
-          <input aria-label="Search comparison films" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={!first ? "Find the first film…" : "Find or replace the second film…"} />
+          <input id="comparison-film-search" aria-label="Search comparison films" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={!first ? "Find the first film…" : "Find or replace the second film…"} />
           <span className="search-state">{searching ? "Searching" : "Live"}</span>
           {(suggestions.length > 0 || searchError || (searchedQuery === query.trim() && query.trim().length >= 2 && !searching)) && <div className="suggestions">
             {searchError ? <p role="status">{searchError}</p> : suggestions.length ? suggestions.map((film) => <button key={film.entity_id} onClick={() => chooseFilm(film)}><span><b>{film.title}</b><small>{film.release_year ?? year(film.release_date)} · {film.genres.slice(0, 2).join(", ") || "Genre unavailable"}</small></span><i>select ↗</i></button>) : <p role="status">No other title matches “{query.trim()}”.</p>}
@@ -182,7 +182,7 @@ export function StoryComparisonWorkbench() {
         </div>
         <label className="writer-question-input">
           <span>Your writing question</span>
-          <textarea value={question} onChange={(event) => changeQuestion(event.target.value)} maxLength={400} placeholder={EXAMPLE_QUESTION} />
+          <textarea id="writer-question" value={question} onChange={(event) => changeQuestion(event.target.value)} maxLength={400} placeholder={EXAMPLE_QUESTION} />
           <small>{question.trim().length}/400 · minimum 12 characters</small>
         </label>
         <button className="discovery-button" disabled={question.trim().length < 12 || discovering} onClick={discoverFilms}>{discovering ? "Finding film leads…" : "Find films for this question"}</button>
@@ -192,11 +192,11 @@ export function StoryComparisonWorkbench() {
       </div>
     </section>
     {discovery && <section className="discovery-results" aria-live="polite">
-      <div><p className="eyebrow">Question-first film leads</p><h2>Films worth investigating</h2><p>{discovery.reason}</p>{discovery.degraded && <small>Semantic search was unavailable; these leads use exact-term retrieval.</small>}</div>
+      <div><p className="eyebrow">Question-first film leads</p><h2>Candidate film leads</h2><p>{discovery.reason} A passage match does not establish that the film fits every part of your question.</p>{discovery.degraded && <small>Semantic search was unavailable; these leads use exact-term retrieval.</small>}</div>
       {discovery.leads.some((lead) => lead.film.entity_id !== first?.entity_id && lead.film.entity_id !== second?.entity_id) ? <div className="discovery-grid">{discovery.leads.filter((lead) => lead.film.entity_id !== first?.entity_id && lead.film.entity_id !== second?.entity_id).map((lead) => <article key={lead.film.entity_id}>
         <h3>{lead.film.title}</h3><small>{lead.film.release_year ?? year(lead.film.release_date)} · {lead.section_title}</small>
         <p>{lead.excerpt.slice(0, 340)}{lead.excerpt.length > 340 ? "…" : ""}</p>
-        <a href={lead.source_url} target="_blank" rel="noopener noreferrer">Inspect source · {lead.source_license} ↗</a>
+        <a href={lead.source_url} target="_blank" rel="noopener noreferrer">Inspect source · {lead.source_license} · revision {lead.source_revision || "unavailable"} ↗</a>
         <button onClick={() => chooseFilm(lead.film)}>Add to comparison</button>
       </article>)}</div> : <p>{discovery.method === "not_run" ? "No film leads were suggested without the required evidence." : "No attributable film leads were found for this question. Try a more specific dramatic situation."}</p>}
     </section>}
@@ -227,19 +227,28 @@ function ComparisonResult({ result }: { result: StoryComparison }) {
   if (result.answerability_status === "insufficient_evidence") return <section className="story-comparison-result insufficient-evidence" aria-live="polite">
     <p className="eyebrow">Insufficient evidence</p><h2>{result.summary}</h2>
     <p>{result.answerability_reason}</p><small>{result.caution}</small>
+    <div className="evidence-recovery"><a href="#writer-question">Refine the question ↑</a><a href="#comparison-film-search">Try another film ↑</a></div>
   </section>;
+  const focus = result.lenses.find((lens) => lens.identifier === "central_question" && lens.first_evidence && lens.second_evidence)
+    || result.lenses.find((lens) => lens.first_evidence && lens.second_evidence);
+  const furtherContext = result.lenses.filter((lens) => lens !== focus);
   return <section className="story-comparison-result">
     <header>
       <div><p className="eyebrow">Evidence comparison</p><h2>{result.first.title} <i>×</i> {result.second.title}</h2><p className="comparison-question">“{result.question}”</p></div>
       <div className={result.degraded ? "retrieval-badge degraded" : "retrieval-badge"}><span>{result.retrieval_method} retrieval</span><small>{result.summary}</small></div>
     </header>
     {result.fallback_reason && <p className="fallback-note">{result.fallback_reason}</p>}
-    <div className="comparison-column-headings"><span>{result.first.title}</span><i>Lens</i><span>{result.second.title}</span></div>
-    <div className="comparison-lenses">{result.lenses.map((lens) => <article key={lens.identifier} className="comparison-lens">
+    <div className="comparison-column-headings"><span>{result.first.title}</span><i>Question evidence</i><span>{result.second.title}</span></div>
+    {focus && <div className="comparison-lenses"><article className="comparison-lens focus-lens">
+      <EvidenceCard evidence={focus.first_evidence} filmTitle={result.first.title} pinned={pinned.some((item) => item.chunk_id === focus.first_evidence?.chunk_id)} onPin={() => { if (focus.first_evidence) toggleEvidence(result.first.entity_id, focus.first_evidence); }} />
+      <div className="lens-center"><span>{focus.label}</span><p>{focus.writer_prompt}</p></div>
+      <EvidenceCard evidence={focus.second_evidence} filmTitle={result.second.title} pinned={pinned.some((item) => item.chunk_id === focus.second_evidence?.chunk_id)} onPin={() => { if (focus.second_evidence) toggleEvidence(result.second.entity_id, focus.second_evidence); }} />
+    </article></div>}
+    {furtherContext.length > 0 && <details className="additional-context"><summary>Additional source context ({furtherContext.length} lenses) · may not answer your question</summary><div className="comparison-lenses">{furtherContext.map((lens) => <article key={lens.identifier} className="comparison-lens">
       <EvidenceCard evidence={lens.first_evidence} filmTitle={result.first.title} pinned={pinned.some((item) => item.chunk_id === lens.first_evidence?.chunk_id)} onPin={() => { if (lens.first_evidence) toggleEvidence(result.first.entity_id, lens.first_evidence); }} />
       <div className="lens-center"><span>{lens.label}</span><p>{lens.writer_prompt}</p></div>
       <EvidenceCard evidence={lens.second_evidence} filmTitle={result.second.title} pinned={pinned.some((item) => item.chunk_id === lens.second_evidence?.chunk_id)} onPin={() => { if (lens.second_evidence) toggleEvidence(result.second.entity_id, lens.second_evidence); }} />
-    </article>)}</div>
+    </article>)}</div></details>}
     <footer>{result.caution}</footer>
     <WriterDecisionPad result={result} pinned={pinned} />
   </section>;
@@ -330,5 +339,5 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
 
 function EvidenceCard({ evidence, filmTitle, pinned, onPin }: { evidence: StoryComparisonEvidence | null; filmTitle: string; pinned: boolean; onPin: () => void }) {
   if (!evidence) return <div className="evidence-card empty-evidence"><span>No additional passage</span><p>No distinct passage was available for {filmTitle} under this lens. Related evidence may already appear above.</p></div>;
-  return <div className="evidence-card"><div><span>{evidence.section_title}</span><small>{evidence.matched_by.join(" + ")}</small></div><p>{evidence.excerpt}</p><div className="evidence-actions"><a href={evidence.source_url} target="_blank" rel="noopener noreferrer">Source · {evidence.source_license} ↗</a><button aria-pressed={pinned} onClick={onPin}>{pinned ? "Pinned to study ✓" : "Pin as evidence +"}</button></div></div>;
+  return <div className="evidence-card"><div><span>{evidence.section_title}</span><small>Source passage</small></div><p>{evidence.excerpt}</p><div className="evidence-actions"><a href={evidence.source_url} target="_blank" rel="noopener noreferrer">Source · {evidence.source_license} · revision {evidence.source_revision || "unavailable"} ↗</a><button aria-pressed={pinned} onClick={onPin}>{pinned ? "Pinned to study ✓" : "Pin as evidence +"}</button></div></div>;
 }

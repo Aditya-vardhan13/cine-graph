@@ -299,7 +299,7 @@ def discover_films_for_question(
         reason=result.reason, preprocessing_run_id=result.preprocessing_run_id,
         index_run_id=result.index_run_id,
         leads=[ResearchDiscoveryLeadOut(
-            film=research_film_item(lead.film), excerpt=lead.excerpt,
+            film=research_film_item(lead.film), chunk_id=lead.chunk_id, excerpt=lead.excerpt,
             section_title=lead.section_title, source_url=lead.source_url,
             source_revision=lead.source_revision, source_license=lead.source_license,
             matched_by=list(lead.matched_by),

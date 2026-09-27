@@ -49,6 +49,62 @@ def test_review_packet_escapes_source_and_task_text() -> None:
     assert "Download my review JSON" in packet
 
 
+def test_v2_packet_labels_each_source_passage_with_stable_context_and_pointer() -> None:
+    source = {
+        "chunk_id": "source-123", "section_title": "Plot", "excerpt": "A cited passage",
+        "source_url": "https://example.org/story?x=1&y=2", "source_revision": "42",
+        "source_license": "CC BY-SA 4.0",
+    }
+    report = {"version": "writer-study-v2", "tasks": [{
+        "id": "V01", "category": "plot_structure", "entry": "question_only",
+        "question": "How is the story constructed?", "status": "displayed", "elapsed_ms": 10,
+        "discovery": {"method": "lexical", "leads": [
+            {**source, "film": {"title": "First"}},
+            {**source, "chunk_id": "source-234", "film": {"title": "Second"}},
+            {**source, "chunk_id": "source-345", "film": {"title": "Other"}},
+        ]},
+        "comparison": {
+            "first": {"title": "First"}, "second": {"title": "Second"},
+            "retrieval_method": "lexical", "lenses": [{
+                "identifier": "plot_engine", "label": "Plot engine", "writer_prompt": "Compare them",
+                "first_evidence": source, "second_evidence": {**source, "chunk_id": "source-456"},
+            }, {
+                "identifier": "production", "label": "Production", "writer_prompt": "Optional context",
+                "first_evidence": {**source, "chunk_id": "source-567"},
+                "second_evidence": {**source, "chunk_id": "source-678"},
+            }], "caution": "Context is limited.", "degraded": False,
+        },
+    }]}
+
+    packet = render_packet(report)
+
+    assert "data-passage='V01:discovery:source-123'" in packet
+    assert "data-passage='V01:discovery:source-234'" in packet
+    assert "data-passage='V01:discovery:source-345'" not in packet
+    assert "data-passage='V01:comparison:plot_engine:first:source-123'" in packet
+    assert "data-passage='V01:comparison:plot_engine:second:source-456'" in packet
+    assert packet.count("data-passage-source-url='https://example.org/story?x=1&amp;y=2'") == 4
+    assert "data-passage='V01:comparison:production:first:source-567'" not in packet
+    assert "Additional comparison lenses · optional context" in packet
+    assert "data-passage-source-revision='42'" in packet
+    assert "<option value='relevant'>Relevant</option>" in packet
+    assert "output.passages={}" in packet
+    assert "output.passage_sources={}" in packet
+
+
+def test_v1_packet_does_not_change_review_export_shape() -> None:
+    report = {"version": "writer-study-v1", "tasks": [{
+        "id": "W01", "category": "plot_structure", "entry": "question_only",
+        "question": "How is the story constructed?", "status": "unsupported_entry_flow",
+        "reason": "This flow was not yet supported.",
+    }]}
+
+    packet = render_packet(report)
+
+    assert "data-passage='" not in packet
+    assert "writer-study-v1-review" in packet
+
+
 def test_product_gate_requires_two_complete_reviews_and_abstention() -> None:
     report = {"version": "writer-study-v1", "tasks": [
         {"id": f"W{number:02d}", "category": "unanswerable" if number == 16 else "craft", "status": "displayed"}

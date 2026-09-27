@@ -15,6 +15,13 @@
 .insufficient-evidence h2{margin-bottom:16px}
 .insufficient-evidence p:not(.eyebrow){max-width:700px;line-height:1.55;color:#eed4b6}
 .insufficient-evidence small{color:var(--muted)}
+.evidence-recovery{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+.evidence-recovery a{border:1px solid #805d43;color:#f0c37f;padding:10px 13px;font-size:12px;text-decoration:none}
+.additional-context{border-bottom:1px solid var(--line)}
+.additional-context summary{cursor:pointer;padding:17px 42px;color:var(--lime);font-size:12px;line-height:1.5}
+.additional-context summary:hover{background:#151923}
+.additional-context .comparison-lens:last-child{border-bottom:0}
+.focus-lens{background:#111821}
 .writer-decision-pad{padding:35px 42px;border-top:1px solid #3b4050;background:#141821}
 .writer-decision-pad h3{font:normal 30px var(--serif);margin:0}
 .writer-decision-pad>div>p:not(.eyebrow){color:var(--muted);font-size:13px;line-height:1.5}
@@ -42,4 +49,4 @@
 .saved-decisions details{margin-top:10px;color:var(--lime);font-size:11px}
 .saved-decisions details a{display:block;color:var(--lime);margin-top:6px}
 @media(max-width:900px){.discovery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:600px){.discovery-results,.writer-decision-pad{padding:26px}.discovery-grid,.mechanism-fields{grid-template-columns:1fr}}
+@media(max-width:600px){.discovery-results,.writer-decision-pad{padding:26px}.discovery-grid,.mechanism-fields{grid-template-columns:1fr}.additional-context summary{padding:17px 26px}}

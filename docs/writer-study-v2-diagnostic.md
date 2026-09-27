@@ -46,7 +46,7 @@ two leads. Both the database and generated review packets remain local under
 
 ## Next gate
 
-Give the generated local `topic-cue-rerun/review-packet.html` to two independent
+Give the generated local `primary-review-ready/review-packet.html` to two independent
 writer/research reviewers. They should rate relevance, useful contrast,
 accuracy, uncertainty, and whether each task produces a writer-owned next
 step. Do not report the 14/20 usefulness gate as passed without those exports.
@@ -57,6 +57,44 @@ separate browser study is still needed to measure interaction and task time.
 The highest-value engineering follow-up is to improve passage relevance and
 answerability on the failures above. Expanding film count or adding a larger
 model has not been shown to solve them.
+
+## September 28 follow-up: reviewable evidence and real browser checks
+
+The interface now foregrounds one paired evidence lens for the writer's
+question. Other fixed lenses remain available in a collapsed section explicitly
+marked as possible context, not proof of an answer. Discovery leads are called
+*candidates*, source revisions are visible, and an insufficient-evidence result
+offers a way back to the question or film search without resetting the pair.
+These are presentation and transparency changes, **not a retrieval-quality
+improvement claim**.
+
+The v2 capture now exposes stable chunk IDs for discovery passages and a
+source-bound relevance control for each automatically selected discovery lead
+and each passage in the primary comparison pair. The latest local packet is
+`data/evaluation/writer-study-v2/primary-review-ready/review-packet.html`; it
+contains 44 required passage labels across 20 tasks. Other displayed passages
+remain available for whole-task judgment but are not part of the primary
+passage-relevance metric. Two independent reviewers must export complete
+reviews with distinct codes. From the project root, aggregate them with:
+
+```sh
+PYTHONPATH=backend python -m app.services.writer_study_v2 \
+  --output-dir data/evaluation/writer-study-v2/primary-review-ready \
+  --reviews REVIEW_A.json REVIEW_B.json
+```
+
+This command rejects missing
+labels, stale source pointers, and incomplete task judgments rather than
+quietly treating them as negative or positive. No human reviews have been
+received, so no usefulness or relevance gate has passed.
+
+The frontend also has a real-browser smoke test using the isolated integration
+API and its `cinegraph_test` database. It covers search, comparison, evidence
+pinning, a writer-owned decision, Markdown export, and abstention/recovery.
+Run `backend/scripts/run_integration_tests.sh` first, then from `frontend/`
+run `npm run test:e2e`. On machines with a system Chrome but no downloaded
+Playwright browser, set `CINEGRAPH_CHROME_PATH` to that executable. These tests
+never use the working corpus and do not replace an independent writer study.
 
 ## Independent AI proxy diagnosis (not the product gate)
 

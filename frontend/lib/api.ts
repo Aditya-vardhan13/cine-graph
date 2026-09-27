@@ -131,6 +131,7 @@ export type ResearchDiscovery = {
   reason: string;
   leads: Array<{
     film: ResearchFilm;
+    chunk_id: string;
     excerpt: string;
     section_title: string;
     source_url: string;

@@ -116,6 +116,7 @@ class ResearchDiscoveryRequest(BaseModel):
 
 class ResearchDiscoveryLeadOut(BaseModel):
     film: ResearchFilmOut
+    chunk_id: str
     excerpt: str
     section_title: str
     source_url: str

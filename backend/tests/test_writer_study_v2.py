@@ -2,7 +2,7 @@ from collections import Counter
 from pathlib import Path
 
 from app.services.writer_study import render_packet, technical_checks
-from app.services.writer_study_v2 import load_tasks
+from app.services.writer_study_v2 import aggregate_passage_reviews, expected_passage_sources, load_tasks
 
 
 def test_v2_manifest_covers_current_entry_flows_and_categories() -> None:
@@ -37,3 +37,43 @@ def test_v2_packet_shows_discovery_and_explicit_abstention() -> None:
     assert "Insufficient evidence" in packet
     assert "writer-study-v2-review" in packet
     assert technical_checks(report["tasks"][0]["comparison"])["explicit_abstention_available"] is True
+
+
+def test_passage_review_requires_complete_labels_and_matching_source_pointers() -> None:
+    def passage(chunk_id: str) -> dict:
+        return {
+            "chunk_id": chunk_id, "source_url": f"https://example.org/{chunk_id}",
+            "source_revision": "rev-1", "source_license": "CC BY-SA 4.0",
+        }
+
+    report = {"tasks": [{
+        "id": "V01", "entry": "question_only",
+        "discovery": {"leads": [passage("lead-1"), passage("lead-2"), passage("other-lead")]},
+        "comparison": {"lenses": [{
+            "identifier": "central_question", "first_evidence": passage("first"),
+            "second_evidence": passage("second"),
+        }, {
+            "identifier": "production", "first_evidence": passage("other-first"),
+            "second_evidence": passage("other-second"),
+        }]},
+    }]}
+    pointers = expected_passage_sources(report)
+    assert len(pointers) == 4  # Only selected leads and the primary evidence pair.
+    labels = dict.fromkeys(pointers, "relevant")
+    first = {"reviewer": "writer-a", "passages": labels, "passage_sources": pointers}
+    second = {"reviewer": "writer-b", "passages": labels, "passage_sources": pointers}
+
+    summary = aggregate_passage_reviews(report, [first, second])
+
+    assert summary == {
+        "rated_passages": 4, "both_reviewers_relevant": 4, "exact_label_agreement": 4,
+        "selected_discovery_sets": 1, "selected_discovery_sets_both_relevant": 1,
+        "focus_pairs": 1, "focus_pairs_both_relevant": 1,
+    }
+    from pytest import raises
+    with raises(ValueError, match="source-bound"):
+        aggregate_passage_reviews(report, [first, {**second, "passages": {}}])
+    stale = dict(pointers)
+    stale["V01:discovery:lead-1"] = {**stale["V01:discovery:lead-1"], "source_revision": "rev-old"}
+    with raises(ValueError, match="stale source"):
+        aggregate_passage_reviews(report, [first, {**second, "passage_sources": stale}])

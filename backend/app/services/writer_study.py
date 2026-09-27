@@ -153,6 +153,29 @@ def run_study(db: Session, manifest: dict[str, Any]) -> dict[str, Any]:
 
 def render_packet(report: dict[str, Any]) -> str:
     esc = lambda value: html.escape(str(value), quote=True)
+    passage_review = report.get("version") == "writer-study-v2"
+
+    def passage_control(task_id: str, kind: str, chunk: dict[str, Any], *, lens: str = "", side: str = "") -> str:
+        chunk_id = chunk.get("chunk_id")
+        if not chunk_id:
+            return "<p class='warn'>Passage ID unavailable; recapture this study before passage review.</p>"
+        parts = [task_id, kind]
+        if kind == "comparison":
+            parts.extend((lens, side))
+        parts.append(str(chunk_id))
+        passage_id = ":".join(parts)
+        return (
+            f"<label class='passage-review'>Passage relevance"
+            f"<select data-passage='{esc(passage_id)}' data-passage-task='{esc(task_id)}' "
+            f"data-passage-kind='{esc(kind)}' data-passage-chunk='{esc(chunk_id)}' "
+            f"data-passage-source-url='{esc(chunk.get('source_url', ''))}' "
+            f"data-passage-source-revision='{esc(chunk.get('source_revision') or '')}' "
+            f"data-passage-source-license='{esc(chunk.get('source_license', ''))}'>"
+            "<option value=''>Unrated</option><option value='relevant'>Relevant</option>"
+            "<option value='irrelevant'>Irrelevant</option><option value='unclear'>Unclear</option>"
+            "</select></label>"
+        )
+
     sections = []
     for task in report["tasks"]:
         content = [
@@ -162,12 +185,20 @@ def render_packet(report: dict[str, Any]) -> str:
         if task.get("discovery"):
             discovery = task["discovery"]
             content.append(f"<p>Discovery: {esc(discovery['method'])} · {esc(len(discovery['leads']))} source-linked leads</p>")
-            for lead in discovery["leads"]:
+            selected_count = 1 if task["entry"] == "film_first" else 2
+            for lead_number, lead in enumerate(discovery["leads"]):
+                if passage_review and lead_number == selected_count:
+                    content.append("<details class='optional-context'><summary>Other discovery leads · optional context</summary>")
                 content.append(
-                    f"<article><small>{esc(lead['film']['title'])} · {esc(lead['section_title'])}</small>"
+                    f"<article><small>{'Selected lead · ' if lead_number < selected_count else 'Other lead · '}"
+                    f"{esc(lead['film']['title'])} · {esc(lead['section_title'])}</small>"
                     f"<p>{esc(lead['excerpt'])}</p><a href='{esc(lead['source_url'])}' target='_blank' "
-                    f"rel='noopener noreferrer'>Source · {esc(lead['source_license'])} · revision {esc(lead['source_revision'])}</a></article>"
+                    f"rel='noopener noreferrer'>Source · {esc(lead['source_license'])} · revision {esc(lead['source_revision'])}</a>"
+                    + (passage_control(task["id"], "discovery", lead)
+                       if passage_review and lead_number < selected_count else "") + "</article>"
                 )
+            if passage_review and len(discovery["leads"]) > selected_count:
+                content.append("</details>")
         if task["status"] == "displayed":
             result = task["comparison"]
             content.append(
@@ -178,7 +209,20 @@ def render_packet(report: dict[str, Any]) -> str:
                 content.append(f"<p class='warn'>Insufficient evidence: {esc(result.get('answerability_reason'))}</p>")
             if result.get("fallback_reason"):
                 content.append(f"<p class='warn'>{esc(result['fallback_reason'])}</p>")
-            for lens in result["lenses"]:
+            focus = next((lens for lens in result["lenses"] if lens["identifier"] == "central_question"
+                          and lens["first_evidence"] and lens["second_evidence"]), None)
+            if focus is None:
+                focus = next((lens for lens in result["lenses"]
+                              if lens["first_evidence"] and lens["second_evidence"]), None)
+            if passage_review and focus is not None:
+                content.append("<p class='status'>Primary paired evidence for passage relevance</p>")
+            supplemental_open = False
+            lenses_for_display = ([focus] + [lens for lens in result["lenses"] if lens is not focus]
+                                  if passage_review and focus is not None else result["lenses"])
+            for lens in lenses_for_display:
+                if passage_review and lens is not focus and not supplemental_open:
+                    content.append("<details class='optional-context'><summary>Additional comparison lenses · optional context</summary>")
+                    supplemental_open = True
                 content.append(f"<div class='lens'><h3>{esc(lens['label'])}</h3><p>{esc(lens['writer_prompt'])}</p><div class='cards'>")
                 for side in ("first", "second"):
                     card = lens[f"{side}_evidence"]
@@ -186,11 +230,15 @@ def render_packet(report: dict[str, Any]) -> str:
                         content.append(
                             f"<article><small>{esc(result[side]['title'])} · {esc(card['section_title'])}</small>"
                             f"<p>{esc(card['excerpt'])}</p><a href='{esc(card['source_url'])}' target='_blank' "
-                            f"rel='noopener noreferrer'>Source · {esc(card['source_license'])} · revision {esc(card['source_revision'])}</a></article>"
+                            f"rel='noopener noreferrer'>Source · {esc(card['source_license'])} · revision {esc(card['source_revision'])}</a>"
+                            + (passage_control(task["id"], "comparison", card, lens=lens["identifier"], side=side)
+                               if passage_review and lens is focus else "") + "</article>"
                         )
                     else:
                         content.append(f"<article><small>{esc(result[side]['title'])}</small><p>No distinct passage available.</p></article>")
                 content.append("</div></div>")
+            if supplemental_open:
+                content.append("</details>")
             content.append(f"<p class='warn'>{esc(result['caution'])}</p>")
         elif task["status"] == "unsupported_entry_flow":
             content.append(f"<p class='warn'>{esc(task['reason'])}</p>")
@@ -208,11 +256,11 @@ def render_packet(report: dict[str, Any]) -> str:
         sections.append("".join(content))
     review_version = esc(f"{report.get('version', 'writer-study-v1')}-review")
     return """<!doctype html><html lang='en'><meta charset='utf-8'><title>CineGraph writer study</title>
-<style>body{background:#0b0d13;color:#ececf4;font:16px system-ui;margin:auto;max-width:1200px;padding:28px}p{line-height:1.5}.task,.lens,article{background:#171a25;border:1px solid #30364a;border-radius:14px;padding:18px;margin:16px 0}.question{font-size:1.25rem}.status,.warn{color:#ffce80}.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}article{margin:0;white-space:pre-wrap}small{color:#a8d9f9}a{color:#9bdfd3}.review{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.review h3{grid-column:1/-1}label{display:grid;gap:5px}select,input,textarea{background:#0d1018;color:white;border:1px solid #4a536a;padding:8px}textarea{min-height:70px}button{padding:10px 16px;background:#8c6bff;color:white;border:0;border-radius:8px}@media(max-width:750px){.cards,.review{grid-template-columns:1fr}}</style>
-<h1>CineGraph writer-task study</h1><p>This packet shows captured API evidence, not a browser-usability test. Film-first and question-only tasks automatically use the first discovery lead(s) to form a comparison; judge whether that selection helps. It does not claim usefulness or source accuracy. Review independently; do not use retrieval scores to decide. For unsupported flows, judge the product's inability to complete the task. Record your own task time. No scores are sent to a server.</p>
+<style>body{background:#0b0d13;color:#ececf4;font:16px system-ui;margin:auto;max-width:1200px;padding:28px}p{line-height:1.5}.task,.lens,article{background:#171a25;border:1px solid #30364a;border-radius:14px;padding:18px;margin:16px 0}.question{font-size:1.25rem}.status,.warn{color:#ffce80}.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}article{margin:0;white-space:pre-wrap}small{color:#a8d9f9}a{color:#9bdfd3}.passage-review{margin-top:14px;max-width:220px}.optional-context{border:1px solid #30364a;padding:12px;margin:16px 0}.optional-context summary{cursor:pointer;color:#a8d9f9}.review{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.review h3{grid-column:1/-1}label{display:grid;gap:5px}select,input,textarea{background:#0d1018;color:white;border:1px solid #4a536a;padding:8px}textarea{min-height:70px}button{padding:10px 16px;background:#8c6bff;color:white;border:0;border-radius:8px}@media(max-width:750px){.cards,.review{grid-template-columns:1fr}}</style>
+<h1>CineGraph writer-task study</h1><p>This packet shows captured API evidence, not a browser-usability test. Film-first and question-only tasks automatically use the first discovery lead(s) to form a comparison. Rate passage relevance only on those selected leads and the primary paired evidence; other passages are optional context, but still matter to your whole-task judgment. Do not use retrieval scores to decide. Review independently, record your own task time, and judge failed entry flows as product failures. No scores are sent to a server.</p>
 <label>Reviewer code (not your name)<input id='reviewer' maxlength='40'></label><button id='export'>Download my review JSON</button>
 """ + "".join(sections) + """
-<script>document.getElementById('export').onclick=()=>{const reviewer=document.getElementById('reviewer').value.trim();if(!reviewer){alert('Enter a reviewer code first.');return}const tasks={};document.querySelectorAll('[data-task]').forEach(el=>{const id=el.dataset.task;(tasks[id]??={})[el.dataset.field]=el.value});const output={version:'""" + review_version + """',reviewer,created_at:new Date().toISOString(),tasks};const blob=new Blob([JSON.stringify(output,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='writer-study-review-'+reviewer.replace(/[^a-z0-9_-]/gi,'_')+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000)};</script></html>"""
+<script>document.getElementById('export').onclick=()=>{const reviewer=document.getElementById('reviewer').value.trim();if(!reviewer){alert('Enter a reviewer code first.');return}const tasks={};document.querySelectorAll('[data-task]').forEach(el=>{const id=el.dataset.task;(tasks[id]??={})[el.dataset.field]=el.value});const output={version:'""" + review_version + """',reviewer,created_at:new Date().toISOString(),tasks};const passageControls=document.querySelectorAll('[data-passage]');if(passageControls.length){output.passages={};output.passage_sources={};passageControls.forEach(el=>{const id=el.dataset.passage;output.passages[id]=el.value;output.passage_sources[id]={task_id:el.dataset.passageTask,kind:el.dataset.passageKind,chunk_id:el.dataset.passageChunk,source_url:el.dataset.passageSourceUrl,source_revision:el.dataset.passageSourceRevision||null,source_license:el.dataset.passageSourceLicense}})}const blob=new Blob([JSON.stringify(output,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='writer-study-review-'+reviewer.replace(/[^a-z0-9_-]/gi,'_')+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000)};</script></html>"""
 
 
 def aggregate_reviews(report: dict[str, Any], reviews: list[dict[str, Any]]) -> dict[str, Any]:
