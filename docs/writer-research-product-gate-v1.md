@@ -32,7 +32,10 @@ The minimum useful unit is therefore **one writer question, two contrasting film
 4. **Compare mechanisms, not labels.** Use “shared dramatic problem → different choices → different effects” cards. Separate objective fact, source interpretation, and CineGraph synthesis. Show counterexamples and missing evidence where relevant.
 5. **Capture a creative move.** Let the writer save a note such as “keep the heir's claim legitimate but make the homecoming morally costly,” with the cited study evidence and their own alternate choice. The note is the user's work, not a canonical film fact.
 
-The present comparison board is a starting surface for steps 3–4. It does not yet perform open-question film discovery, reliable synthesis, or step 5.
+The revised board offers initial question-first film leads and a browser-local
+writer decision note (see [revision status](writer-study-revision-v1.md)).
+It does not yet provide reliable synthesis or demonstrate that writers make
+better choices with it.
 
 ## Data gate before expanding beyond 1,000
 

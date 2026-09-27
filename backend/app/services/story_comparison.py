@@ -12,10 +12,11 @@ from dataclasses import dataclass
 from uuid import UUID
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, literal_column, select
 from sqlalchemy.orm import Session
 
-from app.models import SourceSnapshot
+from app.models import EvidenceChunk, SourceSnapshot
+from app.services.comparison_answerability import substantive_question_terms, unmet_source_requirement
 from app.services.hybrid_evidence_retrieval import (
     HybridRetrievedEvidence,
     HybridRetrievalResult,
@@ -139,6 +140,8 @@ class StoryComparisonResult:
     fallback_reason: str | None
     summary: str
     caution: str
+    answerability_status: str
+    answerability_reason: str | None
     lenses: tuple[ComparisonLensResult, ...]
     preprocessing_run_id: str
     index_run_id: str | None
@@ -191,6 +194,23 @@ def _evidence_dto(
     )
 
 
+def _has_direct_question_anchor(
+    db: Session, *, question: str, first: ResearchFilm, second: ResearchFilm, preprocessing_run_id: UUID,
+) -> bool:
+    terms = substantive_question_terms(question, first.title, second.title)
+    if not terms:
+        return False
+    english = literal_column("'english'::regconfig")
+    query = func.to_tsquery(english, " | ".join(terms))
+    document = func.to_tsvector(english, EvidenceChunk.section_title + " " + EvidenceChunk.content)
+    return db.scalar(select(EvidenceChunk.id).where(
+        EvidenceChunk.preprocessing_run_id == preprocessing_run_id,
+        EvidenceChunk.subject_entity_id.in_((first.entity_id, second.entity_id)),
+        EvidenceChunk.quality_status == "eligible",
+        document.op("@@")(query),
+    ).limit(1)) is not None
+
+
 def compare_story_evidence(
     db: Session,
     *,
@@ -212,6 +232,32 @@ def compare_story_evidence(
     actual_method = requested_method
     fallback_reason: str | None = None
     scope = resolve_retrieval_scope(db, collection_code=collection_code)
+    requirement = unmet_source_requirement(question)
+    if requirement is not None:
+        return StoryComparisonResult(
+            question=question.strip(), first=first, second=second,
+            requested_method=requested_method.value,
+            retrieval_method="not_run", degraded=False, fallback_reason=None,
+            summary="Current sources cannot substantiate this question.",
+            caution="No film relationship or factual conclusion was inferred from unrelated passages.",
+            answerability_status="insufficient_evidence",
+            answerability_reason=requirement.explanation,
+            lenses=(), preprocessing_run_id=str(scope.preprocessing_run_id), index_run_id=None,
+        )
+    if not _has_direct_question_anchor(
+        db, question=question, first=first, second=second,
+        preprocessing_run_id=scope.preprocessing_run_id,
+    ):
+        return StoryComparisonResult(
+            question=question.strip(), first=first, second=second,
+            requested_method=requested_method.value,
+            retrieval_method="not_run", degraded=False, fallback_reason=None,
+            summary="No direct source lead matches this writing question yet.",
+            caution="A missing term match does not prove the films lack this idea; try another phrasing or source.",
+            answerability_status="insufficient_evidence",
+            answerability_reason="The selected films' current passages do not directly mention the substantive terms in your question.",
+            lenses=(), preprocessing_run_id=str(scope.preprocessing_run_id), index_run_id=None,
+        )
 
     def retrieve_all(
         method: NarrativeRetrievalMethod,
@@ -291,6 +337,7 @@ def compare_story_evidence(
         for lens, research_question, first_result, second_result in retrieved
     )
     paired = sum(1 for lens in lenses if lens.first_evidence and lens.second_evidence)
+    has_pair = paired > 0
     return StoryComparisonResult(
         question=question.strip(),
         first=first,
@@ -299,12 +346,17 @@ def compare_story_evidence(
         retrieval_method=actual_method.value,
         degraded=actual_method != requested_method,
         fallback_reason=fallback_reason,
-        summary=f"{paired} evidence lens{'es' if paired != 1 else ''} are ready for side-by-side analysis.",
+        summary=(
+            f"{paired} paired research lead{'s' if paired != 1 else ''} found; relevance needs review."
+            if has_pair else "No paired source passage was found for this question."
+        ),
         caution=(
             "Passages are attributable source evidence, not automatically proven similarities. "
             "The prompts identify what a writer should compare without promoting an interpretation to fact."
         ),
-        lenses=lenses,
+        answerability_status="candidate_evidence" if has_pair else "insufficient_evidence",
+        answerability_reason=None if has_pair else "The selected films do not have a two-sided evidence lead in the current source collection.",
+        lenses=lenses if has_pair else (),
         preprocessing_run_id=str(scope.preprocessing_run_id),
         index_run_id=str(scope.index_run.id) if scope.index_run and actual_method != NarrativeRetrievalMethod.LEXICAL else None,
     )

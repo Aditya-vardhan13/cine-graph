@@ -15,7 +15,7 @@ from app.services.evidence_preprocessing import ChunkConfiguration, build_eviden
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.retrieval_scope import resolve_retrieval_scope
 
-API_URL = os.environ.get("CINEGRAPH_INTEGRATION_API_URL", "http://127.0.0.1:8001")
+API_URL = os.environ.get("CINEGRAPH_INTEGRATION_API_URL", "http://127.0.0.1:18001")
 DATABASE_URL = os.environ.get(
     "CINEGRAPH_TEST_DATABASE_URL",
     "postgresql+psycopg://postgres:postgres@127.0.0.1:5433/cinegraph_test",
@@ -227,6 +227,7 @@ def test_story_comparison_returns_two_sided_attributable_evidence() -> None:
     payload = response.json()
     assert payload["retrieval_method"] == "lexical"
     assert payload["degraded"] is False
+    assert payload["answerability_status"] == "candidate_evidence"
     assert payload["preprocessing_run_id"]
     assert payload["index_run_id"] is None
     assert payload["first"]["title"] == "Batman Begins"
@@ -236,6 +237,74 @@ def test_story_comparison_returns_two_sided_attributable_evidence() -> None:
     assert paired[0]["first_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/Batman_Begins"
     assert paired[0]["second_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/The_Dark_Knight"
     assert all(lens["writer_prompt"] for lens in payload["lenses"])
+
+
+def test_question_first_discovery_returns_source_linked_film_leads() -> None:
+    with Session(create_engine(DATABASE_URL)) as db:
+        build_evidence_chunks(db, collection_code="integration-narrative-v1")
+
+    response = httpx.post(
+        f"{API_URL}/api/v1/research/discover",
+        json={"question": "Which film makes the Joker test public trust and moral limits?", "limit": 6},
+        timeout=5.0,
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["method"] == "lexical"
+    assert payload["degraded"] is True
+    assert payload["leads"]
+    lead = payload["leads"][0]
+    assert lead["film"]["title"] == "The Dark Knight"
+    assert "Joker" in lead["excerpt"]
+    assert lead["source_url"] == "https://en.wikipedia.org/wiki/The_Dark_Knight"
+    assert lead["source_license"]
+
+    unavailable = httpx.post(
+        f"{API_URL}/api/v1/research/discover",
+        json={"question": "Which private off-the-record meeting changed the film's ending?"},
+        timeout=5.0,
+    )
+    assert unavailable.status_code == 200
+    assert unavailable.json()["method"] == "not_run"
+    assert unavailable.json()["leads"] == []
+
+
+def test_story_comparison_abstains_when_question_needs_unavailable_primary_records() -> None:
+    with Session(create_engine(DATABASE_URL)) as db:
+        build_evidence_chunks(db, collection_code="integration-narrative-v1")
+
+    begins = api_get("/api/v1/research/films?q=batman%20begins&limit=1").json()[0]
+    knight = api_get("/api/v1/research/films?q=dark%20knight&limit=1").json()[0]
+    response = httpx.post(
+        f"{API_URL}/api/v1/comparisons/story",
+        json={
+            "first_entity_id": begins["entity_id"],
+            "second_entity_id": knight["entity_id"],
+            "question": "Which private off-the-record meeting changed the film's ending?",
+            "retrieval_method": "lexical",
+        },
+        timeout=5.0,
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["answerability_status"] == "insufficient_evidence"
+    assert payload["retrieval_method"] == "not_run"
+    assert payload["lenses"] == []
+    assert "private" in payload["answerability_reason"].lower()
+
+    no_match = httpx.post(
+        f"{API_URL}/api/v1/comparisons/story",
+        json={
+            "first_entity_id": begins["entity_id"],
+            "second_entity_id": knight["entity_id"],
+            "question": "Zygocactic frumbulation blerghitude?",
+            "retrieval_method": "lexical",
+        },
+        timeout=5.0,
+    )
+    assert no_match.status_code == 200
+    assert no_match.json()["answerability_status"] == "insufficient_evidence"
+    assert no_match.json()["lenses"] == []
 
 
 def test_research_coverage_http_contract_counts_retained_passages():

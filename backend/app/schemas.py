@@ -108,6 +108,32 @@ class StoryComparisonRequest(BaseModel):
     retrieval_method: Literal["hybrid", "lexical"] = "hybrid"
 
 
+class ResearchDiscoveryRequest(BaseModel):
+    question: str = Field(min_length=12, max_length=400)
+    exclude_entity_ids: list[UUID] = Field(default_factory=list, max_length=2)
+    limit: int = Field(default=6, ge=1, le=12)
+
+
+class ResearchDiscoveryLeadOut(BaseModel):
+    film: ResearchFilmOut
+    excerpt: str
+    section_title: str
+    source_url: str
+    source_revision: str | None
+    source_license: str
+    matched_by: list[str]
+
+
+class ResearchDiscoveryOut(BaseModel):
+    question: str
+    method: str
+    degraded: bool
+    reason: str
+    leads: list[ResearchDiscoveryLeadOut]
+    preprocessing_run_id: str
+    index_run_id: str | None
+
+
 class StoryComparisonEvidenceOut(BaseModel):
     chunk_id: str
     section_title: str
@@ -138,6 +164,8 @@ class StoryComparisonOut(BaseModel):
     fallback_reason: str | None
     summary: str
     caution: str
+    answerability_status: Literal["candidate_evidence", "insufficient_evidence"]
+    answerability_reason: str | None
     lenses: list[StoryComparisonLensOut]
     preprocessing_run_id: str
     index_run_id: str | None

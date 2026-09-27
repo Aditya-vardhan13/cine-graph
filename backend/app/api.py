@@ -16,12 +16,14 @@ from app.models import (
 from app.schemas import (
     CreditOut, FilmDetail, FilmListItem, GraphEdge, GraphNode, GraphOut, HealthOut,
     CorpusQualityOut, CorpusSourceQuality, FilmComparison, FilmLineageOut, LanguageEditionOut, LineageEdgeOut, PersonDetail, ProvenanceOut,
-    ResearchFilmOut, SimilarFilmOut, SimilarityFactor, StoryComparisonEvidenceOut, StoryComparisonLensOut,
+    ResearchDiscoveryLeadOut, ResearchDiscoveryOut, ResearchDiscoveryRequest, ResearchFilmOut,
+    SimilarFilmOut, SimilarityFactor, StoryComparisonEvidenceOut, StoryComparisonLensOut,
     StoryComparisonOut, StoryComparisonRequest,
 )
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod
 from app.services.ollama_embeddings import OllamaEmbeddingClient
 from app.services.research_catalog import ResearchFilm, search_research_films
+from app.services.research_discovery import discover_research_films
 from app.services.story_comparison import compare_story_evidence
 from app.services.corpus_quality import corpus_quality_report
 
@@ -277,6 +279,34 @@ def compare_films(first_id: UUID, second_id: UUID, db: Session = Depends(get_db)
     return FilmComparison(first=film_item(first), second=film_item(second), summary=summary, signals=signals)
 
 
+@router.post("/research/discover", response_model=ResearchDiscoveryOut)
+def discover_films_for_question(
+    request: ResearchDiscoveryRequest,
+    db: Session = Depends(get_db),
+) -> ResearchDiscoveryOut:
+    result = discover_research_films(
+        db, question=request.question,
+        exclude_entity_ids=set(request.exclude_entity_ids),
+        limit=request.limit,
+        collection_code=settings.research_collection_code,
+        embedding_client=OllamaEmbeddingClient(
+            base_url=settings.ollama_base_url,
+            timeout_seconds=settings.interactive_embedding_timeout_seconds,
+        ),
+    )
+    return ResearchDiscoveryOut(
+        question=result.question, method=result.method, degraded=result.degraded,
+        reason=result.reason, preprocessing_run_id=result.preprocessing_run_id,
+        index_run_id=result.index_run_id,
+        leads=[ResearchDiscoveryLeadOut(
+            film=research_film_item(lead.film), excerpt=lead.excerpt,
+            section_title=lead.section_title, source_url=lead.source_url,
+            source_revision=lead.source_revision, source_license=lead.source_license,
+            matched_by=list(lead.matched_by),
+        ) for lead in result.leads],
+    )
+
+
 @router.post("/comparisons/story", response_model=StoryComparisonOut)
 def compare_film_stories(
     request: StoryComparisonRequest,
@@ -310,6 +340,8 @@ def compare_film_stories(
         fallback_reason=result.fallback_reason,
         summary=result.summary,
         caution=result.caution,
+        answerability_status=result.answerability_status,
+        answerability_reason=result.answerability_reason,
         preprocessing_run_id=result.preprocessing_run_id,
         index_run_id=result.index_run_id,
         lenses=[

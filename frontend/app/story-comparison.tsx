@@ -1,9 +1,32 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ResearchFilm, StoryComparison, StoryComparisonEvidence, year } from "../lib/api";
+import { ResearchDiscovery, ResearchFilm, StoryComparison, StoryComparisonEvidence, year } from "../lib/api";
 
 const EXAMPLE_QUESTION = "How do these films turn the same idea into different character choices and consequences?";
+const NOTE_STORAGE_KEY = "cinegraph-writer-decisions-v1";
+
+type WriterDecision = {
+  id: string;
+  created_at: string;
+  question: string;
+  films: Array<{ entity_id: string; title: string }>;
+  decision: string;
+  sources: string[];
+  version?: 2;
+  first_mechanism?: string;
+  second_mechanism?: string;
+  contrast?: string;
+  evidence?: PinnedEvidence[];
+};
+
+type PinnedEvidence = {
+  chunk_id: string;
+  film_entity_id: string;
+  section_title: string;
+  source_url: string;
+  source_revision: string | null;
+};
 
 export function StoryComparisonWorkbench() {
   const [first, setFirst] = useState<ResearchFilm | null>(null);
@@ -17,9 +40,13 @@ export function StoryComparisonWorkbench() {
   const [error, setError] = useState<string | null>(null);
   const [searchedQuery, setSearchedQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [discovery, setDiscovery] = useState<ResearchDiscovery | null>(null);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const comparisonRequest = useRef<AbortController | null>(null);
+  const discoveryRequest = useRef<AbortController | null>(null);
 
-  useEffect(() => () => { comparisonRequest.current?.abort(); }, []);
+  useEffect(() => () => { comparisonRequest.current?.abort(); discoveryRequest.current?.abort(); }, []);
 
   function invalidateComparison() {
     comparisonRequest.current?.abort();
@@ -31,6 +58,11 @@ export function StoryComparisonWorkbench() {
 
   function changeQuestion(value: string) {
     invalidateComparison();
+    discoveryRequest.current?.abort();
+    discoveryRequest.current = null;
+    setDiscovery(null);
+    setDiscovering(false);
+    setDiscoveryError(null);
     setQuestion(value);
   }
 
@@ -73,6 +105,43 @@ export function StoryComparisonWorkbench() {
     setError(null);
   }
 
+  async function discoverFilms() {
+    if (question.trim().length < 12) return;
+    discoveryRequest.current?.abort();
+    const controller = new AbortController();
+    discoveryRequest.current = controller;
+    const deadline = window.setTimeout(() => controller.abort(), 20000);
+    setDiscovering(true);
+    setDiscoveryError(null);
+    setDiscovery(null);
+    try {
+      const response = await fetch("/api/v1/research/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: question.trim(),
+          exclude_entity_ids: [first?.entity_id, second?.entity_id].filter(Boolean),
+          limit: 6,
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error();
+      const payload: ResearchDiscovery = await response.json();
+      if (discoveryRequest.current === controller) setDiscovery(payload);
+    } catch {
+      if (discoveryRequest.current === controller)
+        setDiscoveryError(controller.signal.aborted
+          ? "Film discovery took too long. Try a more specific question or search by title."
+          : "Film discovery is unavailable. You can still search by title.");
+    } finally {
+      window.clearTimeout(deadline);
+      if (discoveryRequest.current === controller) {
+        discoveryRequest.current = null;
+        setDiscovering(false);
+      }
+    }
+  }
+
   async function compare() {
     if (!first || !second || question.trim().length < 12) return;
     invalidateComparison();
@@ -110,7 +179,7 @@ export function StoryComparisonWorkbench() {
       <div className="workbench-copy">
         <p className="eyebrow">Writer&apos;s comparison desk</p>
         <h2>Ask a better question than “are these similar?”</h2>
-        <p>Place two films beside one writing problem. CineGraph retrieves plot, character, craft and reception evidence for both without turning similarity into a fact.</p>
+        <p>Start with a writing problem or a film. Find source-linked films to study, then compare how two of them handle your question.</p>
         <div className="comparison-examples">
           <span>Try asking</span>
           <button onClick={() => changeQuestion("How does each film make an artificial companion expose human loneliness?")}>Human–AI intimacy</button>
@@ -137,10 +206,21 @@ export function StoryComparisonWorkbench() {
           <textarea value={question} onChange={(event) => changeQuestion(event.target.value)} maxLength={400} placeholder={EXAMPLE_QUESTION} />
           <small>{question.trim().length}/400 · minimum 12 characters</small>
         </label>
+        <button className="discovery-button" disabled={question.trim().length < 12 || discovering} onClick={discoverFilms}>{discovering ? "Finding film leads…" : "Find films for this question"}</button>
         <button className="compare-button" disabled={!first || !second || question.trim().length < 12 || loading} onClick={compare}>{loading ? "Retrieving both films…" : "Build evidence comparison"}</button>
+        {discoveryError && <p className="notice">{discoveryError}</p>}
         {error && <p className="notice">{error}</p>}
       </div>
     </section>
+    {discovery && <section className="discovery-results" aria-live="polite">
+      <div><p className="eyebrow">Question-first film leads</p><h2>Films worth investigating</h2><p>{discovery.reason}</p>{discovery.degraded && <small>Semantic search was unavailable; these leads use exact-term retrieval.</small>}</div>
+      {discovery.leads.some((lead) => lead.film.entity_id !== first?.entity_id && lead.film.entity_id !== second?.entity_id) ? <div className="discovery-grid">{discovery.leads.filter((lead) => lead.film.entity_id !== first?.entity_id && lead.film.entity_id !== second?.entity_id).map((lead) => <article key={lead.film.entity_id}>
+        <h3>{lead.film.title}</h3><small>{lead.film.release_year ?? year(lead.film.release_date)} · {lead.section_title}</small>
+        <p>{lead.excerpt.slice(0, 340)}{lead.excerpt.length > 340 ? "…" : ""}</p>
+        <a href={lead.source_url} target="_blank" rel="noopener noreferrer">Inspect source · {lead.source_license} ↗</a>
+        <button onClick={() => chooseFilm(lead.film)}>Add to comparison</button>
+      </article>)}</div> : <p>{discovery.method === "not_run" ? "No film leads were suggested without the required evidence." : "No attributable film leads were found for this question. Try a more specific dramatic situation."}</p>}
+    </section>}
     {result && <ComparisonResult result={result} />}
   </>;
 }
@@ -150,6 +230,25 @@ function FilmChoice({ label, film, onClear }: { label: string; film: ResearchFil
 }
 
 function ComparisonResult({ result }: { result: StoryComparison }) {
+  const [pinned, setPinned] = useState<PinnedEvidence[]>([]);
+  useEffect(() => { setPinned([]); }, [result]);
+
+  function toggleEvidence(filmEntityId: string, evidence: StoryComparisonEvidence) {
+    setPinned((current) => current.some((item) => item.chunk_id === evidence.chunk_id)
+      ? current.filter((item) => item.chunk_id !== evidence.chunk_id)
+      : [...current, {
+        chunk_id: evidence.chunk_id,
+        film_entity_id: filmEntityId,
+        section_title: evidence.section_title,
+        source_url: evidence.source_url,
+        source_revision: evidence.source_revision,
+      }]);
+  }
+
+  if (result.answerability_status === "insufficient_evidence") return <section className="story-comparison-result insufficient-evidence" aria-live="polite">
+    <p className="eyebrow">Insufficient evidence</p><h2>{result.summary}</h2>
+    <p>{result.answerability_reason}</p><small>{result.caution}</small>
+  </section>;
   return <section className="story-comparison-result">
     <header>
       <div><p className="eyebrow">Evidence comparison</p><h2>{result.first.title} <i>×</i> {result.second.title}</h2><p className="comparison-question">“{result.question}”</p></div>
@@ -158,15 +257,99 @@ function ComparisonResult({ result }: { result: StoryComparison }) {
     {result.fallback_reason && <p className="fallback-note">{result.fallback_reason}</p>}
     <div className="comparison-column-headings"><span>{result.first.title}</span><i>Lens</i><span>{result.second.title}</span></div>
     <div className="comparison-lenses">{result.lenses.map((lens) => <article key={lens.identifier} className="comparison-lens">
-      <EvidenceCard evidence={lens.first_evidence} filmTitle={result.first.title} />
+      <EvidenceCard evidence={lens.first_evidence} filmTitle={result.first.title} pinned={pinned.some((item) => item.chunk_id === lens.first_evidence?.chunk_id)} onPin={() => { if (lens.first_evidence) toggleEvidence(result.first.entity_id, lens.first_evidence); }} />
       <div className="lens-center"><span>{lens.label}</span><p>{lens.writer_prompt}</p></div>
-      <EvidenceCard evidence={lens.second_evidence} filmTitle={result.second.title} />
+      <EvidenceCard evidence={lens.second_evidence} filmTitle={result.second.title} pinned={pinned.some((item) => item.chunk_id === lens.second_evidence?.chunk_id)} onPin={() => { if (lens.second_evidence) toggleEvidence(result.second.entity_id, lens.second_evidence); }} />
     </article>)}</div>
     <footer>{result.caution}</footer>
+    <WriterDecisionPad result={result} pinned={pinned} />
   </section>;
 }
 
-function EvidenceCard({ evidence, filmTitle }: { evidence: StoryComparisonEvidence | null; filmTitle: string }) {
+function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned: PinnedEvidence[] }) {
+  const [firstMechanism, setFirstMechanism] = useState("");
+  const [secondMechanism, setSecondMechanism] = useState("");
+  const [contrast, setContrast] = useState("");
+  const [draft, setDraft] = useState("");
+  const [notes, setNotes] = useState<WriterDecision[]>([]);
+  const [storageError, setStorageError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(NOTE_STORAGE_KEY) || "[]");
+      if (Array.isArray(saved)) setNotes(saved.filter((item) =>
+        typeof item?.id === "string" && typeof item?.created_at === "string" &&
+        typeof item?.question === "string" && typeof item?.decision === "string" &&
+        Array.isArray(item?.films) && Array.isArray(item?.sources),
+      ));
+    } catch {
+      setStorageError("Saved notes could not be loaded from this browser.");
+    }
+  }, []);
+
+  function save() {
+    const decision = draft.trim();
+    if (!decision || !firstMechanism.trim() || !secondMechanism.trim() || !contrast.trim() ||
+      !pinned.some((item) => item.film_entity_id === result.first.entity_id) ||
+      !pinned.some((item) => item.film_entity_id === result.second.entity_id)) return;
+    const sources = Array.from(new Set(pinned.map((item) => item.source_url)));
+    const next: WriterDecision[] = [{
+      id: window.crypto.randomUUID(), created_at: new Date().toISOString(),
+      question: result.question,
+      films: [result.first, result.second].map((film) => ({ entity_id: film.entity_id, title: film.title })),
+      version: 2, first_mechanism: firstMechanism.trim(), second_mechanism: secondMechanism.trim(),
+      contrast: contrast.trim(), decision, sources, evidence: pinned,
+    }, ...notes];
+    try {
+      window.localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(next));
+      setNotes(next);
+      setFirstMechanism("");
+      setSecondMechanism("");
+      setContrast("");
+      setDraft("");
+      setStorageError(null);
+    } catch {
+      setStorageError("This browser could not save the note. Copy your text before leaving.");
+    }
+  }
+
+  function exportNotes() {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(notes, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "cinegraph-writer-decisions.json";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  const current = notes.filter((note) => note.question === result.question &&
+    note.films[0]?.entity_id === result.first.entity_id && note.films[1]?.entity_id === result.second.entity_id);
+  const firstPins = pinned.filter((item) => item.film_entity_id === result.first.entity_id);
+  const secondPins = pinned.filter((item) => item.film_entity_id === result.second.entity_id);
+  const canSave = Boolean(firstMechanism.trim() && secondMechanism.trim() && contrast.trim() && draft.trim() && firstPins.length && secondPins.length);
+  return <div className="writer-decision-pad">
+    <div><p className="eyebrow">Your study canvas</p><h3>What would you try differently?</h3><p>Pin at least one source passage for each film, then write your own reading. These fields are your interpretation, not CineGraph facts.</p></div>
+    <div className="pinned-source-count"><span>{result.first.title}: {firstPins.length} pinned</span><span>{result.second.title}: {secondPins.length} pinned</span></div>
+    <div className="mechanism-fields">
+      <label><span>How {result.first.title} handles it</span><textarea value={firstMechanism} onChange={(event) => setFirstMechanism(event.target.value)} maxLength={1200} placeholder="What pressure, choice and consequence do you see?" /></label>
+      <label><span>How {result.second.title} handles it</span><textarea value={secondMechanism} onChange={(event) => setSecondMechanism(event.target.value)} maxLength={1200} placeholder="Where does this film take another route?" /></label>
+    </div>
+    <label className="decision-field"><span>The meaningful difference</span><textarea value={contrast} onChange={(event) => setContrast(event.target.value)} maxLength={1200} placeholder="The two films share a problem, but differ in…" /></label>
+    <label className="decision-field"><span>My original move</span><textarea aria-label="Your creative decision" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={2000} placeholder="For my story, I would…" /></label>
+    <div className="decision-actions"><button disabled={!canSave} onClick={save}>Save this study</button><small>Stored only in this browser. Export a copy to keep it.</small>{notes.length > 0 && <button className="export-notes" onClick={exportNotes}>Export {notes.length} note{notes.length === 1 ? "" : "s"}</button>}</div>
+    {storageError && <p role="alert">{storageError}</p>}
+    {current.length > 0 && <div className="saved-decisions"><h4>Saved for this comparison</h4>{current.map((note) => <article key={note.id}>
+      {note.first_mechanism && <p><b>{result.first.title}:</b> {note.first_mechanism}</p>}
+      {note.second_mechanism && <p><b>{result.second.title}:</b> {note.second_mechanism}</p>}
+      {note.contrast && <p><b>Difference:</b> {note.contrast}</p>}
+      <p><b>My move:</b> {note.decision}</p>
+      <small>{new Date(note.created_at).toLocaleString()} · {(note.evidence || []).length} pinned passage{(note.evidence || []).length === 1 ? "" : "s"}</small>
+      {note.evidence && <details><summary>Inspect pinned sources</summary>{note.evidence.map((item) => <a key={item.chunk_id} href={item.source_url} target="_blank" rel="noopener noreferrer">{item.section_title} · {item.source_revision || "source revision unavailable"} ↗</a>)}</details>}
+    </article>)}</div>}
+  </div>;
+}
+
+function EvidenceCard({ evidence, filmTitle, pinned, onPin }: { evidence: StoryComparisonEvidence | null; filmTitle: string; pinned: boolean; onPin: () => void }) {
   if (!evidence) return <div className="evidence-card empty-evidence"><span>No additional passage</span><p>No distinct passage was available for {filmTitle} under this lens. Related evidence may already appear above.</p></div>;
-  return <div className="evidence-card"><div><span>{evidence.section_title}</span><small>{evidence.matched_by.join(" + ")}</small></div><p>{evidence.excerpt}</p><a href={evidence.source_url} target="_blank">Source · {evidence.source_license} ↗</a></div>;
+  return <div className="evidence-card"><div><span>{evidence.section_title}</span><small>{evidence.matched_by.join(" + ")}</small></div><p>{evidence.excerpt}</p><div className="evidence-actions"><a href={evidence.source_url} target="_blank" rel="noopener noreferrer">Source · {evidence.source_license} ↗</a><button aria-pressed={pinned} onClick={onPin}>{pinned ? "Pinned to study ✓" : "Pin as evidence +"}</button></div></div>;
 }

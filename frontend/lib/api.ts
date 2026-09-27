@@ -110,6 +110,8 @@ export type StoryComparison = {
   fallback_reason: string | null;
   summary: string;
   caution: string;
+  answerability_status: "candidate_evidence" | "insufficient_evidence";
+  answerability_reason: string | null;
   preprocessing_run_id: string;
   index_run_id: string | null;
   lenses: Array<{
@@ -120,6 +122,24 @@ export type StoryComparison = {
     first_evidence: StoryComparisonEvidence | null;
     second_evidence: StoryComparisonEvidence | null;
   }>;
+};
+
+export type ResearchDiscovery = {
+  question: string;
+  method: string;
+  degraded: boolean;
+  reason: string;
+  leads: Array<{
+    film: ResearchFilm;
+    excerpt: string;
+    section_title: string;
+    source_url: string;
+    source_revision: string | null;
+    source_license: string;
+    matched_by: string[];
+  }>;
+  preprocessing_run_id: string;
+  index_run_id: string | null;
 };
 
 export type LineageEdge = {
