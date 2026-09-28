@@ -59,6 +59,21 @@
 .saved-decisions article small{color:var(--muted)}
 .saved-decisions details{margin-top:10px;color:var(--lime);font-size:11px}
 .saved-decisions details a{display:block;color:var(--lime);margin-top:6px}
+.study-library{padding:30px 42px 38px;border:1px solid #3b4050;border-top:0;background:#11151d}
+.study-library-heading{display:flex;justify-content:space-between;gap:28px;align-items:start}
+.study-library-heading h2{font-family:var(--serif);font-size:32px;font-weight:400;letter-spacing:-1px;margin:0}
+.study-library-heading h2 span{font:12px Arial,Helvetica,sans-serif;color:var(--lime);vertical-align:middle}
+.study-library-heading p:not(.eyebrow),.study-library-empty{font-size:12px;line-height:1.5;color:var(--muted)}
+.study-library-heading .decision-actions{margin-top:0;justify-content:flex-end}
+.study-library .saved-decisions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding-top:20px}
+.study-library .saved-decisions article{border:1px solid #343b4a;background:#141a23;padding:18px;min-width:0}
+.saved-study-title{display:flex;justify-content:space-between;gap:16px;align-items:start;border-bottom:1px solid #343b4a;margin-bottom:15px}
+.saved-study-title h3{font:24px/1.15 var(--serif);margin:7px 0}
+.saved-study-title p{color:var(--muted);font-size:12px}
+.saved-study-title button{white-space:nowrap;background:transparent;border:1px solid #63834d;color:var(--lime);padding:8px 10px;cursor:pointer}
+.study-library [role=alert]{color:#f0b34b}.study-library [role=status]{color:var(--lime)}
+@media(max-width:900px){.study-library{padding:28px}.study-library-heading{flex-direction:column}.study-library-heading .decision-actions{justify-content:flex-start}.study-library .saved-decisions{grid-template-columns:1fr}}
+@media(max-width:600px){.saved-study-title{flex-direction:column;padding-bottom:12px}}
 @media(max-width:900px){.discovery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.discovery-results,.writer-decision-pad{padding:26px}.discovery-grid,.mechanism-fields{grid-template-columns:1fr}.additional-context summary{padding:17px 26px}}
 @media(max-width:600px){.evidence-choice-nav{align-items:flex-start;flex-direction:column}}

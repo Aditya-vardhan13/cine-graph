@@ -48,6 +48,13 @@ test("writer can search, compare, pin evidence, and export a study", async ({ pa
     name: "cinegraph-writer-decisions.json", mimeType: "application/json", buffer: Buffer.concat(chunks),
   });
   await expect(page.getByRole("status").filter({ hasText: "1 study restored from this file." })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "My studies 1" })).toBeVisible();
+  await expect(page.getByText("Make my protagonist choose who receives public credit.")).toBeVisible();
+  await page.getByRole("button", { name: "Reopen comparison" }).click();
+  await expect(page.getByRole("textbox", { name: "Your writing question" })).toHaveValue("How does becoming a public symbol change Batman's moral choices?");
+  await expect(page.locator(".comparison-slots").getByText("Batman Begins", { exact: true })).toBeVisible();
+  await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
 });
 
 test("unsupported question abstains without losing selected films", async ({ page, request }) => {

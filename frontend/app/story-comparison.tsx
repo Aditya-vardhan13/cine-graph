@@ -28,6 +28,10 @@ export function StoryComparisonWorkbench() {
   const [first, setFirst] = useState<ResearchFilm | null>(null);
   const [second, setSecond] = useState<ResearchFilm | null>(null);
   const [workspaceReady, setWorkspaceReady] = useState(false);
+  const [notes, setNotes] = useState<WriterDecision[]>([]);
+  const [notesLoadFailed, setNotesLoadFailed] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<ResearchFilm[]>([]);
   const [searching, setSearching] = useState(false);
@@ -44,6 +48,75 @@ export function StoryComparisonWorkbench() {
   const discoveryRequest = useRef<AbortController | null>(null);
 
   useEffect(() => () => { comparisonRequest.current?.abort(); discoveryRequest.current?.abort(); }, []);
+
+  useEffect(() => {
+    try { setNotes(parseWriterDecisionArchive(JSON.parse(window.localStorage.getItem(NOTE_STORAGE_KEY) || "[]"))); }
+    catch {
+      setNotesLoadFailed(true);
+      setNotesError("Saved studies could not be read in this browser. The existing browser data was left untouched; restore a trusted JSON backup to recover it.");
+    }
+  }, []);
+
+  function saveNote(note: WriterDecision): boolean {
+    if (notesLoadFailed) return false;
+    const next = [note, ...notes];
+    if (next.length > 1000) {
+      setNotesError("This browser already holds 1,000 studies. Export a backup before adding more.");
+      return false;
+    }
+    try {
+      window.localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(next));
+      setNotes(next);
+      setNotesError(null);
+      return true;
+    } catch {
+      setNotesError("This browser could not save the study. Copy your writing before leaving.");
+      return false;
+    }
+  }
+
+  function downloadNotes(contents: string, type: string, filename: string) {
+    const url = URL.createObjectURL(new Blob([contents], { type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function importNotes(file: File | undefined) {
+    if (!file) return;
+    setImportMessage(null);
+    try {
+      if (file.size > 5_000_000) throw new Error("The archive is too large (5 MB maximum).");
+      const incoming = parseWriterDecisionArchive(JSON.parse(await file.text()));
+      const existingIds = new Set(incoming.map((note) => note.id));
+      const merged = [...incoming, ...notes.filter((note) => !existingIds.has(note.id))];
+      if (merged.length > 1000) throw new Error("The combined archive exceeds 1,000 studies. Export a backup first.");
+      window.localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(merged));
+      setNotes(merged);
+      setNotesLoadFailed(false);
+      setNotesError(null);
+      setImportMessage(`${incoming.length} stud${incoming.length === 1 ? "y" : "ies"} restored from this file.`);
+    } catch (error) {
+      setNotesError(error instanceof Error ? error.message : "This study archive could not be imported.");
+    }
+  }
+
+  function reopenNote(note: WriterDecision) {
+    invalidateComparison();
+    const [savedFirst, savedSecond] = note.films;
+    if (!savedFirst || !savedSecond) return;
+    const asResearchFilm = (film: { entity_id: string; title: string }): ResearchFilm => ({
+      entity_id: film.entity_id, film_id: null, title: film.title, release_date: null,
+      runtime_minutes: null, genres: [], language_code: "en", release_year: null,
+      release_basis: null, genre_ids: [], original_language_ids: [], metadata_issues: [], metadata_evidence: {},
+    });
+    setFirst(asResearchFilm(savedFirst));
+    setSecond(asResearchFilm(savedSecond));
+    setQuestion(note.question);
+    document.getElementById("compare")?.scrollIntoView({ behavior: "smooth" });
+  }
 
   useEffect(() => {
     try {
@@ -258,15 +331,42 @@ export function StoryComparisonWorkbench() {
         <button onClick={() => chooseFilm(lead.film)}>Add to comparison</button>
       </article>)}</div> : <p>{discovery.method === "not_run" ? "No film leads were suggested without the required evidence." : "No attributable film leads were found for this question. Try a more specific dramatic situation."}</p>}
     </section>}
-    {result && <ComparisonResult key={`${result.first.entity_id}:${result.second.entity_id}:${result.question}`} result={result} />}
+    {result && <ComparisonResult key={`${result.first.entity_id}:${result.second.entity_id}:${result.question}`} result={result} saveNote={saveNote} />}
+    <StudyLibrary notes={notes} error={notesError} importMessage={importMessage} onImport={importNotes} onDownload={downloadNotes} onReopen={reopenNote} />
   </>;
+}
+
+function StudyLibrary({ notes, error, importMessage, onImport, onDownload, onReopen }: {
+  notes: WriterDecision[];
+  error: string | null;
+  importMessage: string | null;
+  onImport: (file: File | undefined) => Promise<void>;
+  onDownload: (contents: string, type: string, filename: string) => void;
+  onReopen: (note: WriterDecision) => void;
+}) {
+  return <section id="my-studies" className="study-library">
+    <div className="study-library-heading"><div><p className="eyebrow">Your local research shelf</p><h2>My studies <span>{notes.length}</span></h2><p>These are your interpretations, not verified film facts. They stay in this browser; export JSON as a backup.</p></div>
+      <div className="decision-actions">{notes.length > 0 && <><button className="export-notes" onClick={() => onDownload(renderWriterDecisionsMarkdown(notes), "text/markdown", "cinegraph-writer-studies.md")}>Export readable notes</button><button className="export-notes" onClick={() => onDownload(JSON.stringify(notes, null, 2), "application/json", "cinegraph-writer-decisions.json")}>Export JSON</button></>}<label className="import-notes">Restore JSON<input aria-label="Restore writer studies from JSON" type="file" accept="application/json,.json" onChange={(event) => { void onImport(event.target.files?.[0]); event.target.value = ""; }} /></label></div>
+    </div>
+    {error && <p role="alert">{error}</p>}
+    {importMessage && <p role="status">{importMessage}</p>}
+    {notes.length ? <div className="saved-decisions">{notes.map((note) => <article key={note.id}>
+      <div className="saved-study-title"><div><small>{new Date(note.created_at).toLocaleString()}</small><h3>{note.films.map((film) => film.title).join(" × ")}</h3><p>{note.question}</p></div><button onClick={() => onReopen(note)}>Reopen comparison</button></div>
+      {note.first_mechanism && <p><b>{note.films[0]?.title}:</b> {note.first_mechanism}</p>}
+      {note.second_mechanism && <p><b>{note.films[1]?.title}:</b> {note.second_mechanism}</p>}
+      {note.contrast && <p><b>Difference:</b> {note.contrast}</p>}
+      <p><b>My move:</b> {note.decision}</p>
+      <small>{(note.evidence || []).length} pinned passage{(note.evidence || []).length === 1 ? "" : "s"}</small>
+      {note.evidence && <details><summary>Inspect pinned sources</summary>{note.evidence.map((item) => <div key={item.chunk_id}><a href={item.source_url} target="_blank" rel="noopener noreferrer">{item.section_title} · {item.source_revision || "source revision unavailable"} ↗</a>{item.passage_preview && <p>{item.passage_preview}</p>}</div>)}</details>}
+    </article>)}</div> : <p className="study-library-empty">No studies saved yet. Compare two films, pin a source passage from each, and write a creative decision.</p>}
+  </section>;
 }
 
 function FilmChoice({ label, film, onClear }: { label: string; film: ResearchFilm | null; onClear: () => void }) {
   return <div className={film ? "film-slot selected" : "film-slot"}>{film ? <><span>{label}</span><b>{film.title}</b><small title={film.release_basis ? "Earliest recorded release" : undefined}>{film.release_year ?? year(film.release_date)} · {film.genres.slice(0, 2).join(", ") || "Genre unavailable"}</small><button aria-label={`Remove ${film.title}`} onClick={onClear}>×</button></> : <><span>{label}</span><b>Choose a film</b><small>Use live search below</small></>}</div>;
 }
 
-function ComparisonResult({ result }: { result: StoryComparison }) {
+function ComparisonResult({ result, saveNote }: { result: StoryComparison; saveNote: (note: WriterDecision) => boolean }) {
   const [pinned, setPinned] = useState<PinnedEvidence[]>([]);
   const [loadedPinsKey, setLoadedPinsKey] = useState<string | null>(null);
   const pinsKey = draftStorageKey(result, "pins");
@@ -326,7 +426,7 @@ function ComparisonResult({ result }: { result: StoryComparison }) {
       <EvidenceCard evidence={lens.second_evidence} filmTitle={result.second.title} pinned={pinned.some((item) => item.chunk_id === lens.second_evidence?.chunk_id)} onPin={() => { if (lens.second_evidence) toggleEvidence(result.second.entity_id, lens.second_evidence); }} />
     </article>)}</div></details>}
     <footer>{result.caution}</footer>
-    <WriterDecisionPad result={result} pinned={pinned} />
+    <WriterDecisionPad result={result} pinned={pinned} saveNote={saveNote} />
   </section>;
 }
 
@@ -349,15 +449,13 @@ function EvidenceChoices({ evidence, options, filmTitle, pinned, onPin }: {
   </div>;
 }
 
-function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned: PinnedEvidence[] }) {
+function WriterDecisionPad({ result, pinned, saveNote }: { result: StoryComparison; pinned: PinnedEvidence[]; saveNote: (note: WriterDecision) => boolean }) {
   const [firstMechanism, setFirstMechanism] = useState("");
   const [secondMechanism, setSecondMechanism] = useState("");
   const [contrast, setContrast] = useState("");
   const [draft, setDraft] = useState("");
   const [loadedDraftKey, setLoadedDraftKey] = useState<string | null>(null);
-  const [notes, setNotes] = useState<WriterDecision[]>([]);
   const [storageError, setStorageError] = useState<string | null>(null);
-  const [importMessage, setImportMessage] = useState<string | null>(null);
   const draftKey = draftStorageKey(result, "text");
 
   useEffect(() => {
@@ -377,70 +475,29 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
     catch { setStorageError("This browser could not keep a draft. Export saved studies to protect your work."); }
   }, [loadedDraftKey, draftKey, firstMechanism, secondMechanism, contrast, draft]);
 
-  useEffect(() => {
-    try {
-      setNotes(parseWriterDecisionArchive(JSON.parse(window.localStorage.getItem(NOTE_STORAGE_KEY) || "[]")));
-    } catch {
-      setStorageError("Saved notes could not be loaded from this browser.");
-    }
-  }, []);
-
   function save() {
     const decision = draft.trim();
     if (!decision || !firstMechanism.trim() || !secondMechanism.trim() || !contrast.trim() ||
       !pinned.some((item) => item.film_entity_id === result.first.entity_id) ||
       !pinned.some((item) => item.film_entity_id === result.second.entity_id)) return;
     const sources = Array.from(new Set(pinned.map((item) => item.source_url)));
-    const next: WriterDecision[] = [{
+    const note: WriterDecision = {
       id: window.crypto.randomUUID(), created_at: new Date().toISOString(),
       question: result.question,
       films: [result.first, result.second].map((film) => ({ entity_id: film.entity_id, title: film.title })),
       version: 3, first_mechanism: firstMechanism.trim(), second_mechanism: secondMechanism.trim(),
       contrast: contrast.trim(), decision, sources, evidence: pinned,
       preprocessing_run_id: result.preprocessing_run_id, index_run_id: result.index_run_id,
-    }, ...notes];
-    try {
-      window.localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(next));
-      setNotes(next);
+    };
+    if (saveNote(note)) {
       setFirstMechanism("");
       setSecondMechanism("");
       setContrast("");
       setDraft("");
       setStorageError(null);
-    } catch {
-      setStorageError("This browser could not save the note. Copy your text before leaving.");
     }
   }
 
-  function downloadNotes(contents: string, type: string, filename: string) {
-    const url = URL.createObjectURL(new Blob([contents], { type }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  async function importNotes(file: File | undefined) {
-    if (!file) return;
-    setImportMessage(null);
-    try {
-      if (file.size > 5_000_000) throw new Error("The archive is too large (5 MB maximum).");
-      const incoming = parseWriterDecisionArchive(JSON.parse(await file.text()));
-      const existingIds = new Set(incoming.map((note) => note.id));
-      const merged = [...incoming, ...notes.filter((note) => !existingIds.has(note.id))];
-      if (merged.length > 1000) throw new Error("The combined archive exceeds 1,000 studies. Export a backup first.");
-      window.localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(merged));
-      setNotes(merged);
-      setStorageError(null);
-      setImportMessage(`${incoming.length} stud${incoming.length === 1 ? "y" : "ies"} restored from this file.`);
-    } catch (error) {
-      setStorageError(error instanceof Error ? error.message : "This study archive could not be imported.");
-    }
-  }
-
-  const current = notes.filter((note) => note.question === result.question &&
-    note.films[0]?.entity_id === result.first.entity_id && note.films[1]?.entity_id === result.second.entity_id);
   const firstPins = pinned.filter((item) => item.film_entity_id === result.first.entity_id);
   const secondPins = pinned.filter((item) => item.film_entity_id === result.second.entity_id);
   const canSave = Boolean(firstMechanism.trim() && secondMechanism.trim() && contrast.trim() && draft.trim() && firstPins.length && secondPins.length);
@@ -453,17 +510,8 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
     </div>
     <label className="decision-field"><span>The meaningful difference</span><textarea value={contrast} onChange={(event) => setContrast(event.target.value)} maxLength={1200} placeholder="The two films share a problem, but differ in…" /></label>
     <label className="decision-field"><span>My original move</span><textarea aria-label="Your creative decision" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={2000} placeholder="For my story, I would…" /></label>
-    <div className="decision-actions"><button disabled={!canSave} onClick={save}>Save this study</button><small>Stored only in this browser. Export a copy to keep it.</small>{notes.length > 0 && <><button className="export-notes" onClick={() => downloadNotes(renderWriterDecisionsMarkdown(notes), "text/markdown", "cinegraph-writer-studies.md")}>Export readable notes</button><button className="export-notes" onClick={() => downloadNotes(JSON.stringify(notes, null, 2), "application/json", "cinegraph-writer-decisions.json")}>Export JSON</button></>}<label className="import-notes">Restore JSON<input aria-label="Restore writer studies from JSON" type="file" accept="application/json,.json" onChange={(event) => { void importNotes(event.target.files?.[0]); event.target.value = ""; }} /></label></div>
+    <div className="decision-actions"><button disabled={!canSave} onClick={save}>Save this study</button><small>Stored only in this browser. Export a copy from My studies below.</small></div>
     {storageError && <p role="alert">{storageError}</p>}
-    {importMessage && <p role="status">{importMessage}</p>}
-    {current.length > 0 && <div className="saved-decisions"><h4>Saved for this comparison</h4>{current.map((note) => <article key={note.id}>
-      {note.first_mechanism && <p><b>{result.first.title}:</b> {note.first_mechanism}</p>}
-      {note.second_mechanism && <p><b>{result.second.title}:</b> {note.second_mechanism}</p>}
-      {note.contrast && <p><b>Difference:</b> {note.contrast}</p>}
-      <p><b>My move:</b> {note.decision}</p>
-      <small>{new Date(note.created_at).toLocaleString()} · {(note.evidence || []).length} pinned passage{(note.evidence || []).length === 1 ? "" : "s"}</small>
-      {note.evidence && <details><summary>Inspect pinned sources</summary>{note.evidence.map((item) => <div key={item.chunk_id}><a href={item.source_url} target="_blank" rel="noopener noreferrer">{item.section_title} · {item.source_revision || "source revision unavailable"} ↗</a>{item.passage_preview && <p>{item.passage_preview}</p>}</div>)}</details>}
-    </article>)}</div>}
   </div>;
 }
 

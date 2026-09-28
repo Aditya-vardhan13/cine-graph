@@ -5,7 +5,7 @@ CineGraph is a source-linked film research desk for writers. Ask a writing quest
 ## Current local milestone
 
 - The current local database has 1,226 film profiles; the English writer collection has 1,000 films with 48,892 retained passages and 24,194 indexed chunks. These are coverage counts, not independent accuracy or usefulness scores.
-- The writer desk supports question-first discovery, film-pair comparison, alternate source passages, abstention when a question cannot be substantiated, and writer-authored study notes. Notes stay in the browser unless exported; JSON archives can be restored.
+- The writer desk supports question-first discovery, film-pair comparison, alternate source passages, abstention when a question cannot be substantiated, and writer-authored study notes. Unfinished drafts recover after refresh, and the always-visible My studies shelf keeps saved notes available even before another comparison. Notes stay in the browser unless exported; JSON archives can be restored.
 - Wikidata metadata and typed relationships retain source assertions and the reviewed operational `Assertion` projection. Wikipedia narrative passages remain attributed source text, not promoted facts.
 - The local hybrid-retrieval benchmark measured finding a labeled passage in a candidate set; it does **not** establish that every displayed passage answers a writer's question. The 20-task writer study is still a development diagnostic, not a passed product-usefulness gate. See [writer-study findings](docs/writer-study-v2-findings-2026-09-29.md).
 - Critical-essay discovery has an attribution-and-rights model, but the current corpus has no published critical claims. Link-only essays are not copied or embedded.
