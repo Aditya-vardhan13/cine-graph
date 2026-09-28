@@ -51,15 +51,22 @@ docker compose exec api python -m app.services.wikidata --limit 1000
 
 Open `http://localhost:3000`. The frontend expects the API at
 `http://localhost:8000/api/v1` by default.
+Compose binds its web, API and PostgreSQL ports to loopback by default because
+this stack is for local development, not a public deployment. Set
+`CINEGRAPH_BIND_ADDRESS` deliberately if access from another device is needed;
+do not expose the default PostgreSQL credentials on a public interface.
 
 The import is intentionally explicit: it makes the source-access decision and
 the resulting local dataset visible instead of silently downloading data on
 application startup. It fetches and commits 100-film source pages sequentially,
 so an interrupted run can safely be repeated.
 
-Database schema changes are managed by Alembic. The API upgrades a new database
-at startup; an older local catalog is stamped at the documented legacy baseline
-and upgraded in place, never reset. The evidence-core backfill is a separate,
+Database schema changes are managed by Alembic. Compose runs a one-shot `migrate`
+service after PostgreSQL is healthy and before the API starts. The API checks
+the migration revision at startup but never changes the schema. For a direct
+local API process, run `PYTHONPATH=backend python -m app.migrations` first.
+An older local catalog is stamped at the documented legacy baseline and
+upgraded in place, never reset. The evidence-core backfill is a separate,
 idempotent command so operators can observe it before any API reads switch to
 the new projections.
 

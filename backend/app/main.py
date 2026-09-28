@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router
 from app.core.config import get_settings
-from app.migrations import run_migrations
+from app.migrations import require_current_schema
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
@@ -13,7 +13,7 @@ app.include_router(router)
 
 @app.on_event("startup")
 def startup() -> None:
-    run_migrations()
+    require_current_schema()
 
 
 @app.get("/health")

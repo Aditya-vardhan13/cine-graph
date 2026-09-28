@@ -75,9 +75,10 @@ second live graph.
 - Read APIs depend on query-use cases, not an ORM entity shape. Schema changes
   therefore do not automatically become public API changes.
 - Database migrations are additive and reversible where PostgreSQL permits.
-  Application replicas must not compete to run migrations in a future
-  deployment; migration execution becomes a single explicit job. Local
-  startup migration remains a development convenience only.
+  Application replicas never run them at startup. A single explicit migration
+  job runs before API startup, while each API process checks the schema
+  revision without mutating it. Direct local development runs the migration
+  command before starting Uvicorn.
 
 ## Test policy: real components, no mock framework
 

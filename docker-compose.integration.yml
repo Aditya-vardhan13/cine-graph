@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - cinegraph_test_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,6 +16,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+
+  migrate-test:
+    build: ./backend
+    command: python -m app.migrations
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db-test:5432/cinegraph_test
+      ENVIRONMENT: integration
+    depends_on:
+      db-test:
+        condition: service_healthy
 
   api-test:
     build: ./backend
@@ -30,8 +40,8 @@ services:
     volumes:
       - cinegraph_test_raw_snapshots:/var/lib/cinegraph-test/raw-snapshots
     depends_on:
-      db-test:
-        condition: service_healthy
+      migrate-test:
+        condition: service_completed_successfully
 
 volumes:
   cinegraph_test_postgres_data:

@@ -7,10 +7,12 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
 from app.models import CanonicalEntity, EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding, SourceSnapshot
+from app.migrations import alembic_config
 from app.services.evidence_preprocessing import ChunkConfiguration, build_evidence_chunks, evidence_chunk_quality_report
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.retrieval_scope import resolve_retrieval_scope
@@ -47,7 +49,7 @@ def test_health_and_catalogue_are_served_from_real_postgresql() -> None:
     with create_engine(DATABASE_URL).connect() as connection:
         assert connection.scalar(text("SELECT count(*) FROM films")) == 2
         assert connection.scalar(text("SELECT count(*) FROM film_provenance")) == 2
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260912_14"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == ScriptDirectory.from_config(alembic_config()).get_current_head()
         assert connection.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm')")) is True
         assert connection.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')")) is True
         assert connection.scalar(text("SELECT to_regclass('public.ix_films_canonical_title_trgm')")) == "ix_films_canonical_title_trgm"

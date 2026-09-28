@@ -5,6 +5,8 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from sqlalchemy import inspect
 
 from app.db import engine
@@ -25,6 +27,18 @@ def run_migrations() -> None:
     if "films" in tables and "alembic_version" not in tables:
         command.stamp(config, LEGACY_BASELINE_REVISION)
     command.upgrade(config, "head")
+
+
+def require_current_schema() -> None:
+    """Fail API startup when the explicit migration job has not completed."""
+    expected = ScriptDirectory.from_config(alembic_config()).get_current_head()
+    with engine.connect() as connection:
+        current = MigrationContext.configure(connection).get_current_revision()
+    if current != expected:
+        raise RuntimeError(
+            f"Database schema is at {current or 'unversioned'}, expected {expected}. "
+            "Run `python -m app.migrations` before starting the API."
+        )
 
 
 if __name__ == "__main__":
