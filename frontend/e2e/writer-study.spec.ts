@@ -92,3 +92,10 @@ test("catalog search finds narrative films and opens a study", async ({ page, re
   await result.click();
   await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
 });
+
+test("a truly missing film gets a not-found page", async ({ page, request }) => {
+  const health = await request.get("http://127.0.0.1:18001/health");
+  expect(health.ok()).toBeTruthy();
+  await page.goto("/films/00000000-0000-0000-0000-000000000000");
+  await expect(page.getByRole("heading", { name: "This film is not in the current catalog." })).toBeVisible();
+});

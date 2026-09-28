@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { api, Film, year } from "../../../lib/api";
+import { api, ApiRequestError, Film, year } from "../../../lib/api";
 import "./person.css";
 
 type Person = {
@@ -15,7 +15,11 @@ type Person = {
 export default async function PersonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let person: Person;
-  try { person = await api<Person>(`/people/${id}`); } catch { notFound(); }
+  try { person = await api<Person>(`/people/${id}`); }
+  catch (error) {
+    if (error instanceof ApiRequestError && error.status === 404) notFound();
+    throw error;
+  }
   return <main className="shell person-page">
     <header className="topbar"><Link href="/" className="brand"><span>C</span> CineGraph</Link><p>Film intelligence <i>·</i> public metadata</p></header>
     <Link href="/" className="back">← Back to catalog</Link>

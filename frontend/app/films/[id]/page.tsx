@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { api, FilmDetail, Graph, SimilarFilm, year } from "../../../lib/api";
+import { api, ApiRequestError, FilmDetail, Graph, SimilarFilm, year } from "../../../lib/api";
 
 export default async function FilmPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let film: FilmDetail;
-  let graph: Graph;
-  let similar: SimilarFilm[];
   try {
-    [film, graph, similar] = await Promise.all([api<FilmDetail>(`/films/${id}`), api<Graph>(`/films/${id}/graph`), api<SimilarFilm[]>(`/films/${id}/similar`)]);
-  } catch {
-    notFound();
+    film = await api<FilmDetail>(`/films/${id}`);
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status === 404) notFound();
+    throw error;
   }
+  const [graphResult, similarResult] = await Promise.allSettled([
+    api<Graph>(`/films/${id}/graph`), api<SimilarFilm[]>(`/films/${id}/similar`),
+  ]);
+  const graph = graphResult.status === "fulfilled" ? graphResult.value : null;
+  const similar = similarResult.status === "fulfilled" ? similarResult.value : null;
   const displayYear = film.research_release_year ?? year(film.release_date);
   return <main className="shell detail-shell">
     <header className="topbar"><Link href="/" className="brand"><span>C</span> CineGraph</Link><p>Film intelligence <i>·</i> public metadata</p></header>
@@ -23,10 +27,10 @@ export default async function FilmPage({ params }: { params: Promise<{ id: strin
 
     <section className="detail-grid">
       <div className="panel credits"><p className="eyebrow">Credits</p><h2>People around this film</h2>{["director", "writer", "cast"].map((role) => { const entries = film.credits.filter((credit) => credit.role === role); return entries.length ? <div className="credit-row" key={role}><span>{role}</span><div>{entries.slice(0, role === "cast" ? 8 : 4).map((credit) => <Link key={`${credit.person_id}-${role}`} href={`/people/${credit.person_id}`}>{credit.name}</Link>)}</div></div> : null; })}</div>
-      <div className="panel graph"><p className="eyebrow">Relationship graph</p><h2>Direct connections</h2><GraphView graph={graph} /></div>
+      <div className="panel graph"><p className="eyebrow">Relationship graph</p><h2>Direct connections</h2>{graph ? <GraphView graph={graph} /> : <p role="status" className="muted">Connections are temporarily unavailable. The film profile is still available.</p>}</div>
     </section>
 
-    <section className="panel similarity"><div><p className="eyebrow">Evidence-backed paths</p><h2>Where to go next</h2><p>These are not opaque similarity scores. Each suggestion shows the specific collaborators, genres, or era context it shares with this film.</p></div><div className="similar-list">{similar.map((item) => <Link href={`/films/${item.id}`} key={item.id} className="similar"><div><b>{item.title}</b><small>{item.factors.map((factor) => `${factor.label}: ${factor.evidence}`).join(" · ")}</small></div><span>↗</span></Link>)}</div></section>
+    <section className="panel similarity"><div><p className="eyebrow">Evidence-backed paths</p><h2>Where to go next</h2><p>Each suggestion names the metadata context it shares with this film. Inspect the linked profiles before relying on a connection.</p></div><div className="similar-list">{similar ? similar.map((item) => <Link href={`/films/${item.id}`} key={item.id} className="similar"><div><b>{item.title}</b><small>{item.factors.map((factor) => `${factor.label}: ${factor.evidence}`).join(" · ")}</small></div><span>↗</span></Link>) : <p role="status" className="muted">Related-film suggestions are temporarily unavailable.</p>}</div></section>
 
     <section className="panel provenance"><p className="eyebrow">Evidence</p><h2>Field provenance</h2><div className="source-table">{film.provenance.map((entry, index) => <a key={`${entry.field_name}-${index}`} href={entry.source_reference} target="_blank"><span>{entry.field_name.replaceAll("_", " ")}</span><b>{entry.source_name}</b><small>{entry.license}</small><i>↗</i></a>)}</div></section>
   </main>;

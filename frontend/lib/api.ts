@@ -179,9 +179,15 @@ export type Graph = {
 
 const baseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8000/api/v1";
 
+export class ApiRequestError extends Error {
+  constructor(public readonly status: number) {
+    super(`API request failed (${status})`);
+  }
+}
+
 export async function api<T>(path: string, revalidate = 0): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, { next: { revalidate } });
-  if (!response.ok) throw new Error(`API request failed (${response.status})`);
+  if (!response.ok) throw new ApiRequestError(response.status);
   return response.json() as Promise<T>;
 }
 
