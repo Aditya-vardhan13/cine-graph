@@ -76,7 +76,8 @@ def seed() -> None:
             original_language_code="en", country_codes=["US", "GB"], wikidata_id="Q166262", entity_id=begins_entity.id,
         )
         knight = Film(
-            canonical_title="The Dark Knight", release_date=date(2008, 7, 18), runtime_minutes=152,
+            # Deliberately stale legacy date: the reviewed source assertion below is the display lead.
+            canonical_title="The Dark Knight", release_date=date(2022, 10, 6), runtime_minutes=152,
             original_language_code="en", country_codes=["US", "GB"], wikidata_id="Q163872", entity_id=knight_entity.id,
         )
         nolan = Person(canonical_name="Christopher Nolan", wikidata_id="Q25191", entity_id=nolan_entity.id)
@@ -95,6 +96,19 @@ def seed() -> None:
                 subject_entity_id=begins_entity.id, object_entity_id=knight_entity.id, object_entity_kind="film",
                 predicate="followed_by", assertion_kind="source_fact", source_id=source.id,
                 source_reference=reference, review_status="published",
+            ),
+            Assertion(
+                subject_entity_id=knight_entity.id, predicate="release_event", assertion_kind="source_fact",
+                source_id=source.id, source_reference=reference, review_status="published", rank="normal",
+                value_json={"type": "time", "time": "+2008-07-18T00:00:00Z", "precision": 11,
+                            "calendar_model": "Q1985727"},
+            ),
+            Assertion(
+                subject_entity_id=begins_entity.id, predicate="release_event", assertion_kind="source_fact",
+                source_id=source.id, source_reference="https://www.wikidata.org/wiki/Q166262",
+                review_status="published", rank="normal",
+                value_json={"type": "time", "time": "+2005-06-15T00:00:00Z", "precision": 11,
+                            "calendar_model": "Q1985727"},
             ),
         ])
         wikipedia_source = DataSource(

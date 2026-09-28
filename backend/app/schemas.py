@@ -32,6 +32,9 @@ class FilmListItem(BaseModel):
 class FilmDetail(FilmListItem):
     entity_id: UUID | None
     research_available: bool
+    research_release_year: int | None
+    research_release_source_url: str | None
+    release_year_conflict: bool
     wikidata_id: str | None
     countries: list[str]
     aliases: list[str]

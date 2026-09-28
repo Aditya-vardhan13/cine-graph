@@ -12,7 +12,6 @@ from app.db import get_db
 from app.models import (
     Assertion, CanonicalEntity, CorpusRecord, DataSource, ExternalWorkRelationship, Film, FilmCredit, FilmGenre, FilmProvenance,
     FilmReleaseEvent, Genre, IngestionBatch, LanguageEdition, NarrativeDocument, Person, PersonProvenance,
-    ReferenceCollectionMembership,
 )
 from app.schemas import (
     CreditOut, FilmDetail, FilmListItem, GraphEdge, GraphNode, GraphOut, HealthOut,
@@ -23,7 +22,7 @@ from app.schemas import (
 )
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod
 from app.services.ollama_embeddings import OllamaEmbeddingClient
-from app.services.research_catalog import ResearchFilm, get_research_film, search_research_films
+from app.services.research_catalog import ResearchFilm, get_research_film, search_research_films, sourced_release_years
 from app.services.research_discovery import discover_research_films
 from app.services.story_comparison import compare_story_evidence
 from app.services.corpus_quality import corpus_quality_report
@@ -57,7 +56,9 @@ def provenance_for_film(db: Session, film: Film) -> list[ProvenanceOut]:
     return [ProvenanceOut(source_name=s.name, source_url=s.url, license=s.license, field_name=p.field_name, source_reference=p.source_reference) for p, s in rows]
 
 
-def connection_signals(first: Film, second: Film) -> list[SimilarityFactor]:
+def connection_signals(
+    first: Film, second: Film, *, first_release_year: int | None = None, second_release_year: int | None = None,
+) -> list[SimilarityFactor]:
     """Return the explicit, stored evidence behind a film connection."""
     signals: list[SimilarityFactor] = []
     first_genres = {link.genre.label for link in first.genres}
@@ -83,8 +84,8 @@ def connection_signals(first: Film, second: Film) -> list[SimilarityFactor]:
             evidence=", ".join(people[:4]) + (" and more" if len(people) > 4 else ""),
         ))
 
-    if first.release_date and second.release_date:
-        distance = abs(first.release_date.year - second.release_date.year)
+    if first_release_year is not None and second_release_year is not None:
+        distance = abs(first_release_year - second_release_year)
         if distance <= 10:
             signals.append(SimilarityFactor(
                 label="Release era", weight=0.20, contribution=round(20.0 * (1 - distance / 10), 1),
@@ -280,7 +281,12 @@ def compare_films(first_id: UUID, second_id: UUID, db: Session = Depends(get_db)
     first, second = load_film_with_connection_data(db, first_id), load_film_with_connection_data(db, second_id)
     if not first or not second:
         raise HTTPException(status_code=404, detail="One or both films were not found")
-    signals = connection_signals(first, second)
+    release_years = sourced_release_years(db, {entity_id for entity_id in (first.entity_id, second.entity_id) if entity_id})
+    signals = connection_signals(
+        first, second,
+        first_release_year=release_years.get(first.entity_id),
+        second_release_year=release_years.get(second.entity_id),
+    )
     summary = (
         f"{len(signals)} evidence-backed connection{'s' if len(signals) != 1 else ''} found."
         if signals else "No direct metadata connection was found in the current catalog."
@@ -400,14 +406,15 @@ def get_film(film_id: UUID, db: Session = Depends(get_db)) -> FilmDetail:
     if not film:
         raise HTTPException(status_code=404, detail="Film not found")
     item = film_item(film)
-    research_available = bool(film.entity_id and db.scalar(
-        select(ReferenceCollectionMembership.entity_id).where(
-            ReferenceCollectionMembership.collection_code == settings.research_collection_code,
-            ReferenceCollectionMembership.entity_id == film.entity_id,
-        )
-    ))
+    research_film = (get_research_film(db, film.entity_id, collection_code=settings.research_collection_code)
+                     if film.entity_id else None)
+    research_year = research_film.release_year if research_film else None
+    release_evidence = research_film.metadata_evidence.get("release_event", []) if research_film else []
     return FilmDetail(
-        **item.model_dump(), entity_id=film.entity_id, research_available=research_available,
+        **item.model_dump(), entity_id=film.entity_id, research_available=research_film is not None,
+        research_release_year=research_year,
+        research_release_source_url=release_evidence[0]["source_url"] if release_evidence else None,
+        release_year_conflict=bool(research_year and film.release_date and research_year != film.release_date.year),
         wikidata_id=film.wikidata_id, countries=film.country_codes,
         aliases=[alias.value for alias in film.aliases],
         credits=[CreditOut(person_id=credit.person.id, name=credit.person.canonical_name, role=credit.role, character_name=credit.character_name) for credit in sorted(film.credits, key=lambda c: (c.role, c.person.canonical_name))],
@@ -455,9 +462,14 @@ def similar_films(film_id: UUID, limit: int = Query(default=8, ge=1, le=20), db:
     if not target:
         raise HTTPException(status_code=404, detail="Film not found")
     candidates = db.scalars(select(Film).options(selectinload(Film.genres).selectinload(FilmGenre.genre), selectinload(Film.credits).selectinload(FilmCredit.person)).where(Film.id != film_id, Film.review_status == "published")).unique().all()
+    release_years = sourced_release_years(db, {film.entity_id for film in (target, *candidates) if film.entity_id})
     scored: list[SimilarFilmOut] = []
     for candidate in candidates:
-        factors = connection_signals(target, candidate)
+        factors = connection_signals(
+            target, candidate,
+            first_release_year=release_years.get(target.entity_id),
+            second_release_year=release_years.get(candidate.entity_id),
+        )
         score = sum(factor.contribution for factor in factors)
         if score > 0:
             item = film_item(candidate)

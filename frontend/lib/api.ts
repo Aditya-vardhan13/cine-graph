@@ -54,6 +54,9 @@ export type CorpusQuality = {
 export type FilmDetail = Film & {
   entity_id: string | null;
   research_available: boolean;
+  research_release_year: number | null;
+  research_release_source_url: string | null;
+  release_year_conflict: boolean;
   wikidata_id: string | null;
   countries: string[];
   aliases: string[];

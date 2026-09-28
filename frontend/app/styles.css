@@ -2,3 +2,6 @@
 .detail-study-link{display:inline-block;margin-top:22px;background:var(--lime);color:#11170c;padding:12px 15px;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;text-decoration:none}
 .detail-study-link:hover{background:#e6f5a2}
 .detail-research-unavailable{margin:20px 0 0;color:var(--muted);font-size:12px}
+.release-conflict,.release-caveat{max-width:650px;margin:18px 0 0;padding:12px 14px;border-left:3px solid #e5ae63;background:#251e1b;color:#e7d8c7;font-size:12px;line-height:1.5}
+.release-conflict a{color:var(--lime);white-space:nowrap}
+.release-caveat{border-left-color:#65717f;background:#171b21;color:var(--muted)}

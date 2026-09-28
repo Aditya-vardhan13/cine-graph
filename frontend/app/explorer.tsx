@@ -152,8 +152,8 @@ function Metric({ label, value }: { label: string; value: string }) { return <di
 
 function FilmCard({ film, index }: { film: Film; index: number }) {
   return <Link href={`/films/${film.id}`} className="film-card">
-    <div className={`poster poster-${index % 6}`}><span>{year(film.release_date)}</span><b>{film.title.slice(0, 1)}</b></div>
-    <div><h3>{film.title}</h3><p>{year(film.release_date)} <i>·</i> {film.runtime_minutes ? `${film.runtime_minutes} min` : "Runtime unavailable"}</p><div className="pills">{film.genres.slice(0, 2).map((genre) => <span key={genre}>{genre}</span>)}</div></div>
+    <div className={`poster poster-${index % 6}`}><span>Profile</span><b>{film.title.slice(0, 1)}</b></div>
+    <div><h3>{film.title}</h3><p>{film.runtime_minutes ? `${film.runtime_minutes} min` : "Runtime unavailable"} <i>·</i> legacy metadata</p><div className="pills">{film.genres.slice(0, 2).map((genre) => <span key={genre}>{genre}</span>)}</div></div>
   </Link>;
 }
 

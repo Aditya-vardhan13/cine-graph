@@ -12,12 +12,13 @@ export default async function FilmPage({ params }: { params: Promise<{ id: strin
   } catch {
     notFound();
   }
+  const displayYear = film.research_release_year ?? year(film.release_date);
   return <main className="shell detail-shell">
     <header className="topbar"><Link href="/" className="brand"><span>C</span> CineGraph</Link><p>Film intelligence <i>·</i> public metadata</p></header>
     <Link href="/" className="back">← Back to catalog</Link>
     <section className="film-hero">
-      <div className="detail-poster"><span>{year(film.release_date)}</span><b>{film.title.slice(0, 1)}</b></div>
-      <div><p className="eyebrow">Film profile</p><h1>{film.title}</h1><p className="metadata">{year(film.release_date)} <i>·</i> {film.runtime_minutes ? `${film.runtime_minutes} minutes` : "Runtime unavailable"} <i>·</i> Original language: {film.language_code.toUpperCase()}</p><div className="pills large">{film.genres.map((genre) => <span key={genre}>{genre}</span>)}</div><p className="detail-intro">This profile is derived from structured public metadata. Every displayed field links back to its source evidence.</p>{film.research_available && film.entity_id ? <Link className="detail-study-link" href={`/?study=${film.entity_id}#compare`}>Study this film as a writer ↗</Link> : <p className="detail-research-unavailable">Writer comparison is not yet available for this catalog title.</p>}</div>
+      <div className="detail-poster"><span>{displayYear}</span><b>{film.title.slice(0, 1)}</b></div>
+      <div><p className="eyebrow">Film profile</p><h1>{film.title}</h1><p className="metadata">{displayYear} <i>·</i> {film.runtime_minutes ? `${film.runtime_minutes} minutes` : "Runtime unavailable"} <i>·</i> Original language: {film.language_code.toUpperCase()}</p><div className="pills large">{film.genres.map((genre) => <span key={genre}>{genre}</span>)}</div><p className="detail-intro">This profile combines older catalog metadata with source-linked research where available. Check the provenance before relying on a field.</p>{film.release_year_conflict && <p className="release-conflict">The legacy profile records {year(film.release_date)}, but the research assertions identify {film.research_release_year} as the earliest recorded release year. {film.research_release_source_url && <a href={film.research_release_source_url} target="_blank" rel="noopener noreferrer">Inspect release source ↗</a>}</p>}{!film.research_release_year && film.release_date && <p className="release-caveat">Release year shown from the legacy profile; not yet cross-checked in the writer collection.</p>}{film.research_available && film.entity_id ? <Link className="detail-study-link" href={`/?study=${film.entity_id}#compare`}>Study this film as a writer ↗</Link> : <p className="detail-research-unavailable">Writer comparison is not yet available for this catalog title.</p>}</div>
     </section>
 
     <section className="detail-grid">

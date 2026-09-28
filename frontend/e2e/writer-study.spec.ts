@@ -75,6 +75,7 @@ test("film profile opens the writer desk with that film selected", async ({ page
   expect(films.ok()).toBeTruthy();
   const film = (await films.json())[0];
   await page.goto(`/films/${film.id}`);
+  await expect(page.getByText(/legacy profile records 2022, but the research assertions identify 2008/)).toBeVisible();
   await page.getByRole("link", { name: "Study this film as a writer" }).click();
   await expect(page).toHaveURL(/\?study=.*#compare/);
   await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();

@@ -97,6 +97,30 @@ def get_research_film(
     return research_films_from_entities(db, [entity])[0] if entity else None
 
 
+def sourced_release_years(db: Session, entity_ids: set[UUID]) -> dict[UUID, int]:
+    """Use the same reviewed-assertion date policy for cross-film era signals."""
+    if not entity_ids:
+        return {}
+    assertions = db.scalars(select(Assertion).where(
+        Assertion.subject_entity_id.in_(entity_ids),
+        Assertion.predicate == "release_event",
+        Assertion.assertion_kind == "source_fact",
+        Assertion.review_status.in_(("resolved", "published")),
+    )).all()
+    by_entity: dict[UUID, list[MetadataAssertion]] = {}
+    for assertion in assertions:
+        by_entity.setdefault(assertion.subject_entity_id, []).append(MetadataAssertion(
+            str(assertion.id), assertion.predicate, assertion.value_json or {},
+            assertion.qualifiers or {}, assertion.review_status, assertion.rank,
+            assertion.source_reference or "", assertion.source_revision,
+        ))
+    return {
+        entity_id: year
+        for entity_id, group in by_entity.items()
+        if (year := display_metadata(group, genre_labels={})["release_year"]) is not None
+    }
+
+
 def search_research_films(
     db: Session,
     *,
