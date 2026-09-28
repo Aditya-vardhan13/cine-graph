@@ -47,7 +47,11 @@
 .decision-actions button:disabled{opacity:.5;cursor:not-allowed}
 .decision-actions small{color:var(--muted);font-size:11px}
 .decision-actions .export-notes{background:transparent;border:1px solid #63834d;color:var(--lime);margin-left:auto}
+.decision-actions .import-notes{border:1px solid #63834d;color:var(--lime);padding:9px 12px;font-size:11px;cursor:pointer}
+.import-notes input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.import-notes:focus-within{outline:2px solid var(--lime);outline-offset:2px}
 .writer-decision-pad [role=alert]{color:#f0b34b;font-size:12px}
+.writer-decision-pad [role=status]{color:var(--lime);font-size:12px}
 .saved-decisions{border-top:1px solid #3b4050;margin-top:24px;padding-top:12px}
 .saved-decisions h4{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--lime)}
 .saved-decisions article{padding:12px 0;border-bottom:1px solid #333a4d}

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ResearchDiscovery, ResearchFilm, StoryComparison, StoryComparisonEvidence, year } from "../lib/api";
-import { PinnedEvidence, renderWriterDecisionsMarkdown, WriterDecision } from "../lib/writer-study-export";
+import { parseWriterDecisionArchive, PinnedEvidence, renderWriterDecisionsMarkdown, WriterDecision } from "../lib/writer-study-export";
 
 const EXAMPLE_QUESTION = "How do these films turn the same idea into different character choices and consequences?";
 const NOTE_STORAGE_KEY = "cinegraph-writer-decisions-v1";
@@ -219,8 +219,11 @@ function ComparisonResult({ result }: { result: StoryComparison }) {
         chunk_id: evidence.chunk_id,
         film_entity_id: filmEntityId,
         section_title: evidence.section_title,
+        section_locator: evidence.section_locator,
+        passage_preview: evidence.excerpt.replace(/\s+/g, " ").slice(0, 240),
         source_url: evidence.source_url,
         source_revision: evidence.source_revision,
+        source_license: evidence.source_license,
       }]);
   }
 
@@ -280,15 +283,11 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
   const [draft, setDraft] = useState("");
   const [notes, setNotes] = useState<WriterDecision[]>([]);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(window.localStorage.getItem(NOTE_STORAGE_KEY) || "[]");
-      if (Array.isArray(saved)) setNotes(saved.filter((item) =>
-        typeof item?.id === "string" && typeof item?.created_at === "string" &&
-        typeof item?.question === "string" && typeof item?.decision === "string" &&
-        Array.isArray(item?.films) && Array.isArray(item?.sources),
-      ));
+      setNotes(parseWriterDecisionArchive(JSON.parse(window.localStorage.getItem(NOTE_STORAGE_KEY) || "[]")));
     } catch {
       setStorageError("Saved notes could not be loaded from this browser.");
     }
@@ -304,8 +303,9 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
       id: window.crypto.randomUUID(), created_at: new Date().toISOString(),
       question: result.question,
       films: [result.first, result.second].map((film) => ({ entity_id: film.entity_id, title: film.title })),
-      version: 2, first_mechanism: firstMechanism.trim(), second_mechanism: secondMechanism.trim(),
+      version: 3, first_mechanism: firstMechanism.trim(), second_mechanism: secondMechanism.trim(),
       contrast: contrast.trim(), decision, sources, evidence: pinned,
+      preprocessing_run_id: result.preprocessing_run_id, index_run_id: result.index_run_id,
     }, ...notes];
     try {
       window.localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(next));
@@ -329,6 +329,24 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  async function importNotes(file: File | undefined) {
+    if (!file) return;
+    setImportMessage(null);
+    try {
+      if (file.size > 5_000_000) throw new Error("The archive is too large (5 MB maximum).");
+      const incoming = parseWriterDecisionArchive(JSON.parse(await file.text()));
+      const existingIds = new Set(incoming.map((note) => note.id));
+      const merged = [...incoming, ...notes.filter((note) => !existingIds.has(note.id))];
+      if (merged.length > 1000) throw new Error("The combined archive exceeds 1,000 studies. Export a backup first.");
+      window.localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(merged));
+      setNotes(merged);
+      setStorageError(null);
+      setImportMessage(`${incoming.length} stud${incoming.length === 1 ? "y" : "ies"} restored from this file.`);
+    } catch (error) {
+      setStorageError(error instanceof Error ? error.message : "This study archive could not be imported.");
+    }
+  }
+
   const current = notes.filter((note) => note.question === result.question &&
     note.films[0]?.entity_id === result.first.entity_id && note.films[1]?.entity_id === result.second.entity_id);
   const firstPins = pinned.filter((item) => item.film_entity_id === result.first.entity_id);
@@ -343,15 +361,16 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
     </div>
     <label className="decision-field"><span>The meaningful difference</span><textarea value={contrast} onChange={(event) => setContrast(event.target.value)} maxLength={1200} placeholder="The two films share a problem, but differ in…" /></label>
     <label className="decision-field"><span>My original move</span><textarea aria-label="Your creative decision" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={2000} placeholder="For my story, I would…" /></label>
-    <div className="decision-actions"><button disabled={!canSave} onClick={save}>Save this study</button><small>Stored only in this browser. Export a copy to keep it.</small>{notes.length > 0 && <><button className="export-notes" onClick={() => downloadNotes(renderWriterDecisionsMarkdown(notes), "text/markdown", "cinegraph-writer-studies.md")}>Export readable notes</button><button className="export-notes" onClick={() => downloadNotes(JSON.stringify(notes, null, 2), "application/json", "cinegraph-writer-decisions.json")}>Export JSON</button></>}</div>
+    <div className="decision-actions"><button disabled={!canSave} onClick={save}>Save this study</button><small>Stored only in this browser. Export a copy to keep it.</small>{notes.length > 0 && <><button className="export-notes" onClick={() => downloadNotes(renderWriterDecisionsMarkdown(notes), "text/markdown", "cinegraph-writer-studies.md")}>Export readable notes</button><button className="export-notes" onClick={() => downloadNotes(JSON.stringify(notes, null, 2), "application/json", "cinegraph-writer-decisions.json")}>Export JSON</button></>}<label className="import-notes">Restore JSON<input aria-label="Restore writer studies from JSON" type="file" accept="application/json,.json" onChange={(event) => { void importNotes(event.target.files?.[0]); event.target.value = ""; }} /></label></div>
     {storageError && <p role="alert">{storageError}</p>}
+    {importMessage && <p role="status">{importMessage}</p>}
     {current.length > 0 && <div className="saved-decisions"><h4>Saved for this comparison</h4>{current.map((note) => <article key={note.id}>
       {note.first_mechanism && <p><b>{result.first.title}:</b> {note.first_mechanism}</p>}
       {note.second_mechanism && <p><b>{result.second.title}:</b> {note.second_mechanism}</p>}
       {note.contrast && <p><b>Difference:</b> {note.contrast}</p>}
       <p><b>My move:</b> {note.decision}</p>
       <small>{new Date(note.created_at).toLocaleString()} · {(note.evidence || []).length} pinned passage{(note.evidence || []).length === 1 ? "" : "s"}</small>
-      {note.evidence && <details><summary>Inspect pinned sources</summary>{note.evidence.map((item) => <a key={item.chunk_id} href={item.source_url} target="_blank" rel="noopener noreferrer">{item.section_title} · {item.source_revision || "source revision unavailable"} ↗</a>)}</details>}
+      {note.evidence && <details><summary>Inspect pinned sources</summary>{note.evidence.map((item) => <div key={item.chunk_id}><a href={item.source_url} target="_blank" rel="noopener noreferrer">{item.section_title} · {item.source_revision || "source revision unavailable"} ↗</a>{item.passage_preview && <p>{item.passage_preview}</p>}</div>)}</details>}
     </article>)}</div>}
   </div>;
 }

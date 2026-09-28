@@ -37,6 +37,17 @@ test("writer can search, compare, pin evidence, and export a study", async ({ pa
   await page.getByRole("button", { name: "Export readable notes" }).click();
   const download = await downloadEvent;
   expect(download.suggestedFilename()).toBe("cinegraph-writer-studies.md");
+
+  const archiveEvent = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export JSON" }).click();
+  const archive = await archiveEvent;
+  const stream = await archive.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  await page.getByLabel("Restore writer studies from JSON").setInputFiles({
+    name: "cinegraph-writer-decisions.json", mimeType: "application/json", buffer: Buffer.concat(chunks),
+  });
+  await expect(page.getByRole("status").filter({ hasText: "1 study restored from this file." })).toBeVisible();
 });
 
 test("unsupported question abstains without losing selected films", async ({ page, request }) => {
