@@ -99,3 +99,30 @@ test("a truly missing film gets a not-found page", async ({ page, request }) => 
   await page.goto("/films/00000000-0000-0000-0000-000000000000");
   await expect(page.getByRole("heading", { name: "This film is not in the current catalog." })).toBeVisible();
 });
+
+test("an unfinished writer draft survives a browser reload", async ({ page, request }) => {
+  const health = await request.get("http://127.0.0.1:18001/health");
+  expect(health.ok()).toBeTruthy();
+  await page.goto("/");
+  const search = page.getByRole("textbox", { name: "Search comparison films" });
+  await search.fill("Batman Begins");
+  await page.getByRole("button", { name: /Batman Begins.*select/ }).click();
+  await search.fill("The Dark Knight");
+  await page.getByRole("button", { name: /The Dark Knight.*select/ }).click();
+  const question = "How does becoming a public symbol change Batman's moral choices?";
+  await page.getByRole("textbox", { name: "Your writing question" }).fill(question);
+  await page.getByRole("button", { name: "Build evidence comparison" }).click();
+  await expect(page.getByRole("heading", { name: /Batman Begins.*The Dark Knight/ })).toBeVisible();
+  const pins = page.getByRole("button", { name: "Pin as evidence +" });
+  await pins.first().click();
+  await pins.first().click();
+  await page.getByRole("textbox", { name: /How Batman Begins handles it/ }).fill("The symbol creates a public obligation.");
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: "Your writing question" })).toHaveValue(question);
+  await expect(page.locator(".comparison-slots").getByText("Batman Begins", { exact: true })).toBeVisible();
+  await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Build evidence comparison" }).click();
+  await expect(page.getByRole("textbox", { name: /How Batman Begins handles it/ })).toHaveValue("The symbol creates a public obligation.");
+  await expect(page.getByText("Batman Begins: 1 pinned")).toBeVisible();
+  await expect(page.getByText("The Dark Knight: 1 pinned")).toBeVisible();
+});

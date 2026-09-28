@@ -6,10 +6,28 @@ import { parseWriterDecisionArchive, PinnedEvidence, renderWriterDecisionsMarkdo
 
 const EXAMPLE_QUESTION = "How do these films turn the same idea into different character choices and consequences?";
 const NOTE_STORAGE_KEY = "cinegraph-writer-decisions-v1";
+const WORKSPACE_STORAGE_KEY = "cinegraph-writer-workspace-v1";
+
+function draftStorageKey(result: StoryComparison, suffix: string): string {
+  return `cinegraph-draft-v1:${result.first.entity_id}:${result.second.entity_id}:${encodeURIComponent(result.question)}:${suffix}`;
+}
+
+function isStoredFilm(value: unknown): value is ResearchFilm {
+  return !!value && typeof value === "object" && "entity_id" in value && typeof value.entity_id === "string" &&
+    "title" in value && typeof value.title === "string" && "genres" in value && Array.isArray(value.genres);
+}
+
+function isStoredPin(value: unknown): value is PinnedEvidence {
+  return !!value && typeof value === "object" && "chunk_id" in value && typeof value.chunk_id === "string" &&
+    "film_entity_id" in value && typeof value.film_entity_id === "string" &&
+    "section_title" in value && typeof value.section_title === "string" &&
+    "source_url" in value && typeof value.source_url === "string" && /^https?:\/\//.test(value.source_url);
+}
 
 export function StoryComparisonWorkbench() {
   const [first, setFirst] = useState<ResearchFilm | null>(null);
   const [second, setSecond] = useState<ResearchFilm | null>(null);
+  const [workspaceReady, setWorkspaceReady] = useState(false);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<ResearchFilm[]>([]);
   const [searching, setSearching] = useState(false);
@@ -28,6 +46,24 @@ export function StoryComparisonWorkbench() {
   useEffect(() => () => { comparisonRequest.current?.abort(); discoveryRequest.current?.abort(); }, []);
 
   useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(WORKSPACE_STORAGE_KEY) || "null");
+      if (saved && typeof saved === "object") {
+        if (isStoredFilm(saved.first)) setFirst(saved.first);
+        if (isStoredFilm(saved.second) && saved.second.entity_id !== saved.first?.entity_id) setSecond(saved.second);
+        if (typeof saved.question === "string") setQuestion(saved.question.slice(0, 400));
+      }
+    } catch { /* A malformed browser value must not prevent a new study. */ }
+    setWorkspaceReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!workspaceReady) return;
+    try { window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ first, second, question })); }
+    catch { /* Comparison remains usable without local persistence. */ }
+  }, [first, second, question, workspaceReady]);
+
+  useEffect(() => {
     const entityId = new URLSearchParams(window.location.search).get("study");
     if (!entityId) return;
     const studyId = entityId;
@@ -37,7 +73,10 @@ export function StoryComparisonWorkbench() {
         const response = await fetch(`/api/v1/research/films/${encodeURIComponent(studyId)}`, { signal: controller.signal });
         if (!response.ok) throw new Error();
         const film: ResearchFilm = await response.json();
-        if (!controller.signal.aborted) setFirst((current) => current ?? film);
+        if (!controller.signal.aborted) {
+          setFirst(film);
+          setSecond((current) => current?.entity_id === film.entity_id ? null : current);
+        }
       } catch {
         if (!controller.signal.aborted) setError("This film is not available for writer comparison yet. Search another title below.");
       }
@@ -229,7 +268,22 @@ function FilmChoice({ label, film, onClear }: { label: string; film: ResearchFil
 
 function ComparisonResult({ result }: { result: StoryComparison }) {
   const [pinned, setPinned] = useState<PinnedEvidence[]>([]);
-  useEffect(() => { setPinned([]); }, [result]);
+  const [loadedPinsKey, setLoadedPinsKey] = useState<string | null>(null);
+  const pinsKey = draftStorageKey(result, "pins");
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(pinsKey) || "[]");
+      setPinned(Array.isArray(saved) ? saved.filter((item) => isStoredPin(item) &&
+        (item.film_entity_id === result.first.entity_id || item.film_entity_id === result.second.entity_id)) : []);
+    } catch { setPinned([]); }
+    setLoadedPinsKey(pinsKey);
+  }, [pinsKey, result.first.entity_id, result.second.entity_id]);
+
+  useEffect(() => {
+    if (loadedPinsKey !== pinsKey) return;
+    try { window.localStorage.setItem(pinsKey, JSON.stringify(pinned)); }
+    catch { /* Pinning still works in the current session. */ }
+  }, [loadedPinsKey, pinned, pinsKey]);
 
   function toggleEvidence(filmEntityId: string, evidence: StoryComparisonEvidence) {
     setPinned((current) => current.some((item) => item.chunk_id === evidence.chunk_id)
@@ -300,9 +354,28 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
   const [secondMechanism, setSecondMechanism] = useState("");
   const [contrast, setContrast] = useState("");
   const [draft, setDraft] = useState("");
+  const [loadedDraftKey, setLoadedDraftKey] = useState<string | null>(null);
   const [notes, setNotes] = useState<WriterDecision[]>([]);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const draftKey = draftStorageKey(result, "text");
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(draftKey) || "null");
+      setFirstMechanism(typeof saved?.firstMechanism === "string" ? saved.firstMechanism.slice(0, 1200) : "");
+      setSecondMechanism(typeof saved?.secondMechanism === "string" ? saved.secondMechanism.slice(0, 1200) : "");
+      setContrast(typeof saved?.contrast === "string" ? saved.contrast.slice(0, 1200) : "");
+      setDraft(typeof saved?.draft === "string" ? saved.draft.slice(0, 2000) : "");
+    } catch { setFirstMechanism(""); setSecondMechanism(""); setContrast(""); setDraft(""); }
+    setLoadedDraftKey(draftKey);
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (loadedDraftKey !== draftKey) return;
+    try { window.localStorage.setItem(draftKey, JSON.stringify({ firstMechanism, secondMechanism, contrast, draft })); }
+    catch { setStorageError("This browser could not keep a draft. Export saved studies to protect your work."); }
+  }, [loadedDraftKey, draftKey, firstMechanism, secondMechanism, contrast, draft]);
 
   useEffect(() => {
     try {
@@ -372,7 +445,7 @@ function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned
   const secondPins = pinned.filter((item) => item.film_entity_id === result.second.entity_id);
   const canSave = Boolean(firstMechanism.trim() && secondMechanism.trim() && contrast.trim() && draft.trim() && firstPins.length && secondPins.length);
   return <div className="writer-decision-pad">
-    <div><p className="eyebrow">Your study canvas</p><h3>What would you try differently?</h3><p>Pin at least one source passage for each film, then write your own reading. These fields are your interpretation, not CineGraph facts.</p></div>
+    <div><p className="eyebrow">Your study canvas</p><h3>What would you try differently?</h3><p>Pin at least one source passage for each film, then write your own reading. These fields are your interpretation, not CineGraph facts. Your draft is kept in this browser for this exact pair and question; export saved studies for a durable copy.</p></div>
     <div className="pinned-source-count"><span>{result.first.title}: {firstPins.length} pinned</span><span>{result.second.title}: {secondPins.length} pinned</span></div>
     <div className="mechanism-fields">
       <label><span>How {result.first.title} handles it</span><textarea value={firstMechanism} onChange={(event) => setFirstMechanism(event.target.value)} maxLength={1200} placeholder="What pressure, choice and consequence do you see?" /></label>
