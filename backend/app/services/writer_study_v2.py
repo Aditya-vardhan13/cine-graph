@@ -63,7 +63,8 @@ def expected_passage_sources(report: dict[str, Any]) -> dict[str, dict[str, Any]
 
 def aggregate_passage_reviews(report: dict[str, Any], reviews: list[dict[str, Any]]) -> dict[str, Any]:
     """Measure relevance only after two complete, source-bound human exports."""
-    if len(reviews) != 2 or reviews[0].get("reviewer") == reviews[1].get("reviewer"):
+    if (len(reviews) != 2 or any(not isinstance(review.get("reviewer"), str) or not review["reviewer"]
+                                 for review in reviews) or reviews[0]["reviewer"] == reviews[1]["reviewer"]):
         raise ValueError("Exactly two distinct passage reviewers are required.")
     packet_id = hashlib.sha256(json.dumps(report, sort_keys=True, default=str).encode("utf-8")).hexdigest()
     expected = expected_passage_sources(report)
@@ -87,33 +88,60 @@ def aggregate_passage_reviews(report: dict[str, Any], reviews: list[dict[str, An
     )
     selected_discovery: list[tuple[str, ...]] = []
     focus_pairs: list[tuple[str, str]] = []
+    per_task: dict[str, dict[str, Any]] = {}
+    discovery_attempts = 0
+    discovery_insufficient_leads = 0
     for task in report["tasks"]:
+        task_id = task["id"]
         leads = task.get("discovery", {}).get("leads", [])
-        if leads:
+        discovery_ids: tuple[str, ...] = ()
+        discovery_status = "not_applicable"
+        if task["entry"] != "pair":
+            discovery_attempts += 1
             needed = 1 if task["entry"] == "film_first" else 2
-            selected_discovery.append(tuple(
-                f"{task['id']}:discovery:{lead['chunk_id']}" for lead in leads[:needed]
-            ))
+            discovery_ids = tuple(f"{task_id}:discovery:{lead['chunk_id']}" for lead in leads[:needed])
+            if len(discovery_ids) < needed:
+                discovery_insufficient_leads += 1
+                discovery_status = "insufficient_leads"
+            else:
+                selected_discovery.append(discovery_ids)
+                discovery_status = ("both_relevant" if all(item in both_relevant for item in discovery_ids)
+                                    else "not_both_relevant")
         lenses = task.get("comparison", {}).get("lenses", [])
         focus = next((lens for lens in lenses if lens["identifier"] == "central_question"
                       and lens["first_evidence"] and lens["second_evidence"]), None)
         if focus is None:
             focus = next((lens for lens in lenses if lens["first_evidence"] and lens["second_evidence"]), None)
+        pair_ids: tuple[str, ...] = ()
+        pair_status = "no_pair"
         if focus is not None:
-            focus_pairs.append(tuple(
-                f"{task['id']}:comparison:{focus['identifier']}:{side}:{focus[f'{side}_evidence']['chunk_id']}"
+            pair_ids = tuple(
+                f"{task_id}:comparison:{focus['identifier']}:{side}:{focus[f'{side}_evidence']['chunk_id']}"
                 for side in ("first", "second")
-            ))
+            )
+            focus_pairs.append(pair_ids)
+            pair_status = "both_relevant" if all(item in both_relevant for item in pair_ids) else "not_both_relevant"
+        task_passages = discovery_ids + pair_ids
+        per_task[task_id] = {
+            "discovery_status": discovery_status,
+            "primary_pair_status": pair_status,
+            "selected_passage_ids": list(task_passages),
+            "disagreement_passage_ids": [passage_id for passage_id in task_passages
+                                          if reviews[0]["passages"][passage_id] != reviews[1]["passages"][passage_id]],
+        }
     return {
         "rated_passages": len(expected),
         "both_reviewers_relevant": len(both_relevant),
         "exact_label_agreement": agreement,
+        "discovery_attempts": discovery_attempts,
+        "discovery_insufficient_leads": discovery_insufficient_leads,
         "selected_discovery_sets": len(selected_discovery),
         "selected_discovery_sets_both_relevant": sum(all(item in both_relevant for item in group)
                                                       for group in selected_discovery),
         "focus_pairs": len(focus_pairs),
         "focus_pairs_both_relevant": sum(all(item in both_relevant for item in pair)
                                          for pair in focus_pairs),
+        "per_task": per_task,
     }
 
 

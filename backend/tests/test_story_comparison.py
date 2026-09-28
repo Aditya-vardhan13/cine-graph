@@ -1,5 +1,5 @@
 from app.services.hybrid_evidence_retrieval import HybridRetrievedEvidence
-from app.services.story_comparison import COMPARISON_LENSES, _first_unique
+from app.services.story_comparison import COMPARISON_LENSES, _first_unique, focus_evidence_question_id
 from app.services.comparison_answerability import substantive_question_terms, unmet_source_requirement
 from app.services.research_catalog import display_film_title
 
@@ -31,6 +31,14 @@ def test_comparison_lenses_cover_story_character_craft_and_reception() -> None:
     ]
     assert all("artificial companion" in lens.query("artificial companion") for lens in COMPARISON_LENSES)
     assert all(lens.writer_prompt for lens in COMPARISON_LENSES)
+
+
+def test_writer_focus_routes_by_requested_evidence_kind_without_film_topic_rules() -> None:
+    assert focus_evidence_question_id("How does gaining power change family loyalty?") == "story.writer_focus"
+    assert focus_evidence_question_id("Which practical effects and camera choices make the monster present?") == "craft.writer_focus"
+    assert focus_evidence_question_id("How did editing and music make a chaotic chase readable?") == "craft.writer_focus"
+    assert focus_evidence_question_id("Where do critics disagree about the ending?") == "reception.writer_focus"
+    assert focus_evidence_question_id("How did reviewers assess its visual effects?") == "reception.writer_focus"
 
 
 def test_first_unique_never_fills_a_sparse_lens_with_repeated_text() -> None:

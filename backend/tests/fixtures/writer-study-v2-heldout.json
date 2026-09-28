@@ -1,0 +1,26 @@
+{
+  "version": "writer-study-v2",
+  "collection": "english-1000-retained-narrative-v1",
+  "tasks": [
+    {"id": "H01", "category": "character_change", "entry": "pair", "films": ["Q132689", "Q107270"], "question": "How does letting someone leave change what each protagonist believes love requires?"},
+    {"id": "H02", "category": "character_change", "entry": "pair", "films": ["Q488655", "Q498906"], "question": "How does a disrupted ordinary day change who the protagonist chooses to care for?"},
+    {"id": "H03", "category": "moral_dilemma", "entry": "pair", "films": ["Q165817", "Q483941"], "question": "How does a duty to protect strangers conflict with obligations to companions?"},
+    {"id": "H04", "category": "moral_dilemma", "entry": "pair", "films": ["Q18407657", "Q24053263"], "question": "When protecting one person risks others, how does the hero justify the choice?"},
+    {"id": "H05", "category": "plot_structure", "entry": "pair", "films": ["Q189505", "Q186341"], "question": "How does delayed understanding of a threat sustain suspense and change the family's response?"},
+    {"id": "H06", "category": "plot_structure", "entry": "pair", "films": ["Q105598", "Q1573662"], "question": "How does a confined building turn movement through space into escalating story beats?"},
+    {"id": "H07", "category": "worldbuilding", "entry": "pair", "films": ["Q104905", "Q151599"], "question": "How does the built environment reveal social hierarchy before characters explain it?"},
+    {"id": "H08", "category": "worldbuilding", "entry": "pair", "films": ["Q193695", "Q186572"], "question": "How does entering an unfamiliar world make its moral rules visible through encounters?"},
+    {"id": "H09", "category": "craft", "entry": "pair", "films": ["Q103474", "Q943192"], "question": "How do music and images carry a narrative sequence with little dialogue?"},
+    {"id": "H10", "category": "craft", "entry": "pair", "films": ["Q182692", "Q21935651"], "question": "How do camera and sound choices put the audience inside the confusion of war?"},
+    {"id": "H11", "category": "reception_disagreement", "entry": "pair", "films": ["Q42759035", "Q25139"], "question": "Where do critics disagree about whether an alienated protagonist deserves sympathy?"},
+    {"id": "H12", "category": "unanswerable", "entry": "pair", "films": ["Q44578", "Q23781155"], "question": "What percentage of viewers changed their real-world relationships after seeing either film?"},
+    {"id": "H13", "category": "genre_inversion", "entry": "film_first", "films": ["Q57982486"], "question": "Starting with Knives Out, find another murder mystery that reveals an apparent answer early and shifts the suspense."},
+    {"id": "H14", "category": "craft", "entry": "film_first", "films": ["Q13417189"], "question": "Starting with Interstellar, find another film whose sound or image choices make vast scale feel intimate."},
+    {"id": "H15", "category": "character_change", "entry": "film_first", "films": ["Q36479"], "question": "Starting with The Lion King, find another film where inherited duty changes how a young character sees themselves."},
+    {"id": "H16", "category": "reception_disagreement", "entry": "film_first", "films": ["Q190050"], "question": "Starting with Fight Club, find a film whose critics disagreed about whether its satire was mistaken for endorsement."},
+    {"id": "H17", "category": "plot_structure", "entry": "question_only", "films": [], "question": "How can a rescue mission reveal that the rescuers misunderstood who needed saving?"},
+    {"id": "H18", "category": "worldbuilding", "entry": "question_only", "films": [], "question": "Which films make a city's physical layout communicate class hierarchy before dialogue explains it?"},
+    {"id": "H19", "category": "genre_inversion", "entry": "question_only", "films": [], "question": "Which films turn a familiar heroic quest into a story about its cost to ordinary people?"},
+    {"id": "H20", "category": "unanswerable", "entry": "question_only", "films": [], "question": "Which unrecorded private conversation convinced a cinematographer to change the lighting in a final scene?"}
+  ]
+}

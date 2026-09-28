@@ -22,5 +22,7 @@ Non-negotiable rules:
   tests use only `cinegraph_test`.
 - No external-source crawling in normal test runs. Live source contract checks
   are explicit, rate-limited manual actions.
-- Ask the user before each commit. Do not commit user-local `.agents/` or
-  `.codex/` content.
+- Commit verified, in-scope project work at your discretion; do not interrupt
+  the user for routine commit approval. Push only after the milestone passes
+  its relevant tests and review, and keep uncertain work local until then.
+  Never commit user-local `.agents/` or `.codex/` content.

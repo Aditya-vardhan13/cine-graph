@@ -1,5 +1,10 @@
 # Writer study v2: current journey diagnostic
 
+The September 29 evidence-kind routing trial and frozen, unrun held-out set are
+documented in [the follow-up findings](writer-study-v2-findings-2026-09-29.md).
+The `primary-review-ready` capture below predates that routing trial; do not
+mistake it for a held-out assessment of the changed retrieval policy.
+
 Status: captured locally on 2026-09-28. This is a **technical and editorial
 diagnostic**, not an independent writer review or a passed product gate.
 

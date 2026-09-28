@@ -9,6 +9,7 @@ interpretation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from uuid import UUID
 
 import httpx
@@ -105,6 +106,24 @@ COMPARISON_LENSES = (
         ),
     ),
 )
+
+
+_RECEPTION_FOCUS = re.compile(r"\b(?:critics?|reviewers?|reviews?|reception|critical response)\b", re.I)
+_CRAFT_FOCUS = re.compile(
+    r"\b(?:visuals?|cinematography|camerawork|camera|editing|lighting|music|score|"
+    r"soundtrack|sound design|visual effects|special effects|practical effects|"
+    r"digital effects|image choices|production design|choreography|performance choices)\b",
+    re.I,
+)
+
+
+def focus_evidence_question_id(question: str) -> str:
+    """Choose a source section by evidence kind, not a film-specific topic cue."""
+    if _RECEPTION_FOCUS.search(question):
+        return "reception.writer_focus"
+    if _CRAFT_FOCUS.search(question):
+        return "craft.writer_focus"
+    return "story.writer_focus"
 
 
 @dataclass(frozen=True)
@@ -278,10 +297,12 @@ def compare_story_evidence(
         for lens, research_question, query_vector in zip(
             COMPARISON_LENSES, research_questions, query_vectors, strict=True,
         ):
+            question_id = (focus_evidence_question_id(question) if lens.identifier == "central_question"
+                           else lens.question_id)
             first_result = retrieve_narrative_candidates(
                 db,
                 subject_entity_id=first.entity_id,
-                question_id=lens.question_id,
+                question_id=question_id,
                 question_text=research_question,
                 method=method,
                 limit=3,
@@ -293,7 +314,7 @@ def compare_story_evidence(
             second_result = retrieve_narrative_candidates(
                 db,
                 subject_entity_id=second.entity_id,
-                question_id=lens.question_id,
+                question_id=question_id,
                 question_text=research_question,
                 method=method,
                 limit=3,

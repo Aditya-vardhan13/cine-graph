@@ -16,6 +16,20 @@ def test_v2_manifest_covers_current_entry_flows_and_categories() -> None:
     assert sum(task["category"] == "unanswerable" for task in manifest["tasks"]) >= 2
 
 
+def test_heldout_manifest_is_frozen_separately_from_development_questions() -> None:
+    fixture_dir = Path(__file__).parent / "fixtures"
+    development = load_tasks(fixture_dir / "writer-study-v2.json")
+    heldout = load_tasks(fixture_dir / "writer-study-v2-heldout.json")
+
+    assert all(task["id"].startswith("H") for task in heldout["tasks"])
+    assert {task["question"] for task in heldout["tasks"]}.isdisjoint(
+        {task["question"] for task in development["tasks"]}
+    )
+    assert {frozenset(task["films"]) for task in heldout["tasks"] if task["entry"] == "pair"}.isdisjoint(
+        {frozenset(task["films"]) for task in development["tasks"] if task["entry"] == "pair"}
+    )
+
+
 def test_v2_packet_shows_discovery_and_explicit_abstention() -> None:
     report = {"version": "writer-study-v2", "tasks": [{
         "id": "V01", "category": "moral_dilemma", "entry": "question_only",
@@ -70,8 +84,18 @@ def test_passage_review_requires_complete_labels_and_matching_source_pointers() 
 
     assert summary == {
         "rated_passages": 4, "both_reviewers_relevant": 4, "exact_label_agreement": 4,
+        "discovery_attempts": 1, "discovery_insufficient_leads": 0,
         "selected_discovery_sets": 1, "selected_discovery_sets_both_relevant": 1,
         "focus_pairs": 1, "focus_pairs_both_relevant": 1,
+        "per_task": {"V01": {
+            "discovery_status": "both_relevant", "primary_pair_status": "both_relevant",
+            "selected_passage_ids": [
+                "V01:discovery:lead-1", "V01:discovery:lead-2",
+                "V01:comparison:central_question:first:first",
+                "V01:comparison:central_question:second:second",
+            ],
+            "disagreement_passage_ids": [],
+        }},
     }
     from pytest import raises
     with raises(ValueError, match="source-bound"):
@@ -82,3 +106,27 @@ def test_passage_review_requires_complete_labels_and_matching_source_pointers() 
         aggregate_passage_reviews(report, [first, {**second, "passage_sources": stale}])
     with raises(ValueError, match="different study capture"):
         aggregate_passage_reviews(report, [first, {**second, "packet_id": "older-capture"}])
+
+
+def test_incomplete_discovery_does_not_count_as_a_successful_selection() -> None:
+    report = {"tasks": [{
+        "id": "V20", "entry": "question_only", "status": "no_leads",
+        "discovery": {"leads": [{
+            "chunk_id": "one-lead", "source_url": "https://example.org/one",
+            "source_revision": "rev-1", "source_license": "CC BY-SA 4.0",
+        }]},
+    }]}
+    pointers = expected_passage_sources(report)
+    packet_id = hashlib.sha256(json.dumps(report, sort_keys=True).encode("utf-8")).hexdigest()
+    reviews = [
+        {"reviewer": reviewer, "packet_id": packet_id,
+         "passages": {"V20:discovery:one-lead": "relevant"}, "passage_sources": pointers}
+        for reviewer in ("writer-a", "writer-b")
+    ]
+
+    summary = aggregate_passage_reviews(report, reviews)
+
+    assert summary["discovery_attempts"] == 1
+    assert summary["discovery_insufficient_leads"] == 1
+    assert summary["selected_discovery_sets"] == 0
+    assert summary["per_task"]["V20"]["discovery_status"] == "insufficient_leads"
