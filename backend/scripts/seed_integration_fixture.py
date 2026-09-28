@@ -160,6 +160,16 @@ def seed() -> None:
             "His conflict with Ra's al Ghul tests whether justice can reject execution while still confronting systemic corruption. "
             "The ending establishes escalation: Batman becomes a public symbol whose presence also attracts theatrical criminals."
         )
+        knight_alternative_text = (
+            "The Joker stages a ferry dilemma to test whether ordinary people will sacrifice strangers to save themselves. "
+            "Batman refuses the Joker's demand and turns an intrusive surveillance system off after locating him. "
+            "The city's public symbol survives only after Batman takes responsibility for Dent's crimes."
+        )
+        begins_alternative_text = (
+            "Bruce learns from the League of Shadows but rejects its demand to execute a criminal as a proof of commitment. "
+            "He returns to Gotham with a public symbol built around fear, hoping to inspire a different response to corruption. "
+            "That moral choice separates his mission from Ra's al Ghul's plan to destroy the city."
+        )
         db.add_all([
             ReferenceCollectionMembership(
                 collection_code=collection.code,
@@ -194,6 +204,28 @@ def seed() -> None:
                 ordinal=0,
                 content=begins_passage_text,
                 content_hash="q" * 64,
+                citation_markers=["fixture"],
+                extraction_version="fixture-v1",
+            ),
+            NarrativePassage(
+                subject_entity_id=knight_entity.id,
+                source_snapshot_id=snapshot.id,
+                section_locator="plot",
+                section_title="Plot",
+                ordinal=1,
+                content=knight_alternative_text,
+                content_hash="r" * 64,
+                citation_markers=["fixture"],
+                extraction_version="fixture-v1",
+            ),
+            NarrativePassage(
+                subject_entity_id=begins_entity.id,
+                source_snapshot_id=begins_snapshot.id,
+                section_locator="plot",
+                section_title="Plot",
+                ordinal=1,
+                content=begins_alternative_text,
+                content_hash="s" * 64,
                 citation_markers=["fixture"],
                 extraction_version="fixture-v1",
             ),

@@ -358,6 +358,8 @@ def compare_film_stories(
                     StoryComparisonEvidenceOut(**lens.second_evidence.__dict__)
                     if lens.second_evidence else None
                 ),
+                first_options=[StoryComparisonEvidenceOut(**item.__dict__) for item in lens.first_options],
+                second_options=[StoryComparisonEvidenceOut(**item.__dict__) for item in lens.second_options],
             )
             for lens in result.lenses
         ],

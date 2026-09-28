@@ -146,6 +146,8 @@ class ComparisonLensResult:
     writer_prompt: str
     first_evidence: ComparisonEvidence | None
     second_evidence: ComparisonEvidence | None
+    first_options: tuple[ComparisonEvidence, ...]
+    second_options: tuple[ComparisonEvidence, ...]
 
 
 @dataclass(frozen=True)
@@ -211,6 +213,27 @@ def _evidence_dto(
         source_license=source_license,
         matched_by=item.matched_by,
     )
+
+
+def _evidence_options(
+    primary: HybridRetrievedEvidence | None,
+    candidates: tuple[HybridRetrievedEvidence, ...],
+    source_details: dict[str, tuple[str, str | None, str]],
+) -> tuple[ComparisonEvidence, ...]:
+    """Expose distinct, attributable alternatives without changing the default ranking."""
+    if primary is None:
+        return ()
+    seen: set[str] = set()
+    options: list[ComparisonEvidence] = []
+    for item in (primary, *candidates):
+        normalized = " ".join(item.content.split()).casefold()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        option = _evidence_dto(item, source_details)
+        if option is not None:
+            options.append(option)
+    return tuple(options)
 
 
 def _both_films_have_question_anchor(
@@ -347,17 +370,21 @@ def compare_story_evidence(
     source_details = _source_details(db, all_evidence)
     used_first: set[str] = set()
     used_second: set[str] = set()
-    lenses = tuple(
-        ComparisonLensResult(
+    lenses_list: list[ComparisonLensResult] = []
+    for lens, research_question, first_result, second_result in retrieved:
+        first_primary = _first_unique(first_result.evidence, used_first)
+        second_primary = _first_unique(second_result.evidence, used_second)
+        lenses_list.append(ComparisonLensResult(
             identifier=lens.identifier,
             label=lens.label,
             research_question=research_question,
             writer_prompt=lens.writer_prompt,
-            first_evidence=_evidence_dto(_first_unique(first_result.evidence, used_first), source_details),
-            second_evidence=_evidence_dto(_first_unique(second_result.evidence, used_second), source_details),
-        )
-        for lens, research_question, first_result, second_result in retrieved
-    )
+            first_evidence=_evidence_dto(first_primary, source_details),
+            second_evidence=_evidence_dto(second_primary, source_details),
+            first_options=_evidence_options(first_primary, first_result.evidence, source_details),
+            second_options=_evidence_options(second_primary, second_result.evidence, source_details),
+        ))
+    lenses = tuple(lenses_list)
     paired = sum(1 for lens in lenses if lens.first_evidence and lens.second_evidence)
     has_pair = paired > 0
     return StoryComparisonResult(

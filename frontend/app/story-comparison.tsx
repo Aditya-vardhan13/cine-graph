@@ -240,9 +240,9 @@ function ComparisonResult({ result }: { result: StoryComparison }) {
     {result.fallback_reason && <p className="fallback-note">{result.fallback_reason}</p>}
     <div className="comparison-column-headings"><span>{result.first.title}</span><i>Question evidence</i><span>{result.second.title}</span></div>
     {focus && <div className="comparison-lenses"><article className="comparison-lens focus-lens">
-      <EvidenceCard evidence={focus.first_evidence} filmTitle={result.first.title} pinned={pinned.some((item) => item.chunk_id === focus.first_evidence?.chunk_id)} onPin={() => { if (focus.first_evidence) toggleEvidence(result.first.entity_id, focus.first_evidence); }} />
+      <EvidenceChoices evidence={focus.first_evidence} options={focus.first_options} filmTitle={result.first.title} pinned={pinned} onPin={(evidence) => toggleEvidence(result.first.entity_id, evidence)} />
       <div className="lens-center"><span>{focus.label}</span><p>{focus.writer_prompt}</p></div>
-      <EvidenceCard evidence={focus.second_evidence} filmTitle={result.second.title} pinned={pinned.some((item) => item.chunk_id === focus.second_evidence?.chunk_id)} onPin={() => { if (focus.second_evidence) toggleEvidence(result.second.entity_id, focus.second_evidence); }} />
+      <EvidenceChoices evidence={focus.second_evidence} options={focus.second_options} filmTitle={result.second.title} pinned={pinned} onPin={(evidence) => toggleEvidence(result.second.entity_id, evidence)} />
     </article></div>}
     {furtherContext.length > 0 && <details className="additional-context"><summary>Additional source context ({furtherContext.length} lenses) · may not answer your question</summary><div className="comparison-lenses">{furtherContext.map((lens) => <article key={lens.identifier} className="comparison-lens">
       <EvidenceCard evidence={lens.first_evidence} filmTitle={result.first.title} pinned={pinned.some((item) => item.chunk_id === lens.first_evidence?.chunk_id)} onPin={() => { if (lens.first_evidence) toggleEvidence(result.first.entity_id, lens.first_evidence); }} />
@@ -252,6 +252,25 @@ function ComparisonResult({ result }: { result: StoryComparison }) {
     <footer>{result.caution}</footer>
     <WriterDecisionPad result={result} pinned={pinned} />
   </section>;
+}
+
+function EvidenceChoices({ evidence, options, filmTitle, pinned, onPin }: {
+  evidence: StoryComparisonEvidence | null;
+  options: StoryComparisonEvidence[];
+  filmTitle: string;
+  pinned: PinnedEvidence[];
+  onPin: (evidence: StoryComparisonEvidence) => void;
+}) {
+  const [position, setPosition] = useState(0);
+  const choices = options?.length ? options : evidence ? [evidence] : [];
+  const selected = choices[position] || choices[0] || null;
+  return <div className="evidence-choice">
+    <EvidenceCard evidence={selected} filmTitle={filmTitle} pinned={Boolean(selected && pinned.some((item) => item.chunk_id === selected.chunk_id))} onPin={() => { if (selected) onPin(selected); }} />
+    {choices.length > 1 && <nav className="evidence-choice-nav" aria-label={`Source passages for ${filmTitle}`}>
+      <span>Passage {position + 1} of {choices.length} · ranked lead, not a verdict</span>
+      <div><button aria-label={`Previous passage for ${filmTitle}`} disabled={position === 0} onClick={() => setPosition(position - 1)}>← Previous</button><button aria-label={`Next passage for ${filmTitle}`} disabled={position === choices.length - 1} onClick={() => setPosition(position + 1)}>Next →</button></div>
+    </nav>}
+  </div>;
 }
 
 function WriterDecisionPad({ result, pinned }: { result: StoryComparison; pinned: PinnedEvidence[] }) {

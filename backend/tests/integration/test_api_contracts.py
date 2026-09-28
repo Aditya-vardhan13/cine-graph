@@ -99,8 +99,8 @@ def test_preprocessing_uses_real_postgresql_rows_and_preserves_narrative_lineage
         second = build_evidence_chunks(db, collection_code="integration-narrative-v1")
         report = evidence_chunk_quality_report(db, collection_code="integration-narrative-v1")
 
-    assert first["passages_requested"] == 2
-    assert first["passages_eligible"] == 2
+    assert first["passages_requested"] == 4
+    assert first["passages_eligible"] == 4
     assert first["chunks_created"] + first["chunks_reused"] >= 1
     assert second["chunks_created"] == 0
     assert second["chunks_reused"] >= 1
@@ -130,7 +130,7 @@ def test_preprocessing_refuses_mixed_source_versions_and_scoped_run_selects_one(
             "JOIN source_snapshots AS snapshot ON snapshot.id = passage.source_snapshot_id "
             "WHERE snapshot.parser_version = 'fixture-recovered-v1'"
         )).scalar_one()
-        assert scoped_passages == 1
+        assert scoped_passages == 2
         # The fixture mutation is never committed to the isolated test database.
         db.rollback()
 
@@ -139,7 +139,7 @@ def test_preprocessing_refuses_mixed_source_versions_and_scoped_run_selects_one(
             db, collection_code="integration-narrative-v1",
             config=ChunkConfiguration(source_parser_version="fixture-v1"),
         )
-        assert scoped["passages_requested"] == 2
+        assert scoped["passages_requested"] == 4
         assert scoped["source_parser_version"] == "fixture-v1"
 
 
@@ -236,6 +236,9 @@ def test_story_comparison_returns_two_sided_attributable_evidence() -> None:
     assert paired
     assert paired[0]["first_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/Batman_Begins"
     assert paired[0]["second_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/The_Dark_Knight"
+    assert paired[0]["first_options"][0] == paired[0]["first_evidence"]
+    assert paired[0]["second_options"][0] == paired[0]["second_evidence"]
+    assert all(option["source_url"].startswith("https://en.wikipedia.org/wiki/") for lens in payload["lenses"] for option in lens["first_options"] + lens["second_options"])
     assert all(lens["writer_prompt"] for lens in payload["lenses"])
 
 
@@ -329,5 +332,5 @@ def test_research_coverage_http_contract_counts_retained_passages():
     result = response.json()
     assert result["research"]["collection_code"] == "integration-narrative-v1"
     assert result["research"]["films_with_passages"] == 2
-    assert result["research"]["narrative_passages"] == 2
-    assert sum(source["narrative_passages"] for source in result["sources"]) == 2
+    assert result["research"]["narrative_passages"] == 4
+    assert sum(source["narrative_passages"] for source in result["sources"]) == 4

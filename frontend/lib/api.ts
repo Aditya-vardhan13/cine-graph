@@ -121,6 +121,8 @@ export type StoryComparison = {
     writer_prompt: string;
     first_evidence: StoryComparisonEvidence | null;
     second_evidence: StoryComparisonEvidence | null;
+    first_options: StoryComparisonEvidence[];
+    second_options: StoryComparisonEvidence[];
   }>;
 };
 

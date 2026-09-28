@@ -153,6 +153,8 @@ class StoryComparisonLensOut(BaseModel):
     writer_prompt: str
     first_evidence: StoryComparisonEvidenceOut | None
     second_evidence: StoryComparisonEvidenceOut | None
+    first_options: list[StoryComparisonEvidenceOut]
+    second_options: list[StoryComparisonEvidenceOut]
 
 
 class StoryComparisonOut(BaseModel):

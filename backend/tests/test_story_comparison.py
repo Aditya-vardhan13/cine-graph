@@ -1,5 +1,5 @@
 from app.services.hybrid_evidence_retrieval import HybridRetrievedEvidence
-from app.services.story_comparison import COMPARISON_LENSES, _first_unique, focus_evidence_question_id
+from app.services.story_comparison import COMPARISON_LENSES, _evidence_options, _first_unique, focus_evidence_question_id
 from app.services.comparison_answerability import substantive_question_terms, unmet_source_requirement
 from app.services.research_catalog import display_film_title
 
@@ -59,6 +59,18 @@ def test_different_chunk_ids_with_equivalent_content_are_not_distinct_evidence()
     used = set()
     assert _first_unique((first,), used) == first
     assert _first_unique((duplicate,), used) is None
+
+
+def test_alternate_passages_keep_default_first_and_source_provenance() -> None:
+    from dataclasses import replace
+    first = evidence("first")
+    duplicate = replace(first, chunk_id="duplicate", content="  ATTRIBUTABLE first fixture passage.\n")
+    second = evidence("second")
+    source = {"snapshot": ("https://en.wikipedia.org/wiki/Film", "rev-1", "CC BY-SA 4.0")}
+    options = _evidence_options(second, (first, duplicate, second), source)
+    assert [option.chunk_id for option in options] == ["second", "first"]
+    assert all(option.source_url == source["snapshot"][0] for option in options)
+    assert _evidence_options(None, (first,), source) == ()
 
 
 def test_research_title_removes_only_mediawiki_film_disambiguation() -> None:

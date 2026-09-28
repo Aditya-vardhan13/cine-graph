@@ -22,6 +22,13 @@
 .additional-context summary:hover{background:#151923}
 .additional-context .comparison-lens:last-child{border-bottom:0}
 .focus-lens{background:#111821}
+.evidence-choice{min-width:0}
+.evidence-choice-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px}
+.evidence-choice-nav span{font-size:10px;line-height:1.4;color:var(--muted)}
+.evidence-choice-nav div{display:flex;gap:6px;flex-shrink:0}
+.evidence-choice-nav button{background:#1b2430;border:1px solid #435066;color:var(--ink);padding:7px 9px;font-size:10px;cursor:pointer}
+.evidence-choice-nav button:hover:not(:disabled){border-color:var(--lime);color:var(--lime)}
+.evidence-choice-nav button:disabled{opacity:.4;cursor:not-allowed}
 .writer-decision-pad{padding:35px 42px;border-top:1px solid #3b4050;background:#141821}
 .writer-decision-pad h3{font:normal 30px var(--serif);margin:0}
 .writer-decision-pad>div>p:not(.eyebrow){color:var(--muted);font-size:13px;line-height:1.5}
@@ -50,3 +57,4 @@
 .saved-decisions details a{display:block;color:var(--lime);margin-top:6px}
 @media(max-width:900px){.discovery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.discovery-results,.writer-decision-pad{padding:26px}.discovery-grid,.mechanism-fields{grid-template-columns:1fr}.additional-context summary{padding:17px 26px}}
+@media(max-width:600px){.evidence-choice-nav{align-items:flex-start;flex-direction:column}}
