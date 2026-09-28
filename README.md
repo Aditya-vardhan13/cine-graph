@@ -1,27 +1,57 @@
 # CineGraph
 
-CineGraph begins as a public-data cinema intelligence platform. Phase A ingests English-language film metadata from a permitted structured source and retains provenance for every imported entity and field. It excludes scripts, subtitles, posters, and unlicensed article text. Licensed narrative material is retained separately: the attributed CC BY-SA CMU Movie Summary Corpus and revisioned, attributed CC BY-SA English Wikipedia passages.
+CineGraph is a source-linked film research desk for writers. Ask a writing question, compare two films' attributable passages, choose useful evidence, and save your own interpretation and creative move. Similarity is a research lead, not a film fact. The English collection is first; the entity and provenance model can admit later language editions without mixing them into English results.
 
-## Current milestone
+## Current local milestone
 
-- 24,776 English-language CMU plot records are available as an attributed, historical narrative-reference layer
-- Canonical facts, credits, release events, and explicit work links are fetched only from Wikidata's CC0 structured data
-- CMU records reconcile only through an exact CMU Freebase ID → Wikidata P646 match; title matching is deliberately excluded
-- Source provenance, language-edition configuration, API catalog endpoints, and source-access controls are implemented
-- The deep-research pilot stores Wikipedia as section-bound, cited passages—not a blob—and connects each curated answer to those passages with an explicit evidence class
-- The vetted 1,000-film English selection has been parsed locally into 24,446 attributable Wikipedia passages; raw snapshots and the local database remain outside Git
-- Critical essays and reviews now have a separate attribution-and-rights model: an interpretation remains attached to its author and source rather than becoming an anonymous catalog fact
-- Local hybrid evidence retrieval passes a balanced 200-question benchmark; the held-out 150-case split reaches 100% Recall@10 and 0.845 MRR@10 while preserving source pointers
-- The raw-statement projector converts only allow-listed current Wikidata statements into the existing `Assertion` graph and links every projected row directly to its immutable `SourceAssertion`
-- The writer's comparison desk searches all 1,000 canonical research films and places source-linked story, character, craft, and reception passages side by side for a user-defined question
+- The current local database has 1,226 film profiles; the English writer collection has 1,000 films with 48,892 retained passages and 24,194 indexed chunks. These are coverage counts, not independent accuracy or usefulness scores.
+- The writer desk supports question-first discovery, film-pair comparison, alternate source passages, abstention when a question cannot be substantiated, and writer-authored study notes. Notes stay in the browser unless exported; JSON archives can be restored.
+- Wikidata metadata and typed relationships retain source assertions and the reviewed operational `Assertion` projection. Wikipedia narrative passages remain attributed source text, not promoted facts.
+- The local hybrid-retrieval benchmark measured finding a labeled passage in a candidate set; it does **not** establish that every displayed passage answers a writer's question. The 20-task writer study is still a development diagnostic, not a passed product-usefulness gate. See [writer-study findings](docs/writer-study-v2-findings-2026-09-29.md).
+- Critical-essay discovery has an attribution-and-rights model, but the current corpus has no published critical claims. Link-only essays are not copied or embedded.
 
 The local database is intentionally excluded from Git. Regenerate it from the source instead of committing scraped/derived data.
 
-## Development setup
+## Quick start
+
+```bash
+docker compose up --build -d
+```
+
+Open `http://localhost:3000`. Compose starts PostgreSQL, a one-shot migration
+job, the API, then the web app. It preserves database and raw-snapshot volumes;
+it does **not** scrape or ingest anything on startup. The API is at
+`http://localhost:8000/api/v1`. Local ports bind to loopback by default. Set
+`CINEGRAPH_BIND_ADDRESS` deliberately for access from another device; never
+expose the default PostgreSQL credentials publicly.
+
+For direct Conda development against the same local PostgreSQL container:
 
 ```bash
 conda env create -f environment.yml
 conda activate cine-graph
+# Use the host-accessible URL in .env.example; keep the real .env out of Git.
+cp .env.example .env
+PYTHONPATH=backend python -m app.migrations
+PYTHONPATH=backend uvicorn app.main:app --reload
+```
+
+The API checks the current Alembic revision at startup and never migrates it
+implicitly. Do not point tests at this working database. The isolated
+`cinegraph_test` stack and local browser test use:
+
+```bash
+backend/scripts/run_integration_tests.sh
+cd frontend && npm test && npm run build
+# With the isolated API running: CINEGRAPH_CHROME_PATH=/path/to/chrome npm run test:e2e
+```
+
+## Explicit data jobs
+
+These jobs are for rebuilding or extending a local corpus, not for browsing
+the app. Review [source policy](DATA_SOURCES.md) before any external access.
+
+```bash
 # Build the reproducible English 2000–2025 reference shelf (default: 1,000 films).
 # This is not an IMDb-derived list or a rating rank.
 PYTHONPATH=backend python -m app.services.english_reference_shelf --limit 1000
@@ -39,47 +69,19 @@ PYTHONPATH=backend python -m app.services.source_assertion_projection \
 # Extract a retained English Wikipedia revision into attributable passages.
 # This command does not fetch pages: run the revision-snapshot adapter first.
 PYTHONPATH=backend python -m app.services.wikipedia_research Q163872 --curate-pilot --quality
-PYTHONPATH=backend uvicorn app.main:app --reload
 ```
 
-To run the full Explorer locally, use Docker Compose:
+Ingestion is intentionally explicit so source-access decisions and local data
+changes are visible; ordinary API startup never fetches source pages.
 
-```bash
-docker compose up --build -d
-docker compose exec api python -m app.services.wikidata --limit 1000
-```
-
-Open `http://localhost:3000`. The frontend expects the API at
-`http://localhost:8000/api/v1` by default.
-Compose binds its web, API and PostgreSQL ports to loopback by default because
-this stack is for local development, not a public deployment. Set
-`CINEGRAPH_BIND_ADDRESS` deliberately if access from another device is needed;
-do not expose the default PostgreSQL credentials on a public interface.
-
-The import is intentionally explicit: it makes the source-access decision and
-the resulting local dataset visible instead of silently downloading data on
-application startup. It fetches and commits 100-film source pages sequentially,
-so an interrupted run can safely be repeated.
-
-Database schema changes are managed by Alembic. Compose runs a one-shot `migrate`
-service after PostgreSQL is healthy and before the API starts. The API checks
-the migration revision at startup but never changes the schema. For a direct
-local API process, run `PYTHONPATH=backend python -m app.migrations` first.
-An older local catalog is stamped at the documented legacy baseline and
-upgraded in place, never reset. The evidence-core backfill is a separate,
-idempotent command so operators can observe it before any API reads switch to
-the new projections.
+An older local catalog is stamped at the documented Alembic legacy baseline
+and upgraded in place, never reset. The evidence-core backfill is separate
+and idempotent so operators can inspect it before read projections change.
 
 Raw-statement projection is also explicit and idempotent. It reads no network
 source, selects only the latest retained successful snapshot for each Wikidata
 object, retracts projections from superseded snapshots, and never promotes an
 unclassified work target to a reviewed film relationship.
-
-Run checks:
-
-```bash
-PYTHONPATH=backend pytest -q backend/tests
-```
 
 The API starts at `http://localhost:8000`; catalog health is available at `/api/v1/health`.
 `/api/v1/corpus/quality` reports source records, narrative documents, matches,
