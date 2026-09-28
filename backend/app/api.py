@@ -12,6 +12,7 @@ from app.db import get_db
 from app.models import (
     Assertion, CanonicalEntity, CorpusRecord, DataSource, ExternalWorkRelationship, Film, FilmCredit, FilmGenre, FilmProvenance,
     FilmReleaseEvent, Genre, IngestionBatch, LanguageEdition, NarrativeDocument, Person, PersonProvenance,
+    ReferenceCollectionMembership,
 )
 from app.schemas import (
     CreditOut, FilmDetail, FilmListItem, GraphEdge, GraphNode, GraphOut, HealthOut,
@@ -22,7 +23,7 @@ from app.schemas import (
 )
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod
 from app.services.ollama_embeddings import OllamaEmbeddingClient
-from app.services.research_catalog import ResearchFilm, search_research_films
+from app.services.research_catalog import ResearchFilm, get_research_film, search_research_films
 from app.services.research_discovery import discover_research_films
 from app.services.story_comparison import compare_story_evidence
 from app.services.corpus_quality import corpus_quality_report
@@ -245,6 +246,14 @@ def research_films(
     return [research_film_item(film) for film in films]
 
 
+@router.get("/research/films/{entity_id}", response_model=ResearchFilmOut)
+def research_film_by_id(entity_id: UUID, db: Session = Depends(get_db)) -> ResearchFilmOut:
+    film = get_research_film(db, entity_id, collection_code=settings.research_collection_code)
+    if film is None:
+        raise HTTPException(status_code=404, detail="Film is not in the current research collection")
+    return research_film_item(film)
+
+
 @router.get("/lineage/entry-points", response_model=list[FilmListItem])
 def lineage_entry_points(
     limit: int = Query(default=6, ge=1, le=20),
@@ -391,8 +400,15 @@ def get_film(film_id: UUID, db: Session = Depends(get_db)) -> FilmDetail:
     if not film:
         raise HTTPException(status_code=404, detail="Film not found")
     item = film_item(film)
+    research_available = bool(film.entity_id and db.scalar(
+        select(ReferenceCollectionMembership.entity_id).where(
+            ReferenceCollectionMembership.collection_code == settings.research_collection_code,
+            ReferenceCollectionMembership.entity_id == film.entity_id,
+        )
+    ))
     return FilmDetail(
-        **item.model_dump(), wikidata_id=film.wikidata_id, countries=film.country_codes,
+        **item.model_dump(), entity_id=film.entity_id, research_available=research_available,
+        wikidata_id=film.wikidata_id, countries=film.country_codes,
         aliases=[alias.value for alias in film.aliases],
         credits=[CreditOut(person_id=credit.person.id, name=credit.person.canonical_name, role=credit.role, character_name=credit.character_name) for credit in sorted(film.credits, key=lambda c: (c.role, c.person.canonical_name))],
         provenance=provenance_for_film(db, film),

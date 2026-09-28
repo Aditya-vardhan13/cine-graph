@@ -17,7 +17,7 @@ export default async function FilmPage({ params }: { params: Promise<{ id: strin
     <Link href="/" className="back">← Back to catalog</Link>
     <section className="film-hero">
       <div className="detail-poster"><span>{year(film.release_date)}</span><b>{film.title.slice(0, 1)}</b></div>
-      <div><p className="eyebrow">Film profile</p><h1>{film.title}</h1><p className="metadata">{year(film.release_date)} <i>·</i> {film.runtime_minutes ? `${film.runtime_minutes} minutes` : "Runtime unavailable"} <i>·</i> Original language: {film.language_code.toUpperCase()}</p><div className="pills large">{film.genres.map((genre) => <span key={genre}>{genre}</span>)}</div><p className="detail-intro">This profile is derived from structured public metadata. Every displayed field links back to its source evidence.</p></div>
+      <div><p className="eyebrow">Film profile</p><h1>{film.title}</h1><p className="metadata">{year(film.release_date)} <i>·</i> {film.runtime_minutes ? `${film.runtime_minutes} minutes` : "Runtime unavailable"} <i>·</i> Original language: {film.language_code.toUpperCase()}</p><div className="pills large">{film.genres.map((genre) => <span key={genre}>{genre}</span>)}</div><p className="detail-intro">This profile is derived from structured public metadata. Every displayed field links back to its source evidence.</p>{film.research_available && film.entity_id ? <Link className="detail-study-link" href={`/?study=${film.entity_id}#compare`}>Study this film as a writer ↗</Link> : <p className="detail-research-unavailable">Writer comparison is not yet available for this catalog title.</p>}</div>
     </section>
 
     <section className="detail-grid">

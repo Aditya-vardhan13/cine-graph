@@ -69,3 +69,13 @@ test("unsupported question abstains without losing selected films", async ({ pag
   await expect(page.getByRole("link", { name: "Try another film" })).toBeVisible();
   await expect(page.getByText("Batman Begins", { exact: true }).first()).toBeVisible();
 });
+
+test("film profile opens the writer desk with that film selected", async ({ page, request }) => {
+  const films = await request.get("http://127.0.0.1:18001/api/v1/films?q=dark%20knight&limit=1");
+  expect(films.ok()).toBeTruthy();
+  const film = (await films.json())[0];
+  await page.goto(`/films/${film.id}`);
+  await page.getByRole("link", { name: "Study this film as a writer" }).click();
+  await expect(page).toHaveURL(/\?study=.*#compare/);
+  await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
+});

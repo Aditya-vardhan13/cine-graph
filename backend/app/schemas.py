@@ -30,6 +30,8 @@ class FilmListItem(BaseModel):
 
 
 class FilmDetail(FilmListItem):
+    entity_id: UUID | None
+    research_available: bool
     wikidata_id: str | None
     countries: list[str]
     aliases: list[str]

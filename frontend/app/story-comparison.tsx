@@ -27,6 +27,25 @@ export function StoryComparisonWorkbench() {
 
   useEffect(() => () => { comparisonRequest.current?.abort(); discoveryRequest.current?.abort(); }, []);
 
+  useEffect(() => {
+    const entityId = new URLSearchParams(window.location.search).get("study");
+    if (!entityId) return;
+    const studyId = entityId;
+    const controller = new AbortController();
+    async function loadFilm() {
+      try {
+        const response = await fetch(`/api/v1/research/films/${encodeURIComponent(studyId)}`, { signal: controller.signal });
+        if (!response.ok) throw new Error();
+        const film: ResearchFilm = await response.json();
+        if (!controller.signal.aborted) setFirst((current) => current ?? film);
+      } catch {
+        if (!controller.signal.aborted) setError("This film is not available for writer comparison yet. Search another title below.");
+      }
+    }
+    void loadFilm();
+    return () => controller.abort();
+  }, []);
+
   function invalidateComparison() {
     comparisonRequest.current?.abort();
     comparisonRequest.current = null;

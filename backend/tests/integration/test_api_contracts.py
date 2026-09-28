@@ -76,6 +76,12 @@ def test_search_detail_comparison_and_lineage_return_evidence_backed_contracts()
         "field_name": "canonical_title",
         "source_reference": "https://www.wikidata.org/wiki/Q163872",
     }]
+    assert detail_payload["research_available"] is True
+    assert detail_payload["entity_id"]
+    research_profile = api_get(f"/api/v1/research/films/{detail_payload['entity_id']}")
+    assert research_profile.status_code == 200
+    assert research_profile.json()["film_id"] == knight_id
+    assert api_get(f"/api/v1/research/films/{uuid4()}").status_code == 404
 
     begins = api_get("/api/v1/films?q=begins&limit=5").json()[0]
     comparison = api_get(f"/api/v1/films/compare?first_id={begins['id']}&second_id={knight_id}")
