@@ -3,6 +3,7 @@ import "./styles.css";
 import "./quality.css";
 import "./story-comparison.css";
 import "./research-navigation.css";
+import "./research-catalog-search.css";
 
 export const metadata: Metadata = {
   title: "CineGraph · Cinema Explorer",

@@ -79,3 +79,15 @@ test("film profile opens the writer desk with that film selected", async ({ page
   await expect(page).toHaveURL(/\?study=.*#compare/);
   await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
 });
+
+test("catalog search finds narrative films and opens a study", async ({ page, request }) => {
+  const health = await request.get("http://127.0.0.1:18001/health");
+  expect(health.ok()).toBeTruthy();
+  await page.goto("/");
+  await page.getByRole("link", { name: "Catalog" }).click();
+  await page.getByRole("textbox", { name: /Search the .*film writer library/ }).fill("Dark Knight");
+  const result = page.locator(".research-catalog-results a").filter({ hasText: "The Dark Knight" }).first();
+  await expect(result).toBeVisible();
+  await result.click();
+  await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
+});

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CorpusQuality, Film, FilmLineage, Health, year } from "../lib/api";
 import { StoryComparisonWorkbench } from "./story-comparison";
+import { ResearchCatalogSearch } from "./research-catalog-search";
 
 type Props = { health: Health | null; corpusQuality: CorpusQuality | null; initialFilms: Film[]; lineageEntryPoints: Film[]; initialError: string | null };
 
@@ -129,9 +130,11 @@ export function Explorer({ health, corpusQuality, initialFilms, lineageEntryPoin
 
       <section id="catalog" className="catalog">
         <div className="catalog-heading">
-          <div><p className="eyebrow">Curated entry points</p><h2>Start a rabbit hole</h2></div>
-          <p className="catalog-note">Open a film to see its people graph and transparent related-film signals.</p>
+          <div><p className="eyebrow">Writer library</p><h2>Find a film worth studying.</h2></div>
+          <p className="catalog-note">Search the narrative collection, then bring a film into your writing question. The profiles below are a separate public-metadata view.</p>
         </div>
+        <ResearchCatalogSearch count={corpusQuality?.research.films} />
+        <div className="catalog-heading metadata-catalog-heading"><div><p className="eyebrow">Metadata profiles</p><h2>Follow the people graph.</h2></div><p className="catalog-note">These profiles cover cast, crew and typed links; narrative-research availability can differ.</p></div>
         <div className="film-grid">
           {films.map((film, index) => <FilmCard key={film.id} film={film} index={index} />)}
         </div>
