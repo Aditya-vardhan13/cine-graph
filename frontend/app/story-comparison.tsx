@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ResearchDiscovery, ResearchFilm, StoryComparison, StoryComparisonEvidence, year } from "../lib/api";
+import { ResearchDiscovery, ResearchFilm, ResearchPassagePage, StoryComparison, StoryComparisonEvidence, year } from "../lib/api";
 import { parseWriterDecisionArchive, PinnedEvidence, renderWriterDecisionsMarkdown, WriterDecision } from "../lib/writer-study-export";
 
 const EXAMPLE_QUESTION = "How do these films turn the same idea into different character choices and consequences?";
@@ -28,6 +28,7 @@ export function StoryComparisonWorkbench() {
   const [first, setFirst] = useState<ResearchFilm | null>(null);
   const [second, setSecond] = useState<ResearchFilm | null>(null);
   const [workspaceReady, setWorkspaceReady] = useState(false);
+  const [dossierOpen, setDossierOpen] = useState(false);
   const [notes, setNotes] = useState<WriterDecision[]>([]);
   const [notesLoadFailed, setNotesLoadFailed] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
@@ -206,7 +207,7 @@ export function StoryComparisonWorkbench() {
 
   function chooseFilm(film: ResearchFilm) {
     invalidateComparison();
-    if (!first) setFirst(film);
+    if (!first) { setFirst(film); setDossierOpen(false); }
     else if (!second) setSecond(film);
     else setSecond(film);
     setQuery("");
@@ -317,6 +318,7 @@ export function StoryComparisonWorkbench() {
           <small>{question.trim().length}/400 · minimum 12 characters</small>
         </label>
         <button className="discovery-button" disabled={question.trim().length < 12 || discovering} onClick={discoverFilms}>{discovering ? "Finding film leads…" : "Find films for this question"}</button>
+        {first && <button className="dossier-button" aria-expanded={dossierOpen} onClick={() => setDossierOpen((open) => !open)}>{dossierOpen ? "Close film sources" : `Study ${first.title} on its own`}</button>}
         <button className="compare-button" disabled={!first || !second || question.trim().length < 12 || loading} onClick={compare}>{loading ? "Retrieving both films…" : "Build evidence comparison"}</button>
         {discoveryError && <p className="notice">{discoveryError}</p>}
         {error && <p className="notice">{error}</p>}
@@ -331,9 +333,46 @@ export function StoryComparisonWorkbench() {
         <button onClick={() => chooseFilm(lead.film)}>Add to comparison</button>
       </article>)}</div> : <p>{discovery.method === "not_run" ? "No film leads were suggested without the required evidence." : "No attributable film leads were found for this question. Try a more specific dramatic situation."}</p>}
     </section>}
+    {first && dossierOpen && <FilmDossier key={first.entity_id} film={first} />}
     {result && <ComparisonResult key={`${result.first.entity_id}:${result.second.entity_id}:${result.question}`} result={result} saveNote={saveNote} />}
     <StudyLibrary notes={notes} error={notesError} importMessage={importMessage} onImport={importNotes} onDownload={downloadNotes} onReopen={reopenNote} />
   </>;
+}
+
+const DOSSIER_SECTIONS = [
+  { id: "plot", label: "Story" }, { id: "production", label: "Making it" },
+  { id: "reception", label: "Response" }, { id: "themes", label: "Interpretation" },
+  { id: "legacy", label: "Legacy" },
+] as const;
+
+function FilmDossier({ film }: { film: ResearchFilm }) {
+  const [section, setSection] = useState<string>("plot");
+  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState<ResearchPassagePage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+    setPage(null);
+    void fetch(`/api/v1/research/films/${encodeURIComponent(film.entity_id)}/passages?section=${section}&limit=6&offset=${offset}`, { signal: controller.signal })
+      .then(async (response) => { if (!response.ok) throw new Error(); return await response.json() as ResearchPassagePage; })
+      .then((payload) => { if (!controller.signal.aborted) setPage(payload); })
+      .catch(() => { if (!controller.signal.aborted) setError("Film sources could not be loaded. Try again later."); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [film.entity_id, section, offset]);
+  return <section className="film-dossier" aria-live="polite">
+    <header><div><p className="eyebrow">Single-film research</p><h2>{film.title}</h2><p>Read source passages by purpose. They are context to inspect, not verified claims about the film or a writing verdict.</p></div><small>Current research collection · source-linked</small></header>
+    <nav aria-label="Film source sections">{DOSSIER_SECTIONS.map((item) => <button key={item.id} aria-pressed={section === item.id} onClick={() => { setSection(item.id); setOffset(0); }}>{item.label}</button>)}</nav>
+    {loading && <p className="dossier-status">Loading source passages…</p>}
+    {error && <p className="dossier-status" role="alert">{error}</p>}
+    {page && <><p className="dossier-status">{page.total} source passage{page.total === 1 ? "" : "s"} in this section · showing {page.total ? offset + 1 : 0}–{Math.min(offset + page.limit, page.total)} · corpus version {page.preprocessing_run_id.slice(0, 8)}</p>
+      {page.passages.length ? <div className="dossier-passages">{page.passages.map((passage) => <article key={passage.chunk_id}><small>{passage.section_title}</small><p>{passage.excerpt}</p><a href={passage.source_url} target="_blank" rel="noopener noreferrer">Inspect source · {passage.source_license} · revision {passage.source_revision || "unavailable"} ↗</a></article>)}</div> : <p className="dossier-status">No eligible source passages are available in this section.</p>}
+      {page.total > page.limit && <div className="dossier-pagination"><button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - page.limit))}>← Previous</button><button disabled={offset + page.limit >= page.total} onClick={() => setOffset(offset + page.limit)}>Next passages →</button></div>}
+    </>}
+  </section>;
 }
 
 function StudyLibrary({ notes, error, importMessage, onImport, onDownload, onReopen }: {

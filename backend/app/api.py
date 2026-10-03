@@ -16,13 +16,14 @@ from app.models import (
 from app.schemas import (
     CreditOut, FilmDetail, FilmListItem, GraphEdge, GraphNode, GraphOut, HealthOut,
     CorpusQualityOut, CorpusSourceQuality, FilmComparison, FilmLineageOut, LanguageEditionOut, LineageEdgeOut, PersonDetail, ProvenanceOut,
-    ResearchDiscoveryLeadOut, ResearchDiscoveryOut, ResearchDiscoveryRequest, ResearchFilmOut,
+    ResearchDiscoveryLeadOut, ResearchDiscoveryOut, ResearchDiscoveryRequest, ResearchFilmOut, ResearchPassagePageOut, ResearchPassageOut,
     SimilarFilmOut, SimilarityFactor, StoryComparisonEvidenceOut, StoryComparisonLensOut,
     StoryComparisonOut, StoryComparisonRequest,
 )
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod
 from app.services.ollama_embeddings import OllamaEmbeddingClient
 from app.services.research_catalog import ResearchFilm, get_research_film, search_research_films, sourced_release_years
+from app.services.research_passages import browse_research_passages
 from app.services.research_discovery import discover_research_films
 from app.services.story_comparison import compare_story_evidence
 from app.services.corpus_quality import corpus_quality_report
@@ -253,6 +254,31 @@ def research_film_by_id(entity_id: UUID, db: Session = Depends(get_db)) -> Resea
     if film is None:
         raise HTTPException(status_code=404, detail="Film is not in the current research collection")
     return research_film_item(film)
+
+
+@router.get("/research/films/{entity_id}/passages", response_model=ResearchPassagePageOut)
+def research_film_passages(
+    entity_id: UUID,
+    section: str = Query(default="plot", pattern="^(plot|production|reception|themes|legacy)$"),
+    limit: int = Query(default=8, ge=1, le=20),
+    offset: int = Query(default=0, ge=0, le=1000),
+    db: Session = Depends(get_db),
+) -> ResearchPassagePageOut:
+    film = get_research_film(db, entity_id, collection_code=settings.research_collection_code)
+    if film is None:
+        raise HTTPException(status_code=404, detail="Film is not in the current research collection")
+    try:
+        page = browse_research_passages(
+            db, entity_id=entity_id, collection_code=settings.research_collection_code,
+            section=section, limit=limit, offset=offset,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return ResearchPassagePageOut(
+        film=research_film_item(film), section=section, total=page.total,
+        limit=limit, offset=offset, preprocessing_run_id=page.preprocessing_run_id,
+        passages=[ResearchPassageOut(**item.__dict__) for item in page.passages],
+    )
 
 
 @router.get("/lineage/entry-points", response_model=list[FilmListItem])

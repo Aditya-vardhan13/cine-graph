@@ -72,6 +72,22 @@
 .saved-study-title p{color:var(--muted);font-size:12px}
 .saved-study-title button{white-space:nowrap;background:transparent;border:1px solid #63834d;color:var(--lime);padding:8px 10px;cursor:pointer}
 .study-library [role=alert]{color:#f0b34b}.study-library [role=status]{color:var(--lime)}
+.dossier-button{border:1px solid #697657;background:transparent;color:var(--lime);padding:12px 14px;text-align:left;cursor:pointer}
+.film-dossier{border:1px solid #3b4050;border-top:0;background:#10151b;padding:32px 42px}
+.film-dossier header{display:flex;justify-content:space-between;align-items:start;gap:24px}
+.film-dossier h2{font:40px/1.05 var(--serif);margin:0}
+.film-dossier header p:not(.eyebrow),.film-dossier header small,.dossier-status{font-size:12px;line-height:1.5;color:var(--muted)}
+.film-dossier nav{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0;border-bottom:1px solid #343b4a;padding-bottom:17px}
+.film-dossier nav button,.dossier-pagination button{background:transparent;border:1px solid #485061;color:var(--ink);padding:9px 12px;cursor:pointer}
+.film-dossier nav button[aria-pressed=true]{border-color:var(--lime);color:var(--lime);background:#243124}
+.dossier-passages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.dossier-passages article{background:#151c25;border:1px solid #354050;padding:17px;min-width:0}
+.dossier-passages article small{color:var(--violet);font-size:10px;text-transform:uppercase;letter-spacing:.6px}
+.dossier-passages article p{white-space:pre-wrap;font:16px/1.5 var(--serif);color:#ded9d1}
+.dossier-passages article a{color:var(--lime);font-size:10px;text-decoration:none}
+.dossier-pagination{display:flex;justify-content:space-between;margin-top:18px}.dossier-pagination button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:900px){.film-dossier{padding:28px}.dossier-passages{grid-template-columns:1fr}}
+@media(max-width:600px){.film-dossier header{flex-direction:column}}
 @media(max-width:900px){.study-library{padding:28px}.study-library-heading{flex-direction:column}.study-library-heading .decision-actions{justify-content:flex-start}.study-library .saved-decisions{grid-template-columns:1fr}}
 @media(max-width:600px){.saved-study-title{flex-direction:column;padding-bottom:12px}}
 @media(max-width:900px){.discovery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

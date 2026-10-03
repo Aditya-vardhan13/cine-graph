@@ -121,6 +121,16 @@ def test_preprocessing_uses_real_postgresql_rows_and_preserves_narrative_lineage
     assert report["quality_status_counts"]["eligible"] >= 1
     assert report["eligible_chunks_per_film"]["films_with_eligible_chunks"] == 2
 
+    knight = api_get("/api/v1/research/films?q=dark%20knight&limit=1").json()[0]
+    passage_page = api_get(f"/api/v1/research/films/{knight['entity_id']}/passages?section=plot&limit=1")
+    assert passage_page.status_code == 200
+    assert passage_page.json()["film"]["title"] == "The Dark Knight"
+    assert passage_page.json()["total"] >= 1
+    assert len(passage_page.json()["passages"]) == 1
+    assert passage_page.json()["passages"][0]["source_url"].startswith("https://")
+    assert api_get(f"/api/v1/research/films/{uuid4()}/passages").status_code == 404
+    assert api_get(f"/api/v1/research/films/{knight['entity_id']}/passages?section=invalid").status_code == 422
+
     with create_engine(DATABASE_URL).connect() as connection:
         rows = connection.execute(text(
             "SELECT chunk.source_snapshot_id = passage.source_snapshot_id "

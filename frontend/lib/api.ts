@@ -105,6 +105,24 @@ export type ResearchFilm = {
   metadata_evidence: Record<string, Array<{assertion_id: string; source_url: string; source_revision: string | null; review_status: string}>>;
 };
 
+export type ResearchPassagePage = {
+  film: ResearchFilm;
+  section: string;
+  total: number;
+  limit: number;
+  offset: number;
+  preprocessing_run_id: string;
+  passages: Array<{
+    chunk_id: string;
+    section_title: string;
+    section_locator: string;
+    excerpt: string;
+    source_url: string;
+    source_revision: string | null;
+    source_license: string;
+  }>;
+};
+
 export type StoryComparison = {
   question: string;
   first: ResearchFilm;

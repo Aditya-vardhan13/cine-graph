@@ -133,3 +133,20 @@ test("an unfinished writer draft survives a browser reload", async ({ page, requ
   await expect(page.getByText("Batman Begins: 1 pinned")).toBeVisible();
   await expect(page.getByText("The Dark Knight: 1 pinned")).toBeVisible();
 });
+
+test("writer can study one film through attributed source sections", async ({ page, request }) => {
+  const health = await request.get("http://127.0.0.1:18001/health");
+  expect(health.ok()).toBeTruthy();
+  await page.goto("/");
+  const search = page.getByRole("textbox", { name: "Search comparison films" });
+  await search.fill("Batman Begins");
+  await page.getByRole("button", { name: /Batman Begins.*select/ }).click();
+  await page.getByRole("button", { name: "Study Batman Begins on its own" }).click();
+  const dossier = page.locator(".film-dossier");
+  await expect(dossier.getByRole("heading", { name: "Batman Begins" })).toBeVisible();
+  await expect(dossier.locator(".dossier-passages article").first()).toBeVisible();
+  await expect(dossier.getByRole("link", { name: /Inspect source/ }).first()).toHaveAttribute("href", /^https:\/\//);
+  await dossier.getByRole("button", { name: "Making it" }).click();
+  await expect(dossier.locator(".dossier-passages article").first()).toBeVisible();
+  await expect(dossier.getByRole("button", { name: "Making it" })).toHaveAttribute("aria-pressed", "true");
+});

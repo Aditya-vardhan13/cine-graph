@@ -106,6 +106,26 @@ class ResearchFilmOut(BaseModel):
     metadata_evidence: dict[str, list[dict[str, str | None]]]
 
 
+class ResearchPassageOut(BaseModel):
+    chunk_id: UUID
+    section_title: str
+    section_locator: str
+    excerpt: str
+    source_url: str
+    source_revision: str | None
+    source_license: str
+
+
+class ResearchPassagePageOut(BaseModel):
+    film: ResearchFilmOut
+    section: str
+    total: int
+    limit: int
+    offset: int
+    preprocessing_run_id: UUID
+    passages: list[ResearchPassageOut]
+
+
 class StoryComparisonRequest(BaseModel):
     first_entity_id: UUID
     second_entity_id: UUID

@@ -26,6 +26,7 @@ from app.services.embedding_index_reuse import create_exact_reuse_index, plan_ex
 from app.services.embedding_evaluation import _evaluation_rows
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.research_catalog import search_research_films
+from app.services.research_passages import browse_research_passages
 from app.services.retrieval_scope import resolve_retrieval_scope
 from tests.postgres_test_db import isolated_postgres_engine
 
@@ -89,6 +90,24 @@ def test_canonical_metadata_works_without_legacy_profile(research_db):
     assert result.language_code == "en"
     assert result.genre_ids == ["Q471839"]
     assert result.metadata_evidence["release_event"][0]["source_revision"] == "2513891788"
+
+
+def test_single_film_passage_browser_uses_active_source_linked_chunks(research_db):
+    film = search_research_films(research_db, query_text="her", collection_code=COLLECTION)[0]
+    build_evidence_chunks(research_db, collection_code=COLLECTION)
+    page = browse_research_passages(
+        research_db, entity_id=film.entity_id, collection_code=COLLECTION,
+        section="plot", limit=1, offset=0,
+    )
+    assert page.total > 0
+    assert len(page.passages) == 1
+    assert page.passages[0].source_url == "https://en.wikipedia.org/wiki/Her_(2013_film)"
+    assert page.passages[0].source_license == "CC BY-SA 4.0"
+    assert page.passages[0].excerpt
+    assert browse_research_passages(
+        research_db, entity_id=film.entity_id, collection_code=COLLECTION,
+        section="legacy", limit=8, offset=0,
+    ).total == 0
 
 
 def test_recovered_chunk_run_reuses_vectors_only_for_exact_indexed_documents(research_db):
