@@ -11,6 +11,7 @@ import json
 import time
 import hashlib
 import argparse
+from urllib.parse import quote
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any
@@ -156,8 +157,18 @@ def ingest_title_year_entries(db: Session, entries: list[dict[str, Any]], manife
     stats = {"resolved": 0, "not_found": 0, "snapshots": 0, "source_assertions": 0}
     for index, entry in enumerate(entries):
         title = str(entry.get("wikipedia_title") or entry["title"])
-        lookup = page_lookup(title)
-        time.sleep(request_interval_seconds())
+        if entry.get("verified_wikidata_sitelink") and entry.get("wikidata_id"):
+            # A retained Wikidata enwiki sitelink is an exact page identity.
+            # The MediaWiki revision response below must independently return
+            # the expected QID before any source assertion is accepted.
+            lookup = {
+                "requested_title": title, "resolved_title": title,
+                "fullurl": "https://en.wikipedia.org/wiki/" + quote(title.replace(" ", "_")),
+                "section_titles": [],
+            }
+        else:
+            lookup = page_lookup(title)
+            time.sleep(request_interval_seconds())
         if not lookup:
             stats["not_found"] += 1
             continue

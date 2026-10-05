@@ -174,11 +174,24 @@ def main() -> None:
     from app.migrations import run_migrations
 
     parser = argparse.ArgumentParser(description="Snapshot selected CC0 Wikidata entities before normalization.")
-    parser.add_argument("qids", nargs="+", help="Selected Wikidata QIDs; discovery remains a separate manifest step.")
+    parser.add_argument("qids", nargs="*", help="Selected Wikidata QIDs; discovery remains a separate manifest step.")
+    parser.add_argument("--manifest", type=Path, help="JSONL entries carrying verified wikidata_id values")
     args = parser.parse_args()
+    if bool(args.qids) == bool(args.manifest):
+        parser.error("provide QIDs or --manifest, but not both")
+    qids = args.qids
+    if args.manifest:
+        qids = list(dict.fromkeys(
+            json.loads(line)["wikidata_id"]
+            for line in args.manifest.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ))
+    if any(not QID.fullmatch(qid) for qid in qids):
+        parser.error("manifest contains an invalid Wikidata ID")
     run_migrations()
     with SessionLocal() as db:
-        print(ingest_selected_qids(db, args.qids))
+        print(ingest_selected_qids(db, qids,
+                                   manifest_uri=str(args.manifest) if args.manifest else None))
 
 
 if __name__ == "__main__":

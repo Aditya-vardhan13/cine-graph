@@ -43,6 +43,21 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
+  ingest:
+    profiles: ["tools"]
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/cinegraph
+      RAW_SNAPSHOT_ROOT: /var/lib/cinegraph/raw-snapshots
+    volumes:
+      - raw_snapshots:/var/lib/cinegraph/raw-snapshots
+      - ./data:/app/data
+      - ./imdb_data:/imports/imdb:ro
+      - ./name.basics.tsv:/imports/name.basics.tsv:ro
+      - ./tmdb_api.env:/run/secrets/tmdb_api.env:ro
+    depends_on:
+      db:
+        condition: service_healthy
   web:
     build:
       context: ./frontend

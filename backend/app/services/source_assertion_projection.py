@@ -94,6 +94,7 @@ def _retract_superseded(
     db: Session,
     latest,
     collection_code: str | None,
+    qids: set[str] | None,
 ) -> int:
     statement = select(Assertion).join(
         AssertionEvidence, AssertionEvidence.assertion_id == Assertion.id,
@@ -118,6 +119,8 @@ def _retract_superseded(
             ReferenceCollectionMembership,
             ReferenceCollectionMembership.entity_id == CanonicalEntity.id,
         ).where(ReferenceCollectionMembership.collection_code == collection_code)
+    if qids is not None:
+        statement = statement.where(CanonicalEntity.wikidata_id.in_(qids))
     assertions = list(db.scalars(statement).unique())
     for assertion in assertions:
         assertion.review_status = "retracted"
@@ -128,13 +131,16 @@ def project_source_assertions(
     db: Session,
     *,
     collection_code: str | None = None,
+    qids: set[str] | None = None,
     batch_size: int = 2000,
 ) -> dict[str, Any]:
     """Project allow-listed facts from current Wikidata snapshots, idempotently."""
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
+    if qids is not None and not qids:
+        raise ValueError("QID projection scope cannot be empty")
     latest = _latest_snapshot_subquery()
-    retracted = _retract_superseded(db, latest, collection_code)
+    retracted = _retract_superseded(db, latest, collection_code, qids)
     stats: dict[str, Any] = {
         "statements_scanned": 0,
         "assertions_created": 0,
@@ -165,6 +171,8 @@ def project_source_assertions(
                 ReferenceCollectionMembership,
                 ReferenceCollectionMembership.entity_id == CanonicalEntity.id,
             ).where(ReferenceCollectionMembership.collection_code == collection_code)
+        if qids is not None:
+            statement = statement.where(CanonicalEntity.wikidata_id.in_(qids))
         if cursor:
             statement = statement.where(SourceAssertion.id > cursor)
         rows = db.execute(statement.order_by(SourceAssertion.id).limit(batch_size)).all()
@@ -298,13 +306,25 @@ def main() -> None:
     from app.migrations import run_migrations
 
     parser = argparse.ArgumentParser(description="Project current raw Wikidata statements into evidence-linked operational assertions.")
-    parser.add_argument("--collection")
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument("--collection")
+    scope.add_argument("--manifest", type=Path,
+                       help="Project only explicit Wikidata QIDs from a JSONL movie manifest")
     parser.add_argument("--batch-size", type=int, default=2000)
     parser.add_argument("--report-dir", type=Path)
     args = parser.parse_args()
+    qids = None
+    if args.manifest:
+        qids = {json.loads(line).get("wikidata_id")
+                for line in args.manifest.read_text(encoding="utf-8").splitlines()
+                if line.strip()}
+        if not qids or any(not isinstance(qid, str) or not qid.startswith("Q")
+                           or not qid[1:].isdigit() for qid in qids):
+            parser.error("Manifest needs valid Wikidata QIDs on every line")
     run_migrations()
     with SessionLocal() as db:
-        stats = project_source_assertions(db, collection_code=args.collection, batch_size=args.batch_size)
+        stats = project_source_assertions(db, collection_code=args.collection,
+                                          qids=qids, batch_size=args.batch_size)
         result: dict[str, Any] = {"projection": stats}
         if args.collection:
             result["coverage"] = projection_coverage(db, args.collection)

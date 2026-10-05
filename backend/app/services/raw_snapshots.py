@@ -84,6 +84,12 @@ def snapshot(
         SourceSnapshot.content_hash == content_hash,
     ))
     if existing:
+        # A retained content hash/revision may outlive the machine-specific
+        # path where it was first stored. store_payload above has just written
+        # the identical bytes into this environment's content-addressed store;
+        # repairing the location preserves the immutable evidence itself.
+        if existing.storage_uri != storage_uri:
+            existing.storage_uri = storage_uri
         link_snapshot_to_run(db, run.id, existing.id, "reused")
         return existing, False
     created = SourceSnapshot(

@@ -8,8 +8,20 @@ from typing import Any, Mapping
 
 METADATA_PREDICATES = ("release_event", "runtime", "genre", "original_language")
 # Identifier translation, not inference from the language of an article.
-LANGUAGE_CODES = {"Q1860": "en", "Q8097": "te", "Q1568": "hi", "Q5885": "ta"}
+LANGUAGE_CODES = {
+    "Q1860": "en", "Q8097": "te", "Q1568": "hi", "Q5885": "ta",
+    "Q36236": "ml", "Q33673": "kn", "Q9610": "bn", "Q1571": "mr",
+}
 MINUTE_FACTORS = {"Q7727": Decimal(1), "Q11574": Decimal(1) / 60, "Q25235": Decimal(60)}
+
+
+def language_code_for_qids(qids: set[str]) -> str:
+    """A single-valued profile must not arbitrarily choose one of several languages."""
+    if len(qids) > 1:
+        return "mul"
+    if not qids:
+        return "und"
+    return LANGUAGE_CODES.get(next(iter(qids)), "und")
 
 
 @dataclass(frozen=True)
@@ -85,8 +97,7 @@ def display_metadata(
         issues.add("some_genre_labels_unavailable")
     language_ids = sorted({a.value["wikidata_id"] for a in groups["original_language"]
                            if isinstance(a.value.get("wikidata_id"), str)})
-    language_code = (LANGUAGE_CODES.get(language_ids[0], "und") if len(language_ids) == 1
-                     else "mul" if language_ids else "und")
+    language_code = language_code_for_qids(set(language_ids))
     evidence_groups = {**groups, "release_event": release_evidence}
     return {
         "release_date": exact_release.isoformat() if exact_release else None,

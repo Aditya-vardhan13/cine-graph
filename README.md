@@ -4,7 +4,7 @@ CineGraph is a source-linked film research desk for writers. Ask a writing quest
 
 ## Current local milestone
 
-- The current local database has 1,226 film profiles; the English writer collection has 1,000 films with 48,892 retained passages and 24,194 indexed chunks. These are coverage counts, not independent accuracy or usefulness scores.
+- The English writer collection contains 1,000 selected films. A separate 500-film Indian research cohort is being audited and enriched locally; current source-by-source counts live in local quality reports, not Git. Coverage is not an independent accuracy or usefulness score.
 - The writer desk supports question-first discovery, film-first source browsing by story, production, response, interpretation and legacy, film-pair comparison, alternate source passages, abstention when a question cannot be substantiated, and writer-authored study notes. Unfinished drafts recover after refresh, and the always-visible My studies shelf keeps saved notes available even before another comparison. Notes stay in the browser unless exported; JSON archives can be restored.
 - Wikidata metadata and typed relationships retain source assertions and the reviewed operational `Assertion` projection. Wikipedia narrative passages remain attributed source text, not promoted facts.
 - The local hybrid-retrieval benchmark measured finding a labeled passage in a candidate set; it does **not** establish that every displayed passage answers a writer's question. The 20-task writer study is still a development diagnostic, not a passed product-usefulness gate. See [writer-study findings](docs/writer-study-v2-findings-2026-09-29.md).
@@ -73,6 +73,44 @@ PYTHONPATH=backend python -m app.services.wikipedia_research Q163872 --curate-pi
 
 Ingestion is intentionally explicit so source-access decisions and local data
 changes are visible; ordinary API startup never fetches source pages.
+
+### Local movie data gateway
+
+The gateway accepts a JSONL film list and is deliberately separate from web
+requests. Put the five required IMDb title TSVs (`basics`, `akas`, `crew`,
+`principals`, `ratings`) in `imdb_data/`, `name.basics.tsv` at the
+project root, and the TMDb developer credential in `tmdb_api.env`. These files,
+the derived index, all source snapshots, and ingestion reports stay local and
+are ignored by Git. See [source rights](DATA_SOURCES.md) before any deployment.
+
+```bash
+docker compose --profile tools build ingest
+docker compose --profile tools run --rm ingest python -m app.services.imdb_dataset
+docker compose --profile tools run --rm ingest python -m app.services.movie_data_gateway \
+  --manifest data/manifests/my-films.jsonl --create \
+  --report data/reports/my-films.json
+```
+
+One manifest line can be as small as `{"title":"A Film","year":2008}`. Supply
+`imdb_id` whenever known; `wikidata_id`, `language_code`, and
+`selection_source_url` make identity and provenance stronger. An exact unique
+title/year is accepted; a fuzzy title needs a matching IMDb actor-credit
+anchor (`imdb_person_id`) or an explicit reviewed IMDb ID. Unresolved titles
+are reported, not silently matched. Re-running a manifest reuses identical
+source snapshots and assertions. Existing catalog films with reviewed IMDb IDs
+can be backfilled with `--existing` instead of `--manifest`.
+
+TMDb can be added to an explicit run with
+`--tmdb-key-file /run/secrets/tmdb_api.env`. It is never needed for IMDb-only
+ingestion; if the remote route is unavailable, the IMDb run remains durable and
+the TMDb failure is reported separately. The developer key and fetched TMDb
+data are not committed. The cross-language Indian 500-film selection and its
+Wikidata/Wikipedia follow-up are operator jobs under
+`backend/app/services/indian_film_selection.py`,
+`indian_wikipedia_manifest.py`, and `indian_narrative_jobs.py`; their local
+selection and coverage reports explain what was actually admitted.
+For repeatable runs on any film list, including resume, identity gates and
+post-ingestion audits, see [the movie gateway runbook](docs/local-movie-data-gateway.md).
 
 An older local catalog is stamped at the documented Alembic legacy baseline
 and upgraded in place, never reset. The evidence-core backfill is separate

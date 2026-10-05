@@ -112,6 +112,7 @@ def test_projector_is_idempotent_evidence_linked_and_retracts_old_snapshots() ->
 
         second = project_source_assertions(db, collection_code=collection.code, batch_size=2)
         third = project_source_assertions(db, collection_code=collection.code, batch_size=2)
+        scoped = project_source_assertions(db, qids={"Q42"}, batch_size=2)
         assertions = list(db.scalars(select(Assertion).order_by(Assertion.created_at, Assertion.predicate)))
         evidence = list(db.scalars(select(AssertionEvidence).where(
             AssertionEvidence.source_assertion_id.is_not(None),
@@ -129,6 +130,8 @@ def test_projector_is_idempotent_evidence_linked_and_retracts_old_snapshots() ->
         assert second["skipped_by_property"] == {"P999": 1}
         assert third["assertions_created"] == 0
         assert third["assertions_reused"] == 3
+        assert scoped["assertions_created"] == 0
+        assert scoped["assertions_reused"] == 3
         assert len(evidence) == 4
         assert targets == {"Q10": "person", "Q11": "person", "Q99": "unknown_work"}
         active = {(item.predicate, item.object_entity_kind, item.review_status) for item in assertions if item.review_status != "retracted"}

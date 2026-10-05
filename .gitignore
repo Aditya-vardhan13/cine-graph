@@ -15,3 +15,6 @@ dist/
 *.db-journal
 data/
 imdb_top_1000.csv
+imdb_data/
+name.basics.tsv
+tmdb_api.env
