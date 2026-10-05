@@ -42,7 +42,7 @@ def _references(db: Session, entity_id: UUID) -> dict[str, int]:
     return found
 
 
-def _imdb_film(db: Session, imdb_id: str) -> Film | None:
+def imdb_film_for_identifier(db: Session, imdb_id: str) -> Film | None:
     return db.scalar(select(Film).join(
         EntityResolution, EntityResolution.entity_id == Film.entity_id,
     ).join(SourceObject, SourceObject.id == EntityResolution.source_object_id
@@ -106,7 +106,7 @@ def prepare_qid_subject(db: Session, seed: MovieSeed, *, apply: bool) -> dict:
 def reconcile_one(db: Session, seed: MovieSeed, *, apply: bool) -> dict:
     if not seed.imdb_id or not seed.wikidata_id:
         raise ValueError("Manifest line needs explicit IMDb and Wikidata IDs")
-    film = _imdb_film(db, seed.imdb_id)
+    film = imdb_film_for_identifier(db, seed.imdb_id)
     target = db.scalar(select(CanonicalEntity).where(
         CanonicalEntity.wikidata_id == seed.wikidata_id,
     ))

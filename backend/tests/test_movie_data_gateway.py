@@ -6,11 +6,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import Base
+from app.admin_intake import enqueue_films, imdb_id_from_input
 from app.models import (
     Assertion, AssertionEvidence, CanonicalEntity, DataSource, Film, LanguageEdition,
-    ReferenceCollection, ReferenceCollectionMembership, SourceAssertion, SourceSnapshot,
+    MovieIntakeJob, ReferenceCollection, ReferenceCollectionMembership, SourceAssertion, SourceSnapshot,
 )
 from app.services.imdb_dataset import ImdbDataset, build_index
+from app.services.movie_intake_worker import claim_next
 from app.services.actor_filmography import match_row, parse_filmography
 from app.services.indian_film_selection import (
     Candidate, LANGUAGES, ambiguous_imdb_qids, parse_candidates, select_manifest, sparql_query,
@@ -197,6 +199,15 @@ def test_source_metadata_audit_reports_conflicts_without_promoting_either_source
     assert compare_source_metadata("A Film", "Q123", "te", {2008}, {"2008"}, {"te"}) == []
 
 
+def test_intake_uses_exact_imdb_identity_and_local_prefix_suggestions(tmp_path) -> None:
+    dataset, _ = _mini_dataset(tmp_path)
+    assert dataset.suggest_titles("a fi")[0]["tconst"] == "tt0000001"
+    assert imdb_id_from_input("tt0000001") == "tt0000001"
+    assert imdb_id_from_input("https://www.imdb.com/title/tt0000001/?ref_=example") == "tt0000001"
+    assert imdb_id_from_input("https://example.com/title/tt0000001/") is None
+    assert imdb_id_from_input("http://www.imdb.com/title/tt0000001/") is None
+
+
 def test_wikidata_imdb_discovery_retains_ambiguous_qids() -> None:
     assert '"tt0000001"' in imdb_qid_query(["tt0000001"])
     payload = {"results": {"bindings": [
@@ -315,6 +326,38 @@ def test_collection_audit_flags_missing_character_credit() -> None:
         report = audit_collection(db, "fixture")
         assert report["coverage"].get("with_any_character_credit", 0) == 0
         assert "no_character_credit" in report["gaps"][0]["issues"]
+
+
+@pytest.mark.integration
+def test_intake_job_claim_is_durable_and_not_double_claimed() -> None:
+    engine = isolated_postgres_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(MovieIntakeJob(imdb_id="tt0000001", title="A Film", year=2008,
+                              status="queued", stage="queued", attempts=0))
+        db.commit()
+        claimed = claim_next(db)
+        assert claimed is not None
+        assert claimed.status == "running"
+        assert claimed.stage == "imdb_tmdb"
+        assert claimed.attempts == 1
+        assert claim_next(db) is None
+
+
+@pytest.mark.integration
+def test_intake_batch_validates_all_movies_and_deduplicates(tmp_path) -> None:
+    dataset, _ = _mini_dataset(tmp_path)
+    engine = isolated_postgres_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        with pytest.raises(ValueError, match="not a local IMDb movie"):
+            enqueue_films(db, dataset, ["tt0000001", "tt9999999"])
+        assert db.scalar(select(MovieIntakeJob.id)) is None
+        first = enqueue_films(db, dataset, ["tt0000001", "https://www.imdb.com/title/tt0000001/"])
+        second = enqueue_films(db, dataset, ["tt0000001"])
+        assert len(first) == len(second) == 1
+        assert first[0].id == second[0].id
+        assert first[0].title == "A Film"
 
 
 @pytest.mark.integration

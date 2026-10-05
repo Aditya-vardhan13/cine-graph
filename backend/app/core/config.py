@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://127.0.0.1:11434"
     interactive_embedding_timeout_seconds: float = Field(default=12.0, ge=1, le=30)
     research_collection_code: str = "english-1000-retained-narrative-v1"
+    admin_intake_token: str | None = None
+    imdb_data_dir: str = "/imports/imdb"
+    imdb_index_dir: str = "data/imdb_index"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

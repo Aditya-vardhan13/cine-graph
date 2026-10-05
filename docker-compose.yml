@@ -29,10 +29,15 @@ services:
       API_CORS_ORIGINS: http://localhost:3000
       RAW_SNAPSHOT_ROOT: /var/lib/cinegraph/raw-snapshots
       OLLAMA_BASE_URL: http://host.docker.internal:11434
+      ADMIN_INTAKE_TOKEN: ${CINEGRAPH_ADMIN_TOKEN:-}
+      IMDB_DATA_DIR: /imports/imdb
+      IMDB_INDEX_DIR: /app/data/imdb_index
     ports:
       - "${CINEGRAPH_BIND_ADDRESS:-127.0.0.1}:8000:8000"
     volumes:
       - raw_snapshots:/var/lib/cinegraph/raw-snapshots
+      - ./data:/app/data:ro
+      - ./imdb_data:/imports/imdb:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -58,6 +63,23 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  intake_worker:
+    build: ./backend
+    command: python -m app.services.movie_intake_worker
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/cinegraph
+      RAW_SNAPSHOT_ROOT: /var/lib/cinegraph/raw-snapshots
+      IMDB_DATA_DIR: /imports/imdb
+      IMDB_INDEX_DIR: /app/data/imdb_index
+    volumes:
+      - raw_snapshots:/var/lib/cinegraph/raw-snapshots
+      - ./data:/app/data
+      - ./imdb_data:/imports/imdb:ro
+      - ./name.basics.tsv:/imports/name.basics.tsv:ro
+      - ./tmdb_api.env:/run/secrets/tmdb_api.env:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
   web:
     build:
       context: ./frontend

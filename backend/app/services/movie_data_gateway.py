@@ -472,13 +472,15 @@ def persist_movie_bundle(db: Session, *, run: RawIngestionRun, source: DataSourc
 
 
 def add_to_collection(db: Session, film: Film, code: str, source_reference: str,
-                      selection_signals: dict[str, Any] | None = None) -> None:
+                      selection_signals: dict[str, Any] | None = None,
+                      *, language_code: str = "en") -> None:
     collection = db.get(ReferenceCollection, code)
     if collection is None:
+        _language(db, language_code)
         collection = ReferenceCollection(
             code=code, title=code.replace("_", " ").replace("-", " ").strip().title(),
             description="Operator-selected feature films with attributable source records; language is film-specific.",
-            language_code="en", selection_method="operator_manifest", selection_version="v1",
+            language_code=language_code, selection_method="operator_manifest", selection_version="v1",
             status="active",
         )
         db.add(collection)
@@ -527,7 +529,8 @@ def retract_replaced_identifier(db: Session, dataset: ImdbDataset, seed: MovieSe
 
 def run_ingestion(db: Session, *, seeds: list[MovieSeed], dataset: ImdbDataset,
                   manifest: str | None, create: bool, collection: str | None,
-                  tmdb_token: str | None = None, refresh_tmdb: bool = False) -> dict[str, Any]:
+                  tmdb_token: str | None = None, refresh_tmdb: bool = False,
+                  collection_language_code: str = "en") -> dict[str, Any]:
     imdb_source, imdb_policy = source_registration(db, IMDB_SOURCE)
     tmdb_source, tmdb_policy = source_registration(db, TMDB_SOURCE) if tmdb_token else (None, None)
     db.commit()
@@ -563,7 +566,7 @@ def run_ingestion(db: Session, *, seeds: list[MovieSeed], dataset: ImdbDataset,
                 if collection:
                     add_to_collection(db, film, collection,
                                       seed.selection_source_url or manifest or f"https://www.imdb.com/title/{tconst}/",
-                                      seed.selection_signals)
+                                      seed.selection_signals, language_code=collection_language_code)
                 imdb_run.records_snapshotted += result["imdb"]["snapshot_created"]
                 db.commit()
                 if client and tmdb_run and tmdb_source:

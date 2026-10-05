@@ -57,12 +57,19 @@ def build_index(data_dir: Path, index_dir: Path, *, kinds: tuple[str, ...] | Non
         if not path.is_file():
             raise FileNotFoundError(path)
         title_db = None
+        ratings_db = None
         if kind == "basics":
             title_path = index_dir / "titles.sqlite.next"
             if title_path.exists():
                 title_path.unlink()
             title_db = sqlite3.connect(title_path)
             title_db.execute("CREATE TABLE titles (tconst TEXT NOT NULL, title TEXT NOT NULL, normalized_title TEXT NOT NULL, year INTEGER, original_language TEXT)")
+        if kind == "ratings":
+            ratings_path = index_dir / "ratings.sqlite.next"
+            if ratings_path.exists():
+                ratings_path.unlink()
+            ratings_db = sqlite3.connect(ratings_path)
+            ratings_db.execute("CREATE TABLE ratings (tconst TEXT PRIMARY KEY, votes INTEGER NOT NULL) WITHOUT ROWID")
         offsets: list[list[str | int]] = []
         count = 0
         included = 0
@@ -105,6 +112,12 @@ def build_index(data_dir: Path, index_dir: Path, *, kinds: tuple[str, ...] | Non
                         included += 1
                     if count % 20000 == 0:
                         title_db.commit()
+                if ratings_db is not None:
+                    vote_value = values[header.index("numVotes")]
+                    if vote_value.isdigit():
+                        ratings_db.execute("INSERT INTO ratings VALUES (?, ?)", (key, int(vote_value)))
+                    if count % 20000 == 0:
+                        ratings_db.commit()
         if title_db is not None:
             title_db.execute("CREATE INDEX titles_name_year ON titles(normalized_title, year)")
             title_db.execute("CREATE INDEX titles_id ON titles(tconst)")
@@ -112,6 +125,10 @@ def build_index(data_dir: Path, index_dir: Path, *, kinds: tuple[str, ...] | Non
             title_db.commit()
             title_db.close()
             title_path.replace(index_dir / "titles.sqlite")
+        if ratings_db is not None:
+            ratings_db.commit()
+            ratings_db.close()
+            ratings_path.replace(index_dir / "ratings.sqlite")
         stat = path.stat()
         metadata = {
             "index_version": INDEX_VERSION, "filename": filename, "key_column": key_column,
@@ -217,6 +234,37 @@ class ImdbDataset:
             ranked.sort(key=lambda row: (-row["score"], abs(row["year"] - year), row["tconst"]))
             return ranked[:limit]
 
+    def suggest_titles(self, query: str, *, limit: int = 15) -> list[dict[str, Any]]:
+        """Indexed prefix suggestions for operator selection, never an identity decision."""
+        normalized = normalize_title(query)
+        if len(normalized) < 2 or not 1 <= limit <= 30:
+            return []
+        with sqlite3.connect(self.index_dir / "titles.sqlite") as db:
+            db.row_factory = sqlite3.Row
+            ranks = self.index_dir / "ratings.sqlite"
+            if ranks.is_file():
+                db.execute("ATTACH DATABASE ? AS ranks", (str(ranks),))
+                joins = "LEFT JOIN ranks.ratings AS r ON r.tconst=t.tconst"
+                votes = "MAX(COALESCE(r.votes,0))"
+            else:
+                joins, votes = "", "0"
+            def find(where: str, args: tuple) -> list[dict[str, Any]]:
+                rows = db.execute(
+                    f"SELECT t.tconst, MIN(t.title) AS title, t.year, {votes} AS votes "
+                    f"FROM titles AS t {joins} WHERE {where} GROUP BY t.tconst,t.year "
+                    "ORDER BY CASE WHEN MIN(t.normalized_title)=? THEN 0 ELSE 1 END, "
+                    "votes DESC, t.year DESC, title LIMIT ?",
+                    (*args, normalized, limit),
+                ).fetchall()
+                return [dict(row) for row in rows]
+            prefix = find("t.normalized_title>=? AND t.normalized_title<?",
+                          (normalized, normalized + "\uffff"))
+            if len(prefix) >= limit:
+                return prefix
+            others = find("t.normalized_title LIKE ?", (f"%{normalized}%",))
+            seen = {row["tconst"] for row in prefix}
+            return (prefix + [row for row in others if row["tconst"] not in seen])[:limit]
+
     def film_bundle(self, tconst: str) -> dict[str, Any]:
         if not IMDB_ID.fullmatch(tconst):
             raise ValueError("Expected an IMDb title identifier")
@@ -247,8 +295,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Build disposable local IMDb TSV seek indexes")
     parser.add_argument("--data-dir", type=Path, default=Path("/imports/imdb"))
     parser.add_argument("--index-dir", type=Path, default=Path("data/imdb_index"))
+    parser.add_argument("--ratings-only", action="store_true",
+                        help="Add or refresh the local suggestion-rank index without rescanning all IMDb files")
     args = parser.parse_args()
-    print(json.dumps(build_index(args.data_dir, args.index_dir), indent=2))
+    print(json.dumps(build_index(args.data_dir, args.index_dir,
+                                 kinds=("ratings",) if args.ratings_only else None), indent=2))
 
 
 if __name__ == "__main__":

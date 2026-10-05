@@ -22,6 +22,24 @@ class LanguageEdition(Base):
     transliteration_strategy: Mapped[str | None] = mapped_column(String(100))
 
 
+class MovieIntakeJob(Base):
+    """One durable operator-selected film; source evidence stays in existing tables."""
+
+    __tablename__ = "movie_intake_jobs"
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    imdb_id: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    year: Mapped[int | None] = mapped_column(Integer)
+    submitted_url: Mapped[str | None] = mapped_column(String(1000))
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="queued", index=True)
+    stage: Mapped[str] = mapped_column(String(50), nullable=False, default="queued")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    review_reason: Mapped[str | None] = mapped_column(Text)
+    film_entity_id: Mapped[UUID | None] = mapped_column(ForeignKey("canonical_entities.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class DataSource(Base):
     __tablename__ = "data_sources"
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
