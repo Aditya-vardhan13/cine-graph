@@ -32,6 +32,25 @@ Long Drive is the one film without a verified TMDb match; a similar title is
 not enough to attach a TMDb record. The two Wikidata items without an enwiki
 sitelink are kept unlinked rather than guessed.
 
+A second, read-only check found 13 cross-source metadata disagreements in the
+500-film cohort: 12 IMDb start-year versus TMDb primary-date year differences,
+and one original-language difference. The 26-film Allu Arjun collection has
+none under these specific comparisons. These are review leads, not automatic
+corrections. For example, *Hazaaron Khwaishein Aisi* has a 2003 festival
+context in its [Wikipedia article](https://en.wikipedia.org/wiki/Hazaaron_Khwaishein_Aisi)
+and an April 2005 Indian release according to
+[Bollywood Hungama](https://www.bollywoodhungama.com/movie/hazaron-khwaishein-aisi/cast/),
+so a single unqualified “release year” loses information. The 1957 date for
+*Do Ankhen Barah Haath* is supported by an
+[Indian government film-awards catalogue](https://dff.nic.in/images/Documents/87_30thNfacatalogue.pdf),
+whereas the retained TMDb primary date yields 1960; this deserves source
+review before any displayed date is changed. The local profile calls *Adavi
+Kaachina Vennela* Telugu, consistent with its
+[IMDb film page](https://www.imdb.com/title/tt3805052/) and a
+[verified distributor upload](https://www.youtube.com/watch?v=O506o_V0GZ0),
+while TMDb's original-language assertion says English. The source conflict
+remains visible rather than silently choosing a winner.
+
 The next quality gate is a manual spot check across languages and decades:
 verify title, year, original language, lead cast with roles, full-plot scope,
 and attribution against the retained source revision; record corrections as

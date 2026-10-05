@@ -28,7 +28,9 @@ from app.services.movie_source_facts import imdb_facts, tmdb_facts
 from app.services.reconcile_manifest_languages import reconcile_one as reconcile_language
 from app.services.research_metadata import language_code_for_qids
 from app.services.review_wikidata_imdb_ids import review_one as review_wikidata_imdb_id
-from app.services.audit_movie_collection import audit_collection, section_coverage
+from app.services.audit_movie_collection import (
+    audit_collection, compare_source_metadata, section_coverage,
+)
 from app.services.wikidata_imdb_resolver import imdb_qid_query, qids_by_imdb
 from tests.postgres_test_db import isolated_postgres_engine
 
@@ -186,6 +188,13 @@ def test_article_section_audit_counts_nested_plot_and_alternate_headings() -> No
     assert axes == {"plot": True, "production": True,
                     "reception": True, "legacy": True}
     assert section_coverage({"lead", "tmdb.overview"})["plot"] is False
+
+
+def test_source_metadata_audit_reports_conflicts_without_promoting_either_source() -> None:
+    conflicts = compare_source_metadata("A Film", "Q123", "te", {2008}, {"2009"}, {"ta"})
+    assert [item["field"] for item in conflicts] == ["primary_release_year", "original_language"]
+    assert compare_source_metadata("A Film", "Q123", "mul", {2008}, {"2009"}, {"ta"}) == conflicts[:1]
+    assert compare_source_metadata("A Film", "Q123", "te", {2008}, {"2008"}, {"te"}) == []
 
 
 def test_wikidata_imdb_discovery_retains_ambiguous_qids() -> None:

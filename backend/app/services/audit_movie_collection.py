@@ -30,6 +30,29 @@ def section_coverage(sections: set[str]) -> dict[str, bool]:
     }
 
 
+def compare_source_metadata(
+    title: str, wikidata_id: str | None, profile_language: str | None,
+    imdb_years: set[int | None], tmdb_primary_years: set[str],
+    tmdb_languages: set[str | None],
+) -> list[dict]:
+    """Surface source conflicts for review, never choose a winner automatically."""
+    disagreements = []
+    if len(imdb_years) == len(tmdb_primary_years) == 1:
+        imdb_year = next(iter(imdb_years))
+        tmdb_year = next(iter(tmdb_primary_years))
+        if imdb_year is not None and str(imdb_year) != tmdb_year:
+            disagreements.append({"title": title, "wikidata_id": wikidata_id,
+                                  "field": "primary_release_year",
+                                  "imdb": imdb_year, "tmdb": tmdb_year})
+    if profile_language and profile_language not in {"und", "mul"} and len(tmdb_languages) == 1:
+        tmdb_language = next(iter(tmdb_languages))
+        if tmdb_language and tmdb_language != profile_language:
+            disagreements.append({"title": title, "wikidata_id": wikidata_id,
+                                  "field": "original_language",
+                                  "profile": profile_language, "tmdb": tmdb_language})
+    return disagreements
+
+
 def audit_collection(db: Session, code: str) -> dict:
     members = list(db.scalars(select(ReferenceCollectionMembership).where(
         ReferenceCollectionMembership.collection_code == code,
@@ -84,6 +107,7 @@ def audit_collection(db: Session, code: str) -> dict:
     languages: Counter[str] = Counter()
     gaps: list[dict] = []
     identity_failures: list[dict] = []
+    metadata_disagreements: list[dict] = []
     sampled: list[dict] = []
     for entity_id in sorted(ids, key=lambda value: entities[value].canonical_label):
         entity = entities[entity_id]
@@ -106,6 +130,22 @@ def audit_collection(db: Session, code: str) -> dict:
                        sources.get(row.source_id) == "IMDb Non-Commercial Datasets"]
         tmdb_cast = [row for row in active if row.predicate == "cast" and
                      sources.get(row.source_id) == "TMDb Developer API"]
+        imdb_years = {(row.value_json or {}).get("year") for row in active
+                      if row.predicate == "release_event" and
+                      sources.get(row.source_id) == "IMDb Non-Commercial Datasets" and
+                      (row.value_json or {}).get("precision") == "year"}
+        tmdb_primary_years = {str((row.value_json or {}).get("date", ""))[:4]
+                              for row in active if row.predicate == "release_event" and
+                              sources.get(row.source_id) == "TMDb Developer API" and
+                              (row.value_json or {}).get("basis") == "tmdb_primary"}
+        tmdb_languages = {(row.value_json or {}).get("code") for row in active
+                          if row.predicate == "original_language" and
+                          sources.get(row.source_id) == "TMDb Developer API"}
+        metadata_disagreements.extend(compare_source_metadata(
+            entity.canonical_label, entity.wikidata_id,
+            profile.original_language_code if profile else None,
+            imdb_years, tmdb_primary_years, tmdb_languages,
+        ))
         character_count = sum(bool((row.value_json or {}).get("characters")) for row in source_cast)
         tmdb_character_count = sum(bool((row.value_json or {}).get("character")) for row in tmdb_cast)
         wiki_sections = {row.section_locator.replace(" / ", "/").casefold()
@@ -198,6 +238,8 @@ def audit_collection(db: Session, code: str) -> dict:
             "gap_films": len(gaps), "gaps": gaps,
             "identity_failure_count": len(identity_failures),
             "identity_failures": identity_failures, "sample": sampled,
+            "metadata_disagreement_count": len(metadata_disagreements),
+            "metadata_disagreements": metadata_disagreements,
             "interpretation": "Counts measure source-backed coverage, not independent correctness or artistic quality."}
 
 
