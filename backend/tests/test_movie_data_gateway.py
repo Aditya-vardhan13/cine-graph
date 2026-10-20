@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 from app.db import Base
 from app.admin_intake import enqueue_films, imdb_id_from_input
 from app.models import (
-    Assertion, AssertionEvidence, CanonicalEntity, DataSource, Film, LanguageEdition,
+    Assertion, AssertionEvidence, CanonicalEntity, DataSource, EntityResolution, Film, LanguageEdition,
     MovieIntakeJob, ReferenceCollection, ReferenceCollectionMembership, SourceAssertion, SourceSnapshot,
+    SourceObject,
 )
 from app.services.imdb_dataset import ImdbDataset, build_index
 from app.services.movie_intake_worker import claim_next
@@ -24,7 +25,7 @@ from app.services.wikidata_raw import wikidata_api_policy
 from app.services.movie_data_gateway import (
     IMDB_SOURCE, TMDB_SOURCE, cached_tmdb_id, persist_movie_bundle, resolve_seed,
     retract_replaced_identifier, source_registration,
-    start_run, MovieSeed,
+    start_run, MovieSeed, film_for_seed,
 )
 from app.services.movie_source_facts import imdb_facts, tmdb_facts
 from app.services.reconcile_manifest_languages import reconcile_one as reconcile_language
@@ -312,7 +313,7 @@ def test_collection_audit_flags_missing_character_credit() -> None:
     with Session(engine) as db:
         db.add(LanguageEdition(code="en", display_name="English", script="Latin",
                                enabled=True, status="active"))
-        entity = CanonicalEntity(entity_kind="film", canonical_label="A Film", wikidata_id="Q123")
+        entity = CanonicalEntity(entity_kind="film", canonical_label="Q123", wikidata_id="Q123")
         db.add(entity)
         db.flush()
         db.add(Film(entity_id=entity.id, canonical_title="A Film",
@@ -326,6 +327,40 @@ def test_collection_audit_flags_missing_character_credit() -> None:
         report = audit_collection(db, "fixture")
         assert report["coverage"].get("with_any_character_credit", 0) == 0
         assert "no_character_credit" in report["gaps"][0]["issues"]
+        assert "placeholder_entity_label" in report["gaps"][0]["issues"]
+
+
+@pytest.mark.integration
+def test_identity_verified_gateway_replaces_only_qid_placeholder_label(tmp_path) -> None:
+    dataset, _ = _mini_dataset(tmp_path)
+    engine = isolated_postgres_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        source = DataSource(name=IMDB_SOURCE, url="https://www.imdb.com/interfaces/",
+                            source_type="film_metadata", license="IMDb Non-Commercial Datasets terms",
+                            rights_status="local_noncommercial_only")
+        entity = CanonicalEntity(entity_kind="film", canonical_label="Q123", wikidata_id="Q123")
+        db.add_all([source, entity])
+        db.flush()
+        db.add(LanguageEdition(code="en", display_name="English", script="Latin", enabled=True))
+        db.flush()
+        film = Film(entity_id=entity.id, canonical_title="A Film", original_language_code="en")
+        object_ = SourceObject(source_id=source.id, external_id="tt0000001", object_kind="film",
+                               canonical_url="https://www.imdb.com/title/tt0000001/")
+        db.add_all([film, object_])
+        db.flush()
+        db.add(EntityResolution(source_object_id=object_.id, entity_id=entity.id,
+                                method="explicit_id", confidence=1.0, status="resolved"))
+        db.flush()
+        resolved = film_for_seed(db, dataset, MovieSeed("A Film", imdb_id="tt0000001", wikidata_id="Q123"),
+                                 "tt0000001", create=False)
+        assert resolved.id == film.id
+        assert entity.canonical_label == "A Film"
+        entity.canonical_label = "Reviewed display title"
+        film_for_seed(db, dataset, MovieSeed("A Film", imdb_id="tt0000001", wikidata_id="Q123"),
+                      "tt0000001", create=False)
+        assert entity.canonical_label == "Reviewed display title"
+    engine.dispose()
 
 
 @pytest.mark.integration

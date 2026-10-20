@@ -151,6 +151,10 @@ def audit_collection(db: Session, code: str) -> dict:
                          for row in passages[entity_id]}
         axes = section_coverage(wiki_sections)
         issues = []
+        if entity.wikidata_id and entity.canonical_label == entity.wikidata_id:
+            issues.append("placeholder_entity_label")
+        else:
+            counts["with_named_entity_label"] += 1
         if not profile:
             issues.append("no_film_profile")
         else:

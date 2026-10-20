@@ -295,10 +295,14 @@ def film_for_seed(db: Session, dataset: ImdbDataset, seed: MovieSeed, tconst: st
             EntityResolution.status == "resolved",
     ))
     if already:
+        existing_entity = db.get(CanonicalEntity, already.entity_id)
         if seed.wikidata_id:
-            existing_entity = db.get(CanonicalEntity, already.entity_id)
             if existing_entity.wikidata_id != seed.wikidata_id:
                 raise ValueError("IMDb film and manifest Wikidata identity need explicit reconciliation")
+        if existing_entity.wikidata_id and existing_entity.canonical_label == existing_entity.wikidata_id:
+            # An identifier is a placeholder, not a usable film title. The
+            # resolved IMDb source object anchors this verified title update.
+            existing_entity.canonical_label = dataset.rows("basics", tconst)[0]["primaryTitle"]
         return already
     if not create and seed.entity_id is None:
         raise ValueError("Movie is not in the catalog; use --create for an explicit addition")
@@ -341,6 +345,8 @@ def film_for_seed(db: Session, dataset: ImdbDataset, seed: MovieSeed, tconst: st
         entity.entity_kind = "film"
     elif entity.entity_kind != "film":
         raise ValueError("Manifest Wikidata identifier is attached to a non-film entity")
+    if entity.wikidata_id and entity.canonical_label == entity.wikidata_id:
+        entity.canonical_label = basic["primaryTitle"]
     current_film = db.scalar(select(Film).where(Film.entity_id == entity.id))
     if current_film:
         identifiers = [(value or {}).get("value") for value in db.scalars(

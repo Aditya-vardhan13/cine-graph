@@ -21,6 +21,13 @@ report remain local with the corpus.
 | At least one character-named credit | 499 | 26 |
 | Identity conflicts in active reviewed assertions | 0 | 0 |
 
+An October 21 re-audit found one canonical entity still displaying its
+Wikidata ID instead of a title: *K.G.F: Chapter 2* (`Q67200663`). The local
+IMDb-ID resolution (`tt10698680`) and IMDb title row agreed with its existing
+film profile, so the identity-verified gateway replay replaced that placeholder
+label. The audit now checks for this defect explicitly; all 500 cohort films
+have a named entity label. The 18 source-coverage gaps below remain open.
+
 The audit reports 18 of the 500 films with at least one explicit gap. Twelve
 lack a full plot passage: Achena Uttam, Adavi Kaachina Vennela, Balak Palak,
 Cyanide, Distant Thunder, Gangs of Wasseypur, Happy Days, Hoy Maharaja,
