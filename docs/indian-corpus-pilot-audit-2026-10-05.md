@@ -32,6 +32,18 @@ Long Drive is the one film without a verified TMDb match; a similar title is
 not enough to attach a TMDb record. The two Wikidata items without an enwiki
 sitelink are kept unlinked rather than guessed.
 
+An October 2026 live spot check explains three of the plot gaps. The
+[English Wikipedia article for *Gangs of Wasseypur*](https://en.wikipedia.org/wiki/Gangs_of_Wasseypur)
+has a plot, but it links to [Q21001632](https://www.wikidata.org/wiki/Q21001632),
+the two-part work. This collection's [Q2690472](https://www.wikidata.org/wiki/Q2690472)
+is Part 1; both items cite IMDb `tt1954470`. The intake worker kept Part 1 at
+`ready_with_gaps` instead of attaching the two-part article as its direct
+plot. [*Distant Thunder*](https://en.wikipedia.org/wiki/Distant_Thunder_(1973_film))
+has a brief Overview section rather than a full Plot section, and
+[*Happy Days*](https://en.wikipedia.org/wiki/Happy_Days_(2007_film)) has an
+empty Plot heading. These cases need scoped source review or another permitted
+source, not a fabricated full-plot passage.
+
 A second, read-only check found 13 cross-source metadata disagreements in the
 500-film cohort: 12 IMDb start-year versus TMDb primary-date year differences,
 and one original-language difference. The 26-film Allu Arjun collection has
