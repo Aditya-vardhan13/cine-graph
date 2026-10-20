@@ -19,8 +19,8 @@ from typing import Iterable
 from uuid import uuid4
 
 import spacy
-from sqlalchemy import distinct, select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_, select
+from sqlalchemy.orm import Session, aliased
 
 from app.db import SessionLocal
 from app.models import (
@@ -33,7 +33,7 @@ from app.models import (
 )
 
 
-CHUNKER_VERSION = "spacy-sentencizer-evidence-v3"
+CHUNKER_VERSION = "spacy-sentencizer-evidence-v4"
 NORMALIZATION_VERSION = "unicode-nfc-whitespace-v1"
 ALLOWED_NARRATIVE_LICENSES = {"CC BY-SA 4.0"}
 WORD = re.compile(r"\b[\w'-]+\b", re.UNICODE)
@@ -211,13 +211,14 @@ def _run_for(
     *,
     collection_code: str,
     language_code: str,
-    config: ChunkConfiguration,
+    configuration_hash: str,
+    configuration: dict[str, int | str],
 ) -> EvidenceChunkRun:
     run = db.scalar(select(EvidenceChunkRun).where(
         EvidenceChunkRun.collection_code == collection_code,
         EvidenceChunkRun.language_code == language_code,
         EvidenceChunkRun.chunker_version == CHUNKER_VERSION,
-        EvidenceChunkRun.configuration_hash == config.digest,
+        EvidenceChunkRun.configuration_hash == configuration_hash,
     ))
     if run is not None:
         return run
@@ -225,8 +226,8 @@ def _run_for(
         collection_code=collection_code,
         language_code=language_code,
         chunker_version=CHUNKER_VERSION,
-        configuration=config.payload,
-        configuration_hash=config.digest,
+        configuration=configuration,
+        configuration_hash=configuration_hash,
         status="running",
     )
     db.add(run)
@@ -234,45 +235,43 @@ def _run_for(
     return run
 
 
-def _passages_for_collection(
-    db: Session,
-    *,
-    collection_code: str,
-    language_code: str,
-    source_parser_version: str | None,
-) -> list[tuple[NarrativePassage, str, str | None]]:
-    query = (
-        select(NarrativePassage, SourceSnapshot.license, SourceSnapshot.attribution_url)
+def _input_configuration(
+    config: ChunkConfiguration, passages: list[tuple[NarrativePassage, SourceSnapshot]],
+) -> tuple[dict[str, int | str], str]:
+    manifest = hashlib.sha256()
+    for passage, snapshot in passages:
+        manifest.update(f"{passage.id}:{snapshot.id}:{passage.content_hash}\n".encode("ascii"))
+    configuration = {**config.payload, "input_manifest_hash": manifest.hexdigest()}
+    digest = hashlib.sha256(json.dumps(configuration, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return configuration, digest
+
+
+def _current_passages_with_snapshots(
+    db: Session, *, collection_code: str, language_code: str,
+) -> list[tuple[NarrativePassage, SourceSnapshot]]:
+    newer = aliased(SourceSnapshot)
+    rows = db.execute(
+        select(NarrativePassage, SourceSnapshot)
         .join(SourceSnapshot, SourceSnapshot.id == NarrativePassage.source_snapshot_id)
         .join(ReferenceCollectionMembership, ReferenceCollectionMembership.entity_id == NarrativePassage.subject_entity_id)
         .where(
             ReferenceCollectionMembership.collection_code == collection_code,
             ReferenceCollectionMembership.status == "included",
             NarrativePassage.language_code == language_code,
+            SourceSnapshot.fetch_status == "success",
+            ~select(newer.id).where(
+                newer.source_object_id == SourceSnapshot.source_object_id,
+                newer.fetch_status == "success",
+                or_(
+                    newer.retrieved_at > SourceSnapshot.retrieved_at,
+                    and_(newer.retrieved_at == SourceSnapshot.retrieved_at, newer.id > SourceSnapshot.id),
+                ),
+            ).exists(),
         )
-        .order_by(
-            NarrativePassage.subject_entity_id,
-            NarrativePassage.source_snapshot_id,
-            NarrativePassage.section_locator,
-            NarrativePassage.ordinal,
-        )
-    )
-    if source_parser_version is not None:
-        query = query.where(SourceSnapshot.parser_version == source_parser_version)
-    rows = db.execute(query).all()
-    return [(passage, license, attribution_url) for passage, license, attribution_url in rows]
-
-
-def _source_versions_for_collection(db: Session, *, collection_code: str, language_code: str) -> set[str | None]:
-    return set(db.scalars(
-        select(distinct(SourceSnapshot.parser_version))
-        .join(NarrativePassage, NarrativePassage.source_snapshot_id == SourceSnapshot.id)
-        .join(ReferenceCollectionMembership, ReferenceCollectionMembership.entity_id == NarrativePassage.subject_entity_id)
-        .where(
-            ReferenceCollectionMembership.collection_code == collection_code,
-            ReferenceCollectionMembership.status == "included",
-            NarrativePassage.language_code == language_code,
-        )
+    ).all()
+    return sorted(rows, key=lambda row: (
+        str(row[0].subject_entity_id), str(row[0].source_snapshot_id),
+        row[0].section_locator, row[0].ordinal,
     ))
 
 
@@ -291,22 +290,24 @@ def build_evidence_chunks(
     """
     config = config or ChunkConfiguration()
     _collection(db, collection_code, language_code)
-    versions = _source_versions_for_collection(db, collection_code=collection_code, language_code=language_code)
+    current = _current_passages_with_snapshots(db, collection_code=collection_code, language_code=language_code)
+    versions = {snapshot.parser_version for _, snapshot in current}
     if config.source_parser_version is None and len(versions) > 1:
         raise ValueError("Collection contains multiple source parser versions; select one in ChunkConfiguration.")
     if config.source_parser_version is not None and config.source_parser_version not in versions:
         raise ValueError(f"No passages use source parser version {config.source_parser_version!r} in this collection.")
-    run = _run_for(db, collection_code=collection_code, language_code=language_code, config=config)
-    passages = _passages_for_collection(
-        db, collection_code=collection_code, language_code=language_code,
-        source_parser_version=config.source_parser_version,
-    )
+    selected = [(passage, snapshot) for passage, snapshot in current
+                if config.source_parser_version is None or snapshot.parser_version == config.source_parser_version]
+    configuration, configuration_hash = _input_configuration(config, selected)
+    run = _run_for(db, collection_code=collection_code, language_code=language_code,
+                   configuration_hash=configuration_hash, configuration=configuration)
+    passages = [(passage, snapshot.license, snapshot.attribution_url) for passage, snapshot in selected]
     existing = {
         (item.narrative_passage_id, item.chunk_ordinal): item
         for item in db.scalars(select(EvidenceChunk).where(
             EvidenceChunk.preprocessing_run_id == run.id,
             EvidenceChunk.chunker_version == CHUNKER_VERSION,
-            EvidenceChunk.configuration_hash == config.digest,
+            EvidenceChunk.configuration_hash == configuration_hash,
         ))
     }
     canonical_by_hash = {
@@ -352,7 +353,7 @@ def build_evidence_chunks(
                     quality_flags=flags,
                     duplicate_of_chunk_id=duplicate_of_chunk_id,
                     chunker_version=CHUNKER_VERSION,
-                    configuration_hash=config.digest,
+                    configuration_hash=configuration_hash,
                 )
                 db.add(chunk)
                 existing[key] = chunk
@@ -402,11 +403,15 @@ def evidence_chunk_quality_report(
 ) -> dict[str, object]:
     """Return a compact, auditable readiness report without loading an ML model."""
     config = config or ChunkConfiguration()
+    current = _current_passages_with_snapshots(db, collection_code=collection_code, language_code=language_code)
+    selected = [(passage, snapshot) for passage, snapshot in current
+                if config.source_parser_version is None or snapshot.parser_version == config.source_parser_version]
+    _, configuration_hash = _input_configuration(config, selected)
     run = db.scalar(select(EvidenceChunkRun).where(
         EvidenceChunkRun.collection_code == collection_code,
         EvidenceChunkRun.language_code == language_code,
         EvidenceChunkRun.chunker_version == CHUNKER_VERSION,
-        EvidenceChunkRun.configuration_hash == config.digest,
+        EvidenceChunkRun.configuration_hash == configuration_hash,
     ))
     if run is None:
         raise ValueError("No evidence-chunk run exists for this exact collection and configuration.")

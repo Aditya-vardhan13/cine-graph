@@ -366,17 +366,57 @@ def test_preprocessing_selects_only_one_source_version(research_db):
     ))
     db.commit()
 
-    with pytest.raises(ValueError, match="multiple source parser versions"):
-        build_evidence_chunks(db, collection_code=COLLECTION)
-    result = build_evidence_chunks(
-        db, collection_code=COLLECTION,
-        config=ChunkConfiguration(source_parser_version="retained-recovery-fixture-v1"),
-    )
+    result = build_evidence_chunks(db, collection_code=COLLECTION)
     assert result["passages_requested"] == 1
     assert result["passages_eligible"] == 1
     chunks = list(db.scalars(select(EvidenceChunk)))
     assert chunks
     assert all(chunk.source_snapshot_id == recovered.id for chunk in chunks)
+
+
+def test_new_source_revision_creates_new_run_without_mutating_prior_evidence(research_db):
+    db = research_db
+    first = build_evidence_chunks(db, collection_code=COLLECTION)
+    first_chunks = list(db.scalars(select(EvidenceChunk).where(EvidenceChunk.preprocessing_run_id == first["run_id"])))
+    assert first_chunks
+    old_snapshot = db.scalar(select(SourceSnapshot).where(SourceSnapshot.parser_version == "retained-fixture-v1"))
+    newer = SourceSnapshot(
+        source_object_id=old_snapshot.source_object_id, source_revision="new-revision",
+        canonical_url=old_snapshot.canonical_url, attribution_url=old_snapshot.attribution_url,
+        content_hash="c" * 64, license=old_snapshot.license, fetch_status="success",
+        parser_version=old_snapshot.parser_version,
+        retrieved_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+    db.add(newer)
+    db.flush()
+    db.add(NarrativePassage(
+        subject_entity_id=first_chunks[0].subject_entity_id, source_snapshot_id=newer.id,
+        section_locator="plot", section_title="Plot", ordinal=0,
+        content="A replacement passage about a different dramatic conflict. " * 12,
+        content_hash="d" * 64, citation_markers=[], extraction_version="retained-test-v2",
+    ))
+    db.commit()
+    second = build_evidence_chunks(db, collection_code=COLLECTION)
+    assert second["run_id"] != first["run_id"]
+    assert build_evidence_chunks(db, collection_code=COLLECTION)["run_id"] == second["run_id"]
+    assert {chunk.source_snapshot_id for chunk in db.scalars(select(EvidenceChunk).where(
+        EvidenceChunk.preprocessing_run_id == second["run_id"],
+    ))} == {newer.id}
+    assert {chunk.id for chunk in db.scalars(select(EvidenceChunk).where(
+        EvidenceChunk.preprocessing_run_id == first["run_id"],
+    ))} == {chunk.id for chunk in first_chunks}
+    empty_revision = SourceSnapshot(
+        source_object_id=old_snapshot.source_object_id, source_revision="empty-revision",
+        canonical_url=old_snapshot.canonical_url, attribution_url=old_snapshot.attribution_url,
+        content_hash="e" * 64, license=old_snapshot.license, fetch_status="success",
+        parser_version=old_snapshot.parser_version,
+        retrieved_at=datetime.now(timezone.utc) + timedelta(days=2),
+    )
+    db.add(empty_revision)
+    db.commit()
+    third = build_evidence_chunks(db, collection_code=COLLECTION)
+    assert third["run_id"] not in {first["run_id"], second["run_id"]}
+    assert third["passages_requested"] == 0
 
 
 def test_lexical_and_dense_rank_the_same_pinned_run_despite_newer_versions(research_db):
