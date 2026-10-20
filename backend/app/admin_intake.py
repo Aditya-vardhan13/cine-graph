@@ -15,8 +15,10 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db import get_db
-from app.models import MovieIntakeJob
+from app.models import CanonicalEntity, MovieIntakeJob
+from app.services.current_narrative_passages import current_passage_rows
 from app.services.imdb_dataset import IMDB_ID, ImdbDataset
+from app.services.research_catalog import research_films_from_entities
 
 
 router = APIRouter(prefix="/api/v1/admin/intake", tags=["local-admin-intake"])
@@ -110,6 +112,38 @@ def submit(selection: IntakeSelection, db: Session = Depends(get_db)) -> dict:
 def recent_jobs(db: Session = Depends(get_db)) -> dict:
     jobs = db.scalars(select(MovieIntakeJob).order_by(MovieIntakeJob.created_at.desc()).limit(100))
     return {"jobs": [job_out(job) for job in jobs]}
+
+
+@router.get("/jobs/{job_id}/preview", dependencies=[Depends(require_operator)])
+def preview_job(job_id: UUID, db: Session = Depends(get_db)) -> dict:
+    job = db.get(MovieIntakeJob, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.film_entity_id is None:
+        raise HTTPException(status_code=409, detail="Film identity is not ready for preview")
+    entity = db.get(CanonicalEntity, job.film_entity_id)
+    if entity is None or entity.lifecycle_status != "active":
+        raise HTTPException(status_code=409, detail="Film profile needs identity review")
+    film = research_films_from_entities(db, [entity])[0]
+    rows = sorted(current_passage_rows(db, {entity.id}),
+                  key=lambda row: (row[0].section_locator, row[0].ordinal))
+    sections: dict[str, int] = {}
+    samples: list[dict] = []
+    for passage, snapshot in rows:
+        section = passage.section_locator.split("/", 1)[0].strip()
+        sections[section] = sections.get(section, 0) + 1
+        if len(samples) < 8 and sections[section] == 1:
+            samples.append({"section": passage.section_locator,
+                            "excerpt": passage.content[:320],
+                            "source_url": snapshot.canonical_url if snapshot.canonical_url.startswith(("https://", "http://")) else None,
+                            "source_revision": snapshot.source_revision,
+                            "license": snapshot.license})
+    return {"job": job_out(job), "film": {
+        "entity_id": str(film.entity_id), "title": film.title,
+        "release_year": film.release_year, "language_code": film.language_code,
+        "genres": film.genres, "metadata_issues": film.metadata_issues,
+        "metadata_evidence": film.metadata_evidence,
+    }, "passage_count": len(rows), "sections": sections, "samples": samples}
 
 
 @router.post("/jobs/{job_id}/retry", dependencies=[Depends(require_operator)])

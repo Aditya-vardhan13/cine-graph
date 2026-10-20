@@ -1,0 +1,8 @@
+.intake-preview{grid-column:1/-1;margin-top:12px;padding:16px;border:1px solid #50453f;border-radius:14px;background:#171516}
+.intake-preview h3{margin:0 0 8px}
+.intake-preview>p{margin:6px 0;font-size:13px}
+.intake-preview-source{padding:12px 0;border-top:1px solid #403936}
+.intake-preview-source strong{font-size:13px}
+.intake-preview-source p{margin:5px 0 8px;color:#c8c0ba;font-size:13px;line-height:1.5}
+.intake-preview-source a{color:#f3aa78;font-size:12px;text-decoration:none}
+.intake-preview-source a:hover{text-decoration:underline}

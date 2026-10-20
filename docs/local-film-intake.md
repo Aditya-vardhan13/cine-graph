@@ -34,6 +34,11 @@ Each stage is visible in the UI. Rate limits and source denials remain in the
 existing adapters; the worker does not scrape IMDb or bypass robots controls.
 Re-running a failed job reuses retained snapshots where the adapters support
 it. A crashed `running` job is eligible for reclaim after 30 minutes.
+Completed jobs offer an operator preview of reviewed metadata, narrative
+section counts, short source passages and attribution links. Intake does not
+publish a film into the writer comparison index; that requires a separate
+quality and indexing gate. Preview and coverage checks use the newest captured
+revision of each source object; earlier snapshots remain stored for provenance.
 
 `ready` means the identity checks, TMDb cross-ID, English Wikipedia page, and
 full plot passage were found. `ready_with_gaps` means source identity was

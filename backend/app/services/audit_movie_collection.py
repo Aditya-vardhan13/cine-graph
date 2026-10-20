@@ -15,6 +15,7 @@ from app.models import (
     Assertion, CanonicalEntity, DataSource, EntityResolution, Film, NarrativePassage,
     ReferenceCollectionMembership, SourceObject, SourceSnapshot,
 )
+from app.services.current_narrative_passages import current_passage_rows
 
 
 def section_coverage(sections: set[str]) -> dict[str, bool]:
@@ -75,9 +76,7 @@ def audit_collection(db: Session, code: str) -> dict:
     )):
         facts[row.subject_entity_id].append(row)
     passages: dict[UUID, list[NarrativePassage]] = defaultdict(list)
-    for row in db.scalars(select(NarrativePassage).where(
-        NarrativePassage.subject_entity_id.in_(ids),
-    )):
+    for row, _ in current_passage_rows(db, ids):
         passages[row.subject_entity_id].append(row)
     imdb_objects = set(db.scalars(select(SourceObject.external_id).join(
         DataSource, DataSource.id == SourceObject.source_id,

@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db import SessionLocal
-from app.models import CanonicalEntity, Film, MovieIntakeJob, NarrativePassage
+from app.models import CanonicalEntity, Film, MovieIntakeJob
+from app.services.current_narrative_passages import current_passage_rows
 from app.services.imdb_dataset import ImdbDataset
 from app.services.indian_wikipedia_manifest import _entity_from_snapshot
 from app.services.movie_data_gateway import MovieSeed, run_ingestion
@@ -60,12 +61,9 @@ def finish(db: Session, job: MovieIntakeJob, status: str, reason: str | None = N
 
 
 def has_plot(db: Session, entity_id) -> bool:
-    sections = db.scalars(select(NarrativePassage.section_locator).where(
-        NarrativePassage.subject_entity_id == entity_id,
-    ))
-    return any(section.replace(" / ", "/").casefold().split("/", 1)[0]
+    return any(passage.section_locator.replace(" / ", "/").casefold().split("/", 1)[0]
                in {"plot", "plot-summary", "synopsis", "premise", "story", "storyline"}
-               for section in sections)
+               for passage, _ in current_passage_rows(db, {entity_id}))
 
 
 def process_one(db: Session, job: MovieIntakeJob, *, dataset: ImdbDataset,

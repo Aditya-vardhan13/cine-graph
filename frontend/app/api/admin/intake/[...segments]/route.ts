@@ -4,6 +4,8 @@ type Context = { params: Promise<{ segments: string[] }> };
 
 function upstreamPath(segments: string[]): string | null {
   if (segments.length === 1 && ["suggest", "jobs"].includes(segments[0])) return segments[0];
+  if (segments.length === 3 && segments[0] === "jobs" && segments[2] === "preview" &&
+      /^[0-9a-f-]{36}$/i.test(segments[1])) return segments.join("/");
   if (segments.length === 3 && segments[0] === "jobs" && segments[2] === "retry" &&
       /^[0-9a-f-]{36}$/i.test(segments[1])) return segments.join("/");
   return null;

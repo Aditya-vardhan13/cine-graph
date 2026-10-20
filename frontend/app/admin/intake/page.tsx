@@ -2,11 +2,20 @@
 
 import { useEffect, useState } from "react";
 import "./intake.css";
+import "./preview.css";
 
 type Candidate = { imdb_id: string; title: string; year: number | null };
 type IntakeJob = Candidate & {
   id: string; status: string; stage: string; attempts: number;
   review_reason: string | null; film_entity_id: string | null;
+};
+type IntakePreview = {
+  job: IntakeJob;
+  film: { title: string; release_year: number | null; language_code: string;
+          genres: string[]; metadata_issues: string[] };
+  passage_count: number; sections: Record<string, number>;
+  samples: { section: string; excerpt: string; source_url: string | null;
+             source_revision: string | null; license: string }[];
 };
 
 const endpoint = "/api/admin/intake";
@@ -27,6 +36,7 @@ export default function IntakePage() {
   const [results, setResults] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState<Candidate[]>([]);
   const [jobs, setJobs] = useState<IntakeJob[]>([]);
+  const [preview, setPreview] = useState<IntakePreview | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -106,6 +116,18 @@ export default function IntakePage() {
     setJobs(current => current.map(item => item.id === job.id ? body : item));
   }
 
+  async function inspect(job: IntakeJob) {
+    if (preview?.job.id === job.id) { setPreview(null); return; }
+    try {
+      const response = await fetch(`${endpoint}/jobs/${job.id}/preview`, {
+        headers: { "x-operator-email": email.trim() }, cache: "no-store",
+      });
+      const body = await response.json();
+      if (!response.ok) { setMessage(body.detail ?? "Preview unavailable"); return; }
+      setPreview(body);
+    } catch { setMessage("Could not load the film preview"); }
+  }
+
   return <main className="intake-shell">
     <div className="intake-head"><span className="intake-kicker">CineGraph · Local operator desk</span>
       <h1>Add films to the research corpus</h1>
@@ -144,7 +166,20 @@ export default function IntakePage() {
           <article className="intake-job" key={job.id}><div><strong>{job.title}</strong><small>{job.year ?? "Year unknown"} · {job.imdb_id}</small></div>
             <span className={`intake-status intake-status-${job.status}`}>{job.status.replaceAll("_", " ")}</span>
             <p>Stage: {job.stage.replaceAll("_", " ")}{job.review_reason ? ` · ${job.review_reason}` : ""}</p>
+            {job.film_entity_id && <button type="button" onClick={() => inspect(job)}>
+              {preview?.job.id === job.id ? "Close data preview" : "Inspect captured data"}</button>}
             {(job.status === "failed" || job.status === "needs_review") && <button type="button" onClick={() => retry(job)}>Retry after review</button>}
+            {preview?.job.id === job.id && <div className="intake-preview">
+              <h3>{preview.film.title} · captured data</h3>
+              <p>{preview.film.release_year ?? "Year unverified"} · {preview.film.language_code.toUpperCase()} · {preview.passage_count} attributable passages</p>
+              <p>{Object.entries(preview.sections).map(([name, count]) => `${name}: ${count}`).join(" · ") || "No narrative passages captured."}</p>
+              {preview.film.metadata_issues.length > 0 && <p>Metadata to review: {preview.film.metadata_issues.join(", ")}</p>}
+              {preview.samples.map(sample => <div className="intake-preview-source" key={`${sample.section}:${sample.source_revision}`}>
+                <strong>{sample.section.replaceAll("/", " / ")}</strong>
+                <p>{sample.excerpt}…</p>
+                {sample.source_url && <a href={sample.source_url} target="_blank" rel="noopener noreferrer">Source · {sample.license} ↗</a>}
+              </div>)}
+            </div>}
           </article>)}
         </div>
       </section>
