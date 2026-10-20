@@ -22,7 +22,7 @@ function movieId(value: string): string | null {
 }
 
 export default function IntakePage() {
-  const [key, setKey] = useState("");
+  const [email, setEmail] = useState("");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState<Candidate[]>([]);
@@ -31,12 +31,12 @@ export default function IntakePage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (key.length < 24 || query.trim().length < 2 || movieId(query)) { setResults([]); return; }
+    if (!email.trim() || query.trim().length < 2 || movieId(query)) { setResults([]); return; }
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
         const response = await fetch(`${endpoint}/suggest?q=${encodeURIComponent(query.trim())}`, {
-          headers: { authorization: `Bearer ${key}` }, signal: controller.signal,
+          headers: { "x-operator-email": email.trim() }, signal: controller.signal,
         });
         const body = await response.json();
         if (!response.ok) { setMessage(body.detail ?? "Search unavailable"); setResults([]); return; }
@@ -45,15 +45,15 @@ export default function IntakePage() {
       } catch { if (!controller.signal.aborted) setMessage("Search unavailable"); }
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [key, query]);
+  }, [email, query]);
 
   useEffect(() => {
-    if (key.length < 24) { setJobs([]); return; }
+    if (!email.trim()) { setJobs([]); return; }
     let active = true;
     const refresh = async () => {
       try {
         const response = await fetch(`${endpoint}/jobs`, {
-          headers: { authorization: `Bearer ${key}` }, cache: "no-store",
+          headers: { "x-operator-email": email.trim() }, cache: "no-store",
         });
         const body = await response.json();
         if (active && response.ok) setJobs(body.jobs ?? []);
@@ -63,7 +63,7 @@ export default function IntakePage() {
     void refresh();
     const timer = setInterval(refresh, 5000);
     return () => { active = false; clearInterval(timer); };
-  }, [key]);
+  }, [email]);
 
   function add(candidate: Candidate) {
     setSelected(current => current.some(item => item.imdb_id === candidate.imdb_id)
@@ -85,7 +85,7 @@ export default function IntakePage() {
     setMessage("");
     try {
       const response = await fetch(`${endpoint}/jobs`, {
-        method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+        method: "POST", headers: { "x-operator-email": email.trim(), "content-type": "application/json" },
         body: JSON.stringify({ films: selected.map(item => item.imdb_id) }),
       });
       const body = await response.json();
@@ -99,7 +99,7 @@ export default function IntakePage() {
 
   async function retry(job: IntakeJob) {
     const response = await fetch(`${endpoint}/jobs/${job.id}/retry`, {
-      method: "POST", headers: { authorization: `Bearer ${key}` },
+      method: "POST", headers: { "x-operator-email": email.trim() },
     });
     const body = await response.json();
     if (!response.ok) { setMessage(body.detail ?? "Retry failed"); return; }
@@ -112,18 +112,18 @@ export default function IntakePage() {
       <p>Find exact titles in the local IMDb index, select several, and submit once. Each film moves through attributable source ingestion; uncertain matches stop for review.</p>
     </div>
     <section className="intake-panel" aria-label="Operator access">
-      <label htmlFor="intake-key">Operator key</label>
-      <input id="intake-key" type="password" value={key} onChange={event => setKey(event.target.value)}
-             autoComplete="off" placeholder="Local admin key" />
-      <p>This local pilot uses an operator key. Email-verified sign-in is not enabled yet. The key stays in this tab and is not saved.</p>
+      <label htmlFor="intake-email">Operator email</label>
+      <input id="intake-email" type="email" value={email} onChange={event => setEmail(event.target.value)}
+             autoComplete="email" placeholder="adityavk1310@gmail.com" />
+      <p>This desk is available only on the local pilot. Your email selects the operator; sign-in is required before public deployment.</p>
     </section>
     <div className="intake-grid">
       <section className="intake-panel">
         <h2>1 · Find and select</h2>
         <label htmlFor="movie-search">Film title or IMDb URL</label>
         <div className="intake-search-row"><input id="movie-search" value={query} onChange={event => setQuery(event.target.value)}
-          placeholder="Try The Dark Knight, RRR, or an IMDb URL" disabled={key.length < 24} />
-          <button type="button" onClick={addTypedId} disabled={key.length < 24 || !query.trim()}>Add URL</button></div>
+          placeholder="Try The Dark Knight, RRR, or an IMDb URL" disabled={!email.trim()} />
+          <button type="button" onClick={addTypedId} disabled={!email.trim() || !query.trim()}>Add URL</button></div>
         {results.length > 0 && <div className="intake-suggestions" role="listbox" aria-label="Matching films">
           {results.map(result => <button key={result.imdb_id} type="button" role="option" aria-selected="false"
             onClick={() => add(result)}><span>{result.title}<small>{result.year ?? "Year unknown"}</small></span><code>{result.imdb_id}</code></button>)}

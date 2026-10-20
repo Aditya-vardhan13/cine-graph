@@ -87,6 +87,9 @@ services:
         API_INTERNAL_URL: http://api:8000/api/v1
     environment:
       API_INTERNAL_URL: http://api:8000/api/v1
+      CINEGRAPH_LOCAL_ADMIN_MODE: "1"
+      CINEGRAPH_ADMIN_EMAIL: ${CINEGRAPH_ADMIN_EMAIL:-adityavk1310@gmail.com}
+      ADMIN_INTAKE_TOKEN: ${CINEGRAPH_ADMIN_TOKEN:-}
     ports:
       - "${CINEGRAPH_BIND_ADDRESS:-127.0.0.1}:3000:3000"
     depends_on:

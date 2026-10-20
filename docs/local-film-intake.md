@@ -14,13 +14,15 @@ can be submitted at once. Duplicate submissions reuse their existing job.
    ingest python -m app.services.imdb_dataset`. If an index already exists,
    add popularity ranking for suggestions with the same command plus
    `--ratings-only`.
-3. Generate a long random operator key (for example, `openssl rand -hex 32`)
+3. Generate a long random service key (for example, `openssl rand -hex 32`)
    and place `CINEGRAPH_ADMIN_TOKEN=<key>` in a local `.env` file. Never commit
-   or share it. The admin API refuses all requests if the key is absent or
-   shorter than 24 characters.
+   or share it. This key is held by the local web server and API, not entered
+   in the browser. The admin API refuses requests if it is absent or shorter
+   than 24 characters. Set `CINEGRAPH_ADMIN_EMAIL=adityavk1310@gmail.com` to
+   identify the local operator.
 4. Run `docker compose up --build -d`. Open
-   `http://localhost:3000/admin/intake`, enter the operator key, then search,
-   select, and submit films. The key stays only in the current browser tab.
+   `http://localhost:3000/admin/intake`, enter the operator email, then search,
+   select, and submit films. The service key stays on the local servers.
 
 The separate `intake_worker` service claims queued rows from PostgreSQL and
 processes one film at a time. It first resolves Wikidata by exact IMDb P345,
@@ -41,7 +43,11 @@ established or an existing conflicting profile requires an operator decision.
 These statuses do not certify factual correctness, complete casting, artistic
 quality, or commercial usage rights.
 
-The operator key is a deliberately local pilot gate, **not email login**.
+The email field is a local operator selector, not verified login. Anyone with
+access to the local web server could enter this email; keep this pilot bound to
+loopback. The web server passes its private service key to the API and never
+returns that key to the browser. Local admin routes are disabled unless
+`CINEGRAPH_LOCAL_ADMIN_MODE=1` is explicitly configured.
 Before exposing this route on a public host, integrate verified Google OAuth
 and allow only `adityavk1310@gmail.com`; do not trust a client-supplied email
 string. The worker and local source corpus also remain private until the

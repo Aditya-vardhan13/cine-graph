@@ -13,13 +13,21 @@ async function forward(request: NextRequest, context: Context): Promise<NextResp
   const { segments } = await context.params;
   const path = upstreamPath(segments);
   if (!path) return NextResponse.json({ detail: "Unknown intake route" }, { status: 404 });
+  const operatorEmail = process.env.CINEGRAPH_ADMIN_EMAIL;
+  const internalToken = process.env.ADMIN_INTAKE_TOKEN;
+  if (process.env.CINEGRAPH_LOCAL_ADMIN_MODE !== "1" || !operatorEmail || !internalToken || internalToken.length < 24) {
+    return NextResponse.json({ detail: "Local intake is unavailable" }, { status: 503 });
+  }
+  if (request.headers.get("x-operator-email")?.trim().toLowerCase() !== operatorEmail.toLowerCase()) {
+    return NextResponse.json({ detail: "Use the configured operator email" }, { status: 401 });
+  }
   const base = process.env.API_INTERNAL_URL ?? "http://localhost:8000/api/v1";
   const url = `${base}/admin/intake/${path}${request.nextUrl.search}`;
   try {
     const response = await fetch(url, {
       method: request.method,
       headers: {
-        authorization: request.headers.get("authorization") ?? "",
+        authorization: `Bearer ${internalToken}`,
         ...(request.method === "POST" ? { "content-type": "application/json" } : {}),
       },
       body: request.method === "POST" ? await request.text() : undefined,
