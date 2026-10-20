@@ -15,7 +15,9 @@ async function forward(request: NextRequest, context: Context): Promise<NextResp
   if (!path) return NextResponse.json({ detail: "Unknown intake route" }, { status: 404 });
   const operatorEmail = process.env.CINEGRAPH_ADMIN_EMAIL;
   const internalToken = process.env.ADMIN_INTAKE_TOKEN;
-  if (process.env.CINEGRAPH_LOCAL_ADMIN_MODE !== "1" || !operatorEmail || !internalToken || internalToken.length < 24) {
+  if (process.env.CINEGRAPH_LOCAL_ADMIN_MODE !== "1" ||
+      process.env.CINEGRAPH_BIND_ADDRESS !== "127.0.0.1" ||
+      !operatorEmail || !internalToken || internalToken.length < 24) {
     return NextResponse.json({ detail: "Local intake is unavailable" }, { status: 503 });
   }
   if (request.headers.get("x-operator-email")?.trim().toLowerCase() !== operatorEmail.toLowerCase()) {

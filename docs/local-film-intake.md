@@ -48,6 +48,8 @@ access to the local web server could enter this email; keep this pilot bound to
 loopback. The web server passes its private service key to the API and never
 returns that key to the browser. Local admin routes are disabled unless
 `CINEGRAPH_LOCAL_ADMIN_MODE=1` is explicitly configured.
+The route also refuses requests if `CINEGRAPH_BIND_ADDRESS` is changed from
+`127.0.0.1`; use verified sign-in before exposing the web service remotely.
 Before exposing this route on a public host, integrate verified Google OAuth
 and allow only `adityavk1310@gmail.com`; do not trust a client-supplied email
 string. The worker and local source corpus also remain private until the
