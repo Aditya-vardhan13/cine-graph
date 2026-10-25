@@ -8,6 +8,6 @@ export default function ServiceError({ reset }: { error: Error & { digest?: stri
     <h1>We couldn&apos;t load this view.</h1>
     <p>The research service may be temporarily unavailable. Your studies saved in this browser are not changed.</p>
     <button className="compare-button" onClick={reset}>Try again</button>
-    <Link href="/">Return to the writer desk</Link>
+    <Link href="/study">Return to the writer desk</Link>
   </main>;
 }

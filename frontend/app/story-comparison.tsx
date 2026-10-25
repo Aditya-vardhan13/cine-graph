@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ResearchDiscovery, ResearchFilm, ResearchPassagePage, StoryComparison, StoryComparisonEvidence, year } from "../lib/api";
+import { ResearchDiscovery, ResearchFilm, ResearchPassagePage, StoryBrief, StoryBriefReading, StoryComparison, StoryComparisonEvidence, year } from "../lib/api";
 import { parseWriterDecisionArchive, PinnedEvidence, renderWriterDecisionsMarkdown, WriterDecision } from "../lib/writer-study-export";
 
 const EXAMPLE_QUESTION = "How do these films turn the same idea into different character choices and consequences?";
@@ -24,11 +26,11 @@ function isStoredPin(value: unknown): value is PinnedEvidence {
     "source_url" in value && typeof value.source_url === "string" && /^https?:\/\//.test(value.source_url);
 }
 
-export function StoryComparisonWorkbench() {
+export function StoryComparisonWorkbench({ mode }: { mode: "study" | "evidence" | "library" }) {
+  const router = useRouter();
   const [first, setFirst] = useState<ResearchFilm | null>(null);
   const [second, setSecond] = useState<ResearchFilm | null>(null);
   const [workspaceReady, setWorkspaceReady] = useState(false);
-  const [dossierOpen, setDossierOpen] = useState(false);
   const [notes, setNotes] = useState<WriterDecision[]>([]);
   const [notesLoadFailed, setNotesLoadFailed] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
@@ -47,6 +49,7 @@ export function StoryComparisonWorkbench() {
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const comparisonRequest = useRef<AbortController | null>(null);
   const discoveryRequest = useRef<AbortController | null>(null);
+  const autoRequested = useRef(false);
 
   useEffect(() => () => { comparisonRequest.current?.abort(); discoveryRequest.current?.abort(); }, []);
 
@@ -116,7 +119,9 @@ export function StoryComparisonWorkbench() {
     setFirst(asResearchFilm(savedFirst));
     setSecond(asResearchFilm(savedSecond));
     setQuestion(note.question);
-    document.getElementById("compare")?.scrollIntoView({ behavior: "smooth" });
+    try { window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ first: asResearchFilm(savedFirst), second: asResearchFilm(savedSecond), question: note.question })); }
+    catch { setNotesError("This browser could not reopen the study. Export your studies before trying again."); return; }
+    router.push("/study");
   }
 
   useEffect(() => {
@@ -207,7 +212,7 @@ export function StoryComparisonWorkbench() {
 
   function chooseFilm(film: ResearchFilm) {
     invalidateComparison();
-    if (!first) { setFirst(film); setDossierOpen(false); }
+    if (!first) setFirst(film);
     else if (!second) setSecond(film);
     else setSecond(film);
     setQuery("");
@@ -253,8 +258,7 @@ export function StoryComparisonWorkbench() {
     }
   }
 
-  async function compare() {
-    if (!first || !second || question.trim().length < 12) return;
+  async function requestComparison(firstFilm: ResearchFilm, secondFilm: ResearchFilm, askedQuestion: string) {
     invalidateComparison();
     const controller = new AbortController();
     comparisonRequest.current = controller;
@@ -266,7 +270,7 @@ export function StoryComparisonWorkbench() {
       const response = await fetch("/api/v1/comparisons/story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ first_entity_id: first.entity_id, second_entity_id: second.entity_id, question: question.trim() }),
+        body: JSON.stringify({ first_entity_id: firstFilm.entity_id, second_entity_id: secondFilm.entity_id, question: askedQuestion.trim() }),
         signal: controller.signal,
       });
       if (!response.ok) throw new Error();
@@ -285,7 +289,23 @@ export function StoryComparisonWorkbench() {
     }
   }
 
+  function compare() {
+    if (!first || !second || question.trim().length < 12) return;
+    try { window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ first, second, question })); }
+    catch { setError("This browser could not keep your study between pages. Enable local storage and try again."); return; }
+    router.push("/evidence");
+  }
+
+  useEffect(() => {
+    if (mode !== "evidence" || !workspaceReady || autoRequested.current || !first || !second || question.trim().length < 12) return;
+    autoRequested.current = true;
+    void requestComparison(first, second, question);
+    // A route visit runs one comparison. The writer can retry explicitly below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, workspaceReady, first, second, question]);
+
   return <>
+    {mode === "study" && <>
     <section id="compare" className="story-workbench">
       <div className="workbench-copy">
         <p className="eyebrow">Writer&apos;s comparison desk</p>
@@ -299,9 +319,16 @@ export function StoryComparisonWorkbench() {
         </div>
       </div>
       <div className="workbench-controls">
+        <label className="writer-question-input">
+          <span>Your writing question</span>
+          <textarea id="writer-question" value={question} onChange={(event) => changeQuestion(event.target.value)} maxLength={400} placeholder={EXAMPLE_QUESTION} />
+          <small>{question.trim().length}/400 · minimum 12 characters</small>
+        </label>
+        <button className="discovery-button" disabled={question.trim().length < 12 || discovering} onClick={discoverFilms}>{discovering ? "Finding film leads…" : "Find films for this question"}</button>
+        <p className="film-picker-label">Then choose two films to compare</p>
         <div className="comparison-slots">
           <FilmChoice label="First film" film={first} onClear={() => { invalidateComparison(); setFirst(null); }} />
-          <span>×</span>
+          <span>vs</span>
           <FilmChoice label="Second film" film={second} onClear={() => { invalidateComparison(); setSecond(null); }} />
         </div>
         <div className="live-search compare-search">
@@ -312,13 +339,7 @@ export function StoryComparisonWorkbench() {
             {searchError ? <p role="status">{searchError}</p> : suggestions.length ? suggestions.map((film) => <button key={film.entity_id} onClick={() => chooseFilm(film)}><span><b>{film.title}</b><small>{film.release_year ?? year(film.release_date)} · {film.genres.slice(0, 2).join(", ") || "Genre unavailable"}</small></span><i>select ↗</i></button>) : <p role="status">No other title matches “{query.trim()}”.</p>}
           </div>}
         </div>
-        <label className="writer-question-input">
-          <span>Your writing question</span>
-          <textarea id="writer-question" value={question} onChange={(event) => changeQuestion(event.target.value)} maxLength={400} placeholder={EXAMPLE_QUESTION} />
-          <small>{question.trim().length}/400 · minimum 12 characters</small>
-        </label>
-        <button className="discovery-button" disabled={question.trim().length < 12 || discovering} onClick={discoverFilms}>{discovering ? "Finding film leads…" : "Find films for this question"}</button>
-        {first && <button className="dossier-button" aria-expanded={dossierOpen} onClick={() => setDossierOpen((open) => !open)}>{dossierOpen ? "Close film sources" : `Study ${first.title} on its own`}</button>}
+        {first && <Link className="dossier-button" href={`/research/${first.entity_id}`}>Study {first.title} on its own ↗</Link>}
         <button className="compare-button" disabled={!first || !second || question.trim().length < 12 || loading} onClick={compare}>{loading ? "Retrieving both films…" : "Build evidence comparison"}</button>
         {discoveryError && <p className="notice">{discoveryError}</p>}
         {error && <p className="notice">{error}</p>}
@@ -333,9 +354,17 @@ export function StoryComparisonWorkbench() {
         <button onClick={() => chooseFilm(lead.film)}>Add to comparison</button>
       </article>)}</div> : <p>{discovery.method === "not_run" ? "No film leads were suggested without the required evidence." : "No attributable film leads were found for this question. Try a more specific dramatic situation."}</p>}
     </section>}
-    {first && dossierOpen && <FilmDossier key={first.entity_id} film={first} />}
-    {result && <ComparisonResult key={`${result.first.entity_id}:${result.second.entity_id}:${result.question}`} result={result} saveNote={saveNote} />}
-    <StudyLibrary notes={notes} error={notesError} importMessage={importMessage} onImport={importNotes} onDownload={downloadNotes} onReopen={reopenNote} />
+    </>}
+    {mode === "evidence" && <>
+      <div className="route-back"><Link href="/study">← Refine the question or films</Link><Link href="/studies">My studies →</Link></div>
+      {!first || !second || question.trim().length < 12 ? <section className="journey-empty"><p className="eyebrow">Evidence desk</p><h1>Start with a question and two films.</h1><p>There is no complete comparison in this browser yet.</p><Link className="primary-link" href="/study">Set up a study ↗</Link></section> : <>
+        {loading && <section className="journey-empty" role="status"><p className="eyebrow">Evidence desk</p><h1>Reading both films…</h1><p>Retrieving attributable passages for {first.title} and {second.title}.</p></section>}
+        {error && <section className="journey-empty" role="alert"><p className="eyebrow">Evidence desk</p><h1>We could not retrieve this comparison.</h1><p>{error}</p><button className="compare-button" onClick={() => void requestComparison(first, second, question)}>Retry comparison</button></section>}
+        {result && <ComparisonResult key={`${result.first.entity_id}:${result.second.entity_id}:${result.question}`} result={result} saveNote={saveNote} />}
+        {notes.length > 0 && <p className="evidence-library-link"><Link href="/studies">Open saved studies ({notes.length}) →</Link></p>}
+      </>}
+    </>}
+    {mode === "library" && <><div className="route-back"><Link href="/study">← Start another study</Link></div><StudyLibrary notes={notes} error={notesError} importMessage={importMessage} onImport={importNotes} onDownload={downloadNotes} onReopen={reopenNote} /></>}
   </>;
 }
 
@@ -345,7 +374,7 @@ const DOSSIER_SECTIONS = [
   { id: "legacy", label: "Legacy" },
 ] as const;
 
-function FilmDossier({ film }: { film: ResearchFilm }) {
+export function FilmDossier({ film }: { film: ResearchFilm }) {
   const [section, setSection] = useState<string>("plot");
   const [offset, setOffset] = useState(0);
   const [page, setPage] = useState<ResearchPassagePage | null>(null);
@@ -406,9 +435,47 @@ function FilmChoice({ label, film, onClear }: { label: string; film: ResearchFil
 }
 
 function ComparisonResult({ result, saveNote }: { result: StoryComparison; saveNote: (note: WriterDecision) => boolean }) {
+  const [panel, setPanel] = useState<"evidence" | "canvas">("evidence");
+  const [brief, setBrief] = useState<StoryBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
+  const draftRequest = useRef<AbortController | null>(null);
   const [pinned, setPinned] = useState<PinnedEvidence[]>([]);
   const [loadedPinsKey, setLoadedPinsKey] = useState<string | null>(null);
   const pinsKey = draftStorageKey(result, "pins");
+  const focus = result.lenses.find((lens) => lens.identifier === "central_question" && lens.first_evidence && lens.second_evidence)
+    || result.lenses.find((lens) => lens.first_evidence && lens.second_evidence);
+  useEffect(() => () => draftRequest.current?.abort(), []);
+  async function requestBrief() {
+    if (result.answerability_status !== "candidate_evidence" || !focus) return;
+    const firstIds = focus.first_options.slice(0, 3).map((item) => item.chunk_id);
+    const secondIds = focus.second_options.slice(0, 3).map((item) => item.chunk_id);
+    if (!firstIds.length || !secondIds.length) return;
+    draftRequest.current?.abort();
+    const controller = new AbortController();
+    draftRequest.current = controller;
+    const deadline = window.setTimeout(() => controller.abort(), 65000);
+    setBriefLoading(true);
+    setBrief(null);
+    setBriefError(null);
+    try {
+      const response = await fetch("/api/v1/comparisons/story/brief", {
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
+        body: JSON.stringify({
+          first_entity_id: result.first.entity_id, second_entity_id: result.second.entity_id,
+          question: result.question, first_chunk_ids: firstIds, second_chunk_ids: secondIds,
+        }),
+      });
+      if (!response.ok) throw new Error();
+      const draft: StoryBrief = await response.json();
+      if (!controller.signal.aborted) setBrief(draft);
+    } catch {
+      if (!controller.signal.aborted) setBriefError("The experimental local draft was unavailable or failed its citation checks. The source passages below are still ready to study.");
+    } finally {
+      window.clearTimeout(deadline);
+      if (draftRequest.current === controller) { draftRequest.current = null; setBriefLoading(false); }
+    }
+  }
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem(pinsKey) || "[]");
@@ -440,19 +507,29 @@ function ComparisonResult({ result, saveNote }: { result: StoryComparison; saveN
   }
 
   if (result.answerability_status === "insufficient_evidence") return <section className="story-comparison-result insufficient-evidence" aria-live="polite">
-    <p className="eyebrow">Insufficient evidence</p><h2>{result.summary}</h2>
+    <p className="eyebrow">Insufficient evidence · {result.first.title} × {result.second.title}</p><h2>{result.summary}</h2>
     <p>{result.answerability_reason}</p><small>{result.caution}</small>
-    <div className="evidence-recovery"><a href="#writer-question">Refine the question ↑</a><a href="#comparison-film-search">Try another film ↑</a></div>
+    <div className="evidence-recovery"><Link href="/study#writer-question">Refine the question ↑</Link><Link href="/study#comparison-film-search">Try another film ↑</Link></div>
   </section>;
-  const focus = result.lenses.find((lens) => lens.identifier === "central_question" && lens.first_evidence && lens.second_evidence)
-    || result.lenses.find((lens) => lens.first_evidence && lens.second_evidence);
   const furtherContext = result.lenses.filter((lens) => lens !== focus);
   return <section className="story-comparison-result">
     <header>
       <div><p className="eyebrow">Evidence comparison</p><h2>{result.first.title} <i>×</i> {result.second.title}</h2><p className="comparison-question">“{result.question}”</p></div>
       <div className={result.degraded ? "retrieval-badge degraded" : "retrieval-badge"}><span>{result.retrieval_method} retrieval</span><small>{result.summary}</small></div>
     </header>
+    <nav className="comparison-stage-nav" aria-label="Comparison stages"><button aria-pressed={panel === "evidence"} onClick={() => setPanel("evidence")}>1 · Inspect evidence</button><button aria-pressed={panel === "canvas"} onClick={() => setPanel("canvas")}>2 · Make your move <span>{pinned.length} pinned</span></button></nav>
+    {panel === "evidence" && <>
     {result.fallback_reason && <p className="fallback-note">{result.fallback_reason}</p>}
+    {result.model_draft_available && <section className="story-brief" aria-live="polite">
+      <div className="story-brief-head"><div><p className="eyebrow">Experimental local draft</p><h3>A reading to challenge</h3></div><small>{briefLoading ? "Drafting from cited passages…" : brief ? `Local model · ${brief.model}` : "Optional · may be inaccurate"}</small></div>
+      {!brief && !briefLoading && <button className="story-brief-trigger" onClick={() => void requestBrief()}>Generate a cited draft from these passages ↗</button>}
+      {briefLoading && <p role="status" className="story-brief-status">Building a question-specific comparison from both films’ source passages…</p>}
+      {briefError && <p role="status" className="story-brief-status">{briefError}</p>}
+      {brief && <><div className="story-brief-grid">
+        <BriefReading title={result.first.title} reading={brief.first} />
+        <BriefReading title={result.second.title} reading={brief.second} />
+      </div><div className="story-brief-contrast"><BriefReading title="The difference" reading={brief.contrast} /><p><b>A move to try:</b> {brief.writing_move}</p></div><small className="story-brief-caution">{brief.caution}</small></>}
+    </section>}
     <div className="comparison-column-headings"><span>{result.first.title}</span><i>Question evidence</i><span>{result.second.title}</span></div>
     {focus && <div className="comparison-lenses"><article className="comparison-lens focus-lens">
       <EvidenceChoices evidence={focus.first_evidence} options={focus.first_options} filmTitle={result.first.title} pinned={pinned} onPin={(evidence) => toggleEvidence(result.first.entity_id, evidence)} />
@@ -465,8 +542,14 @@ function ComparisonResult({ result, saveNote }: { result: StoryComparison; saveN
       <EvidenceCard evidence={lens.second_evidence} filmTitle={result.second.title} pinned={pinned.some((item) => item.chunk_id === lens.second_evidence?.chunk_id)} onPin={() => { if (lens.second_evidence) toggleEvidence(result.second.entity_id, lens.second_evidence); }} />
     </article>)}</div></details>}
     <footer>{result.caution}</footer>
-    <WriterDecisionPad result={result} pinned={pinned} saveNote={saveNote} />
+    <div className="comparison-next"><button onClick={() => setPanel("canvas")}>Turn evidence into your own move →</button></div>
+    </>}
+    {panel === "canvas" && <WriterDecisionPad result={result} pinned={pinned} saveNote={saveNote} />}
   </section>;
+}
+
+function BriefReading({ title, reading }: { title: string; reading: StoryBriefReading }) {
+  return <article><h4>{title}</h4><p>{reading.text}</p><div className="story-brief-sources">{reading.sources.map((source) => <details key={source.chunk_id}><summary>Source {source.ref} · {source.section_title}</summary><p>{source.excerpt}</p><a href={source.source_url} target="_blank" rel="noopener noreferrer">Open original · {source.source_license} · revision {source.source_revision || "unavailable"} ↗</a></details>)}</div></article>;
 }
 
 function EvidenceChoices({ evidence, options, filmTitle, pinned, onPin }: {

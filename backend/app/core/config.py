@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     crossref_request_interval_seconds: float = 2.0
     ollama_base_url: str = "http://127.0.0.1:11434"
     interactive_embedding_timeout_seconds: float = Field(default=12.0, ge=1, le=30)
+    story_synthesis_model: str | None = None
+    story_synthesis_base_url: str | None = None
+    story_synthesis_timeout_seconds: float = Field(default=55.0, ge=5, le=90)
+    serve_noncommercial_sources: bool = False
     research_collection_code: str = "english-1000-retained-narrative-v1"
     admin_intake_token: str | None = None
     imdb_data_dir: str = "/imports/imdb"

@@ -20,6 +20,21 @@ class CreditOut(BaseModel):
     character_name: str | None = None
 
 
+class SourcedCreditOut(BaseModel):
+    name: str
+    role: str
+    character_name: str | None
+    position: int | None
+    source_url: str
+
+
+class SourcedCreditGroupOut(BaseModel):
+    source_name: str
+    source_license: str
+    rights_status: str
+    credits: list[SourcedCreditOut]
+
+
 class FilmListItem(BaseModel):
     id: UUID
     title: str
@@ -39,6 +54,7 @@ class FilmDetail(FilmListItem):
     countries: list[str]
     aliases: list[str]
     credits: list[CreditOut]
+    sourced_credit_groups: list[SourcedCreditGroupOut]
     provenance: list[ProvenanceOut]
 
 
@@ -197,6 +213,39 @@ class StoryComparisonOut(BaseModel):
     lenses: list[StoryComparisonLensOut]
     preprocessing_run_id: str
     index_run_id: str | None
+    model_draft_available: bool = False
+
+
+class StoryBriefRequest(BaseModel):
+    first_entity_id: UUID
+    second_entity_id: UUID
+    question: str = Field(min_length=12, max_length=400)
+    first_chunk_ids: list[UUID] = Field(min_length=1, max_length=3)
+    second_chunk_ids: list[UUID] = Field(min_length=1, max_length=3)
+
+
+class StoryBriefSourceOut(BaseModel):
+    ref: str
+    chunk_id: str
+    section_title: str
+    source_url: str
+    source_revision: str | None
+    source_license: str
+    excerpt: str
+
+
+class StoryBriefReadingOut(BaseModel):
+    text: str
+    sources: list[StoryBriefSourceOut]
+
+
+class StoryBriefOut(BaseModel):
+    model: str
+    first: StoryBriefReadingOut
+    second: StoryBriefReadingOut
+    contrast: StoryBriefReadingOut
+    writing_move: str
+    caution: str
 
 
 class LineageEdgeOut(BaseModel):

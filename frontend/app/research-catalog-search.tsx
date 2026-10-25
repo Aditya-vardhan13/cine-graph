@@ -39,7 +39,7 @@ export function ResearchCatalogSearch({ count }: { count: number | undefined }) 
     <div className="research-catalog-input"><span aria-hidden="true">⌕</span><input id="research-catalog-query" value={query} onChange={(event) => setQuery(event.target.value)} autoComplete="off" placeholder="Search a film to study…" /><small>{loading ? "Searching" : "Live"}</small></div>
     {error && <p role="status">The writer library could not be searched. Try again.</p>}
     {searched === query.trim() && !loading && !error && <div className="research-catalog-results" aria-live="polite">
-      {results.length ? results.map((film) => <a key={film.entity_id} href={`/?study=${film.entity_id}#compare`}><span><strong>{film.title}</strong><small>{film.release_year ?? year(film.release_date)} · {film.genres.slice(0, 2).join(", ") || "Genre not sourced"}</small></span><i>Study ↗</i></a>) : <p>No research film matches “{searched}”. Try fewer words.</p>}
+      {results.length ? results.map((film) => <a key={film.entity_id} href={`/research/${film.entity_id}`}><span><strong>{film.title}</strong><small>{film.release_year ?? year(film.release_date)} · {film.genres.slice(0, 2).join(", ") || "Genre not sourced"}</small></span><i>Read sources ↗</i></a>) : <p>No research film matches “{searched}”. Try fewer words.</p>}
     </div>}
   </div>;
 }

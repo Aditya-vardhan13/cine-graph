@@ -61,6 +61,10 @@ export type FilmDetail = Film & {
   countries: string[];
   aliases: string[];
   credits: Array<{ person_id: string; name: string; role: string; character_name: string | null }>;
+  sourced_credit_groups: Array<{
+    source_name: string; source_license: string; rights_status: string;
+    credits: Array<{ name: string; role: string; character_name: string | null; position: number | null; source_url: string }>;
+  }>;
   provenance: Array<{ source_name: string; source_url: string; license: string; field_name: string; source_reference: string }>;
 };
 
@@ -125,6 +129,7 @@ export type ResearchPassagePage = {
 
 export type StoryComparison = {
   question: string;
+  model_draft_available: boolean;
   first: ResearchFilm;
   second: ResearchFilm;
   requested_method: string;
@@ -146,6 +151,24 @@ export type StoryComparison = {
     second_evidence: StoryComparisonEvidence | null;
     first_options: StoryComparisonEvidence[];
     second_options: StoryComparisonEvidence[];
+  }>;
+};
+
+export type StoryBrief = {
+  model: string;
+  first: StoryBriefReading;
+  second: StoryBriefReading;
+  contrast: StoryBriefReading;
+  writing_move: string;
+  caution: string;
+};
+
+export type StoryBriefReading = {
+  text: string;
+  sources: Array<{
+    ref: string; chunk_id: string; section_title: string; source_url: string;
+    source_revision: string | null; source_license: string;
+    excerpt: string;
   }>;
 };
 

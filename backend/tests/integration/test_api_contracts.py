@@ -11,11 +11,16 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
-from app.models import CanonicalEntity, EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding, SourceSnapshot
+from app.models import (
+    Assertion, AssertionEvidence, CanonicalEntity, DataSource, EmbeddingIndexRun, EmbeddingModel,
+    EvidenceChunk, EvidenceEmbedding, SourceAssertion, SourceObject, SourceSnapshot,
+)
 from app.migrations import alembic_config
 from app.services.evidence_preprocessing import ChunkConfiguration, build_evidence_chunks, evidence_chunk_quality_report
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.retrieval_scope import resolve_retrieval_scope
+from app.services.research_credits import sourced_credit_groups
+from app.services.story_synthesis import synthesize_story_brief
 
 API_URL = os.environ.get("CINEGRAPH_INTEGRATION_API_URL", "http://127.0.0.1:18001")
 DATABASE_URL = os.environ.get(
@@ -252,6 +257,7 @@ def test_story_comparison_returns_two_sided_attributable_evidence() -> None:
     assert payload["retrieval_method"] == "lexical"
     assert payload["degraded"] is False
     assert payload["answerability_status"] == "candidate_evidence"
+    assert payload["model_draft_available"] is False
     assert payload["preprocessing_run_id"]
     assert payload["index_run_id"] is None
     assert payload["first"]["title"] == "Batman Begins"
@@ -264,6 +270,98 @@ def test_story_comparison_returns_two_sided_attributable_evidence() -> None:
     assert paired[0]["second_options"][0] == paired[0]["second_evidence"]
     assert all(option["source_url"].startswith("https://en.wikipedia.org/wiki/") for lens in payload["lenses"] for option in lens["first_options"] + lens["second_options"])
     assert all(lens["writer_prompt"] for lens in payload["lenses"])
+
+
+def test_story_brief_rejects_cross_film_chunks_before_model_io() -> None:
+    with Session(create_engine(DATABASE_URL)) as db:
+        build_evidence_chunks(db, collection_code="integration-narrative-v1")
+        begins_id = db.scalar(select(CanonicalEntity.id).where(CanonicalEntity.wikidata_id == "Q166262"))
+        knight_id = db.scalar(select(CanonicalEntity.id).where(CanonicalEntity.wikidata_id == "Q163872"))
+        assert begins_id and knight_id
+        scope = resolve_retrieval_scope(db, collection_code="integration-narrative-v1")
+        begins_chunk = db.scalar(select(EvidenceChunk.id).where(
+            EvidenceChunk.subject_entity_id == begins_id,
+            EvidenceChunk.preprocessing_run_id == scope.preprocessing_run_id,
+            EvidenceChunk.quality_status == "eligible",
+        ).limit(1))
+        knight_chunk = db.scalar(select(EvidenceChunk.id).where(
+            EvidenceChunk.subject_entity_id == knight_id,
+            EvidenceChunk.preprocessing_run_id == scope.preprocessing_run_id,
+            EvidenceChunk.quality_status == "eligible",
+        ).limit(1))
+        assert begins_chunk and knight_chunk
+        with pytest.raises(ValueError, match="not eligible for this film"):
+            synthesize_story_brief(
+                db, first_entity_id=begins_id, second_entity_id=knight_id,
+                question="How does Batman face a moral choice?",
+                first_chunk_ids=[knight_chunk], second_chunk_ids=[begins_chunk],
+                model="unused", base_url="http://127.0.0.1:1", timeout_seconds=1,
+                collection_code="integration-narrative-v1",
+            )
+
+
+def test_story_brief_reports_unconfigured_local_model() -> None:
+    response = httpx.post(
+        f"{API_URL}/api/v1/comparisons/story/brief",
+        json={
+            "first_entity_id": str(uuid4()), "second_entity_id": str(uuid4()),
+            "question": "How do these films challenge their protagonists?",
+            "first_chunk_ids": [str(uuid4())], "second_chunk_ids": [str(uuid4())],
+        }, timeout=5,
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Local story synthesis is not configured"
+
+
+def test_noncommercial_credits_require_explicit_serving_flag() -> None:
+    with Session(create_engine(DATABASE_URL)) as db:
+        knight_id = db.scalar(select(CanonicalEntity.id).where(CanonicalEntity.wikidata_id == "Q163872"))
+        assert knight_id
+        source = DataSource(
+            name=f"Local rights fixture {uuid4()}", url="https://example.test/credits",
+            source_type="recorded_test_fixture", license="test non-commercial terms",
+            rights_status="local_noncommercial_only",
+        )
+        db.add(source)
+        db.flush()
+        source_object = SourceObject(
+            source_id=source.id, external_id=f"film-{uuid4()}", object_kind="film",
+            canonical_url=source.url,
+        )
+        db.add(source_object)
+        db.flush()
+        snapshot = SourceSnapshot(
+            source_object_id=source_object.id, canonical_url=source.url,
+            source_revision="integration-credit-v1", content_hash=hashlib.sha256(str(uuid4()).encode()).hexdigest(),
+            license=source.license, attribution_url=source.url, parser_version="integration-credit-v1",
+        )
+        db.add(snapshot)
+        db.flush()
+        raw = SourceAssertion(
+            source_snapshot_id=snapshot.id, statement_locator="credits.cast[0]",
+            source_property="credits", raw_subject={"film": "The Dark Knight"},
+            raw_value={"name": "Heath Ledger", "character": "Joker", "position": 1},
+            raw_qualifiers={}, extractor_version="integration-credit-v1",
+        )
+        db.add(raw)
+        db.flush()
+        assertion = Assertion(
+            subject_entity_id=knight_id, predicate="cast", assertion_kind="source_fact",
+            source_id=source.id, source_reference=source.url,
+            review_status="resolved", value_json=raw.raw_value,
+        )
+        db.add(assertion)
+        db.flush()
+        db.add(AssertionEvidence(
+            assertion_id=assertion.id, source_assertion_id=raw.id,
+            evidence_type="source_assertion", reference=f"{source.url}#credits.cast[0]",
+        ))
+        db.flush()
+        assert sourced_credit_groups(db, knight_id) == ()
+        groups = sourced_credit_groups(db, knight_id, include_noncommercial=True)
+        assert len(groups) == 1
+        assert groups[0].credits[0].character_name == "Joker"
+        db.rollback()
 
 
 def test_question_first_discovery_returns_source_linked_film_leads() -> None:

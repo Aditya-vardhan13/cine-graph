@@ -9,6 +9,7 @@ CineGraph is a source-linked film research desk for writers. Ask a writing quest
 - Wikidata metadata and typed relationships retain source assertions and the reviewed operational `Assertion` projection. Wikipedia narrative passages remain attributed source text, not promoted facts.
 - The local hybrid-retrieval benchmark measured finding a labeled passage in a candidate set; it does **not** establish that every displayed passage answers a writer's question. The 20-task writer study is still a development diagnostic, not a passed product-usefulness gate. See [writer-study findings](docs/writer-study-v2-findings-2026-09-29.md).
 - Critical-essay discovery has an attribution-and-rights model, but the current corpus has no published critical claims. Link-only essays are not copied or embedded.
+- A local generative comparison draft is experimental and off by default: the 4B and 8B pilots produced semantically wrong claims despite valid citations. See [the local draft evaluation](docs/local-story-draft-evaluation-2026-10-25.md). The evidence-and-writer-note flow does not require a generative model.
 
 The local database is intentionally excluded from Git. Regenerate it from the source instead of committing scraped/derived data.
 
@@ -24,6 +25,19 @@ it does **not** scrape or ingest anything on startup. The API is at
 `http://localhost:8000/api/v1`. Local ports bind to loopback by default. Set
 `CINEGRAPH_BIND_ADDRESS` deliberately for access from another device; never
 expose the default PostgreSQL credentials publicly.
+The local Compose pilot explicitly enables source-labelled IMDb/TMDb credits.
+Direct API runs and other deployments hide those non-commercial-only source
+credits unless `SERVE_NONCOMMERCIAL_SOURCES=true` is deliberately set. Do not
+enable that flag in a commercial deployment without the required rights.
+
+To evaluate the **optional, unverified** local writing draft on macOS, start
+`bash scripts/start_story_model.sh` in another terminal, then run
+`OLLAMA_HOST=127.0.0.1:11435 OLLAMA_MODELS="$PWD/data/ollama-models" ollama pull qwen3:8b`
+once. Start the API with `CINEGRAPH_STORY_MODEL=qwen3:8b docker compose up --build -d api web`.
+The model stays on loopback, its weights stay in ignored `data/`, and the UI
+offers an explicit “Generate a cited draft” button only when configured. It can
+take roughly 40–50 seconds for one comparison and may make unsupported claims;
+inspect every cited passage. Do not use this pilot output as a film fact.
 
 For direct Conda development against the same local PostgreSQL container:
 

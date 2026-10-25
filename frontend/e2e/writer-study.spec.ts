@@ -5,6 +5,9 @@ test("writer can search, compare, pin evidence, and export a study", async ({ pa
   expect(health.ok(), "Start the isolated integration API before the browser test").toBeTruthy();
 
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: /Understand its choices/ })).toBeVisible();
+  await page.getByRole("link", { name: /Start a study/ }).click();
+  await expect(page).toHaveURL(/\/study$/);
   const search = page.getByRole("textbox", { name: "Search comparison films" });
   await search.fill("Batman Begins");
   await page.getByRole("button", { name: /Batman Begins.*select/ }).click();
@@ -15,8 +18,10 @@ test("writer can search, compare, pin evidence, and export a study", async ({ pa
     "How does becoming a public symbol change Batman's moral choices?",
   );
   await page.getByRole("button", { name: "Build evidence comparison" }).click();
+  await expect(page).toHaveURL(/\/evidence$/);
   await expect(page.getByRole("heading", { name: /Batman Begins.*The Dark Knight/ })).toBeVisible();
   await expect(page.getByText("Additional source context", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Generate a cited draft from these passages" })).toHaveCount(0);
 
   const firstAlternatives = page.getByRole("navigation", { name: "Source passages for Batman Begins" });
   await expect(firstAlternatives.getByText(/Passage 1 of/)).toBeVisible();
@@ -26,11 +31,14 @@ test("writer can search, compare, pin evidence, and export a study", async ({ pa
   const pinButtons = page.getByRole("button", { name: "Pin as evidence +" });
   await pinButtons.first().click();
   await pinButtons.first().click();
+  await page.getByRole("button", { name: /Make your move/ }).click();
   await page.getByRole("textbox", { name: /How Batman Begins handles it/ }).fill("The symbol provokes escalation.");
   await page.getByRole("textbox", { name: /How The Dark Knight handles it/ }).fill("He accepts blame to preserve hope.");
   await page.getByRole("textbox", { name: "The meaningful difference" }).fill("One starts the public role; the other bears its cost.");
   await page.getByRole("textbox", { name: "Your creative decision" }).fill("Make my protagonist choose who receives public credit.");
   await page.getByRole("button", { name: "Save this study" }).click();
+  await page.getByRole("link", { name: /Open saved studies/ }).click();
+  await expect(page).toHaveURL(/\/studies$/);
   await expect(page.getByText("Make my protagonist choose who receives public credit.")).toBeVisible();
 
   const downloadEvent = page.waitForEvent("download");
@@ -52,6 +60,7 @@ test("writer can search, compare, pin evidence, and export a study", async ({ pa
   await expect(page.getByRole("heading", { name: "My studies 1" })).toBeVisible();
   await expect(page.getByText("Make my protagonist choose who receives public credit.")).toBeVisible();
   await page.getByRole("button", { name: "Reopen comparison" }).click();
+  await expect(page).toHaveURL(/\/study$/);
   await expect(page.getByRole("textbox", { name: "Your writing question" })).toHaveValue("How does becoming a public symbol change Batman's moral choices?");
   await expect(page.locator(".comparison-slots").getByText("Batman Begins", { exact: true })).toBeVisible();
   await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
@@ -61,7 +70,7 @@ test("unsupported question abstains without losing selected films", async ({ pag
   const health = await request.get("http://127.0.0.1:18001/health");
   expect(health.ok(), "Start the isolated integration API before the browser test").toBeTruthy();
 
-  await page.goto("/");
+  await page.goto("/study");
   const search = page.getByRole("textbox", { name: "Search comparison films" });
   await search.fill("Batman Begins");
   await page.getByRole("button", { name: /Batman Begins.*select/ }).click();
@@ -71,10 +80,11 @@ test("unsupported question abstains without losing selected films", async ({ pag
     "Which private off-the-record meeting changed the film's ending?",
   );
   await page.getByRole("button", { name: "Build evidence comparison" }).click();
+  await expect(page).toHaveURL(/\/evidence$/);
   await expect(page.getByRole("heading", { name: "Current sources cannot substantiate this question." })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Refine the question" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Refine the question ↑", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Try another film" })).toBeVisible();
-  await expect(page.getByText("Batman Begins", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/Insufficient evidence · Batman Begins × The Dark Knight/)).toBeVisible();
 });
 
 test("film profile opens the writer desk with that film selected", async ({ page, request }) => {
@@ -82,9 +92,12 @@ test("film profile opens the writer desk with that film selected", async ({ page
   expect(films.ok()).toBeTruthy();
   const film = (await films.json())[0];
   await page.goto(`/films/${film.id}`);
-  await expect(page.getByText(/legacy profile records 2022, but the research assertions identify 2008/)).toBeVisible();
+  await expect(page.getByText(/legacy profile records 2022, but research assertions identify 2008/)).toBeVisible();
+  await expect(page.locator(".film-hero .metadata")).toContainText("2008-07-18");
   await page.getByRole("link", { name: "Study this film as a writer" }).click();
-  await expect(page).toHaveURL(/\?study=.*#compare/);
+  await expect(page).toHaveURL(/\/research\//);
+  await page.getByRole("link", { name: /Bring into a comparison/ }).click();
+  await expect(page).toHaveURL(/\/study\?study=/);
   await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
 });
 
@@ -92,11 +105,13 @@ test("catalog search finds narrative films and opens a study", async ({ page, re
   const health = await request.get("http://127.0.0.1:18001/health");
   expect(health.ok()).toBeTruthy();
   await page.goto("/");
-  await page.getByRole("link", { name: "Catalog" }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Films" }).click();
   await page.getByRole("textbox", { name: /Search the .*film writer library/ }).fill("Dark Knight");
   const result = page.locator(".research-catalog-results a").filter({ hasText: "The Dark Knight" }).first();
   await expect(result).toBeVisible();
   await result.click();
+  await expect(page).toHaveURL(/\/research\//);
+  await page.getByRole("link", { name: /Bring into a comparison/ }).click();
   await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
 });
 
@@ -110,7 +125,7 @@ test("a truly missing film gets a not-found page", async ({ page, request }) => 
 test("an unfinished writer draft survives a browser reload", async ({ page, request }) => {
   const health = await request.get("http://127.0.0.1:18001/health");
   expect(health.ok()).toBeTruthy();
-  await page.goto("/");
+  await page.goto("/study");
   const search = page.getByRole("textbox", { name: "Search comparison films" });
   await search.fill("Batman Begins");
   await page.getByRole("button", { name: /Batman Begins.*select/ }).click();
@@ -119,34 +134,40 @@ test("an unfinished writer draft survives a browser reload", async ({ page, requ
   const question = "How does becoming a public symbol change Batman's moral choices?";
   await page.getByRole("textbox", { name: "Your writing question" }).fill(question);
   await page.getByRole("button", { name: "Build evidence comparison" }).click();
+  await expect(page).toHaveURL(/\/evidence$/);
   await expect(page.getByRole("heading", { name: /Batman Begins.*The Dark Knight/ })).toBeVisible();
   const pins = page.getByRole("button", { name: "Pin as evidence +" });
   await pins.first().click();
   await pins.first().click();
+  await page.getByRole("button", { name: /Make your move/ }).click();
   await page.getByRole("textbox", { name: /How Batman Begins handles it/ }).fill("The symbol creates a public obligation.");
   await page.reload();
-  await expect(page.getByRole("textbox", { name: "Your writing question" })).toHaveValue(question);
-  await expect(page.locator(".comparison-slots").getByText("Batman Begins", { exact: true })).toBeVisible();
-  await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Build evidence comparison" }).click();
+  await expect(page).toHaveURL(/\/evidence$/);
+  await expect(page.getByText(`“${question}”`)).toBeVisible();
+  await page.getByRole("button", { name: /Make your move/ }).click();
   await expect(page.getByRole("textbox", { name: /How Batman Begins handles it/ })).toHaveValue("The symbol creates a public obligation.");
   await expect(page.getByText("Batman Begins: 1 pinned")).toBeVisible();
   await expect(page.getByText("The Dark Knight: 1 pinned")).toBeVisible();
+  await page.getByRole("link", { name: /Refine the question or films/ }).click();
+  await expect(page.getByRole("textbox", { name: "Your writing question" })).toHaveValue(question);
+  await expect(page.locator(".comparison-slots").getByText("Batman Begins", { exact: true })).toBeVisible();
+  await expect(page.locator(".comparison-slots").getByText("The Dark Knight", { exact: true })).toBeVisible();
 });
 
 test("writer can study one film through attributed source sections", async ({ page, request }) => {
   const health = await request.get("http://127.0.0.1:18001/health");
   expect(health.ok()).toBeTruthy();
-  await page.goto("/");
+  await page.goto("/study");
   const search = page.getByRole("textbox", { name: "Search comparison films" });
   await search.fill("Batman Begins");
   await page.getByRole("button", { name: /Batman Begins.*select/ }).click();
-  await page.getByRole("button", { name: "Study Batman Begins on its own" }).click();
+  await page.getByRole("link", { name: /Study Batman Begins on its own/ }).click();
+  await expect(page).toHaveURL(/\/research\//);
   const dossier = page.locator(".film-dossier");
   await expect(dossier.getByRole("heading", { name: "Batman Begins" })).toBeVisible();
   await expect(dossier.locator(".dossier-passages article").first()).toBeVisible();
   await expect(dossier.getByRole("link", { name: /Inspect source/ }).first()).toHaveAttribute("href", /^https:\/\//);
   await dossier.getByRole("button", { name: "Making it" }).click();
-  await expect(dossier.locator(".dossier-passages article").first()).toBeVisible();
+  await expect(dossier.getByText("No eligible source passages are available in this section.")).toBeVisible();
   await expect(dossier.getByRole("button", { name: "Making it" })).toHaveAttribute("aria-pressed", "true");
 });

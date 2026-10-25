@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import ValidationError
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -14,18 +17,20 @@ from app.models import (
     FilmReleaseEvent, Genre, IngestionBatch, LanguageEdition, NarrativeDocument, Person, PersonProvenance,
 )
 from app.schemas import (
-    CreditOut, FilmDetail, FilmListItem, GraphEdge, GraphNode, GraphOut, HealthOut,
+    CreditOut, SourcedCreditGroupOut, FilmDetail, FilmListItem, GraphEdge, GraphNode, GraphOut, HealthOut,
     CorpusQualityOut, CorpusSourceQuality, FilmComparison, FilmLineageOut, LanguageEditionOut, LineageEdgeOut, PersonDetail, ProvenanceOut,
     ResearchDiscoveryLeadOut, ResearchDiscoveryOut, ResearchDiscoveryRequest, ResearchFilmOut, ResearchPassagePageOut, ResearchPassageOut,
     SimilarFilmOut, SimilarityFactor, StoryComparisonEvidenceOut, StoryComparisonLensOut,
-    StoryComparisonOut, StoryComparisonRequest,
+    StoryComparisonOut, StoryComparisonRequest, StoryBriefOut, StoryBriefRequest,
 )
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod
 from app.services.ollama_embeddings import OllamaEmbeddingClient
 from app.services.research_catalog import ResearchFilm, get_research_film, search_research_films, sourced_release_years
+from app.services.research_credits import sourced_credit_groups
 from app.services.research_passages import browse_research_passages
 from app.services.research_discovery import discover_research_films
 from app.services.story_comparison import compare_story_evidence
+from app.services.story_synthesis import InvalidModelDraft, synthesize_story_brief
 from app.services.corpus_quality import corpus_quality_report
 
 router = APIRouter(prefix="/api/v1")
@@ -385,6 +390,7 @@ def compare_film_stories(
         answerability_reason=result.answerability_reason,
         preprocessing_run_id=result.preprocessing_run_id,
         index_run_id=result.index_run_id,
+        model_draft_available=bool(settings.story_synthesis_model),
         lenses=[
             StoryComparisonLensOut(
                 identifier=lens.identifier,
@@ -404,6 +410,38 @@ def compare_film_stories(
             )
             for lens in result.lenses
         ],
+    )
+
+
+@router.post("/comparisons/story/brief", response_model=StoryBriefOut)
+def generate_story_brief(request: StoryBriefRequest, db: Session = Depends(get_db)) -> StoryBriefOut:
+    """Optional local-model draft; no generated text is stored as a film fact."""
+    if not settings.story_synthesis_model:
+        raise HTTPException(status_code=503, detail="Local story synthesis is not configured")
+    try:
+        result = synthesize_story_brief(
+            db, first_entity_id=request.first_entity_id, second_entity_id=request.second_entity_id,
+            question=request.question, first_chunk_ids=request.first_chunk_ids,
+            second_chunk_ids=request.second_chunk_ids, model=settings.story_synthesis_model,
+            base_url=settings.story_synthesis_base_url or settings.ollama_base_url,
+            timeout_seconds=settings.story_synthesis_timeout_seconds,
+            collection_code=settings.research_collection_code,
+        )
+    except InvalidModelDraft as exc:
+        raise HTTPException(status_code=503, detail="Local model did not produce a sufficiently cited draft") from exc
+    except (httpx.HTTPError, ValidationError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=503, detail="Local story synthesis is unavailable or returned an invalid draft") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return StoryBriefOut(
+        model=result.model,
+        first={"text": result.first.text, "sources": [source.__dict__ for source in result.first.sources]},
+        second={"text": result.second.text, "sources": [source.__dict__ for source in result.second.sources]},
+        contrast={"text": result.contrast.text, "sources": [source.__dict__ for source in result.contrast.sources]},
+        writing_move=result.writing_move,
+        caution="AI-generated interpretation for the writer to challenge, not a reviewed film fact. Inspect the cited passages.",
     )
 
 
@@ -444,6 +482,13 @@ def get_film(film_id: UUID, db: Session = Depends(get_db)) -> FilmDetail:
         wikidata_id=film.wikidata_id, countries=film.country_codes,
         aliases=[alias.value for alias in film.aliases],
         credits=[CreditOut(person_id=credit.person.id, name=credit.person.canonical_name, role=credit.role, character_name=credit.character_name) for credit in sorted(film.credits, key=lambda c: (c.role, c.person.canonical_name))],
+        sourced_credit_groups=[SourcedCreditGroupOut(
+            source_name=group.source_name, source_license=group.source_license,
+            rights_status=group.rights_status,
+            credits=[credit.__dict__ for credit in group.credits],
+        ) for group in sourced_credit_groups(
+            db, film.entity_id, include_noncommercial=settings.serve_noncommercial_sources,
+        )] if film.entity_id else [],
         provenance=provenance_for_film(db, film),
     )
 
@@ -497,7 +542,7 @@ def similar_films(film_id: UUID, limit: int = Query(default=8, ge=1, le=20), db:
             second_release_year=release_years.get(candidate.entity_id),
         )
         score = sum(factor.contribution for factor in factors)
-        if score > 0:
+        if score > 0 and any(factor.label != "Release era" for factor in factors):
             item = film_item(candidate)
             scored.append(SimilarFilmOut(**item.model_dump(), score=round(min(score, 100.0), 1), factors=factors))
     return sorted(scored, key=lambda item: (-item.score, item.title))[:limit]

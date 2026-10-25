@@ -29,6 +29,9 @@ services:
       API_CORS_ORIGINS: http://localhost:3000
       RAW_SNAPSHOT_ROOT: /var/lib/cinegraph/raw-snapshots
       OLLAMA_BASE_URL: http://host.docker.internal:11434
+      STORY_SYNTHESIS_MODEL: ${CINEGRAPH_STORY_MODEL:-}
+      STORY_SYNTHESIS_BASE_URL: ${CINEGRAPH_STORY_URL:-http://host.docker.internal:11435}
+      SERVE_NONCOMMERCIAL_SOURCES: "true"
       ADMIN_INTAKE_TOKEN: ${CINEGRAPH_ADMIN_TOKEN:-}
       IMDB_DATA_DIR: /imports/imdb
       IMDB_INDEX_DIR: /app/data/imdb_index
