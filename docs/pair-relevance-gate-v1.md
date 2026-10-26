@@ -1,5 +1,12 @@
 # Question-specific pair relevance gate (development set)
 
+> Audit update, 2026-10-26: these are historical exploratory measurements,
+> not validated model-quality estimates or a release gate. A subsequent
+> [pipeline audit](retrieval-strategy-audit-2026-10-26.md) found an incorrect
+> relevance label, ambiguous multi-facet judgments, hard section exclusions,
+> and synthesis input truncation. Preserve the old artifacts, but re-audit
+> full-passage evidence labels before using these numbers to choose a model.
+
 ## Why this gate exists
 
 The live Endgame × Godfather question exposed a category error: two source-linked
@@ -137,11 +144,13 @@ was discarded.
 
 The newly retrieved Jurassic Park water-ripple passage was then added to the
 P04-Q4 candidate pool and reranked with the same Qwen 4B configuration. It was
-ranked 10th on the Jurassic Park side (33.4 seconds for that side), despite
-being manually judged directly relevant. This one-case diagnostic is not a
-benchmark score, but it confirms the current limitation is not only candidate
-recall: the strongest reranker can still bury highly specific evidence in a
-broader pool.
+ranked 10th on the Jurassic Park side (33.4 seconds for that side). Re-auditing
+the full passages shows that the two candidates answer different facets: the
+water-ripple passage describes a practical suspense cue; the top-ranked
+go-motion/CGI passage describes creature-effect limitations. The original
+binary judgments do not reliably distinguish partial from complete coverage.
+This one-case trial therefore does **not** establish that the model failed,
+and the earlier inference to that effect is withdrawn pending span/facet review.
 
 A separate Qwen3-Embedding-4B cosine reranker over 96 previously reviewed
 candidates took about 956 seconds and scored 34/50 (68%), with 81% side
