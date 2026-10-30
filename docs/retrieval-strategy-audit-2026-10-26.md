@@ -191,9 +191,11 @@ also does not, by itself, improve top-one relevance. Neither change is being
 promoted to the live route. Next compare a soft section prior and passage
 context within the same frozen candidate pool; retain the hard route as the
 control, and audit answer-bearing spans rather than treating visibility as
-quality. Some v2 prose still carries bare citation bibliography fragments;
-that retention problem also needs a targeted fixture and fix before a wider
-rebuild.
+quality. Correction after replay on 2026-10-31: the inspected WALL-E bibliography
+fragment was in the v1 capture, not v2. The exact retained snapshot replay with
+the pinned v2 parser removes that reference, and the v2 chunk run contains no
+matching `Captain's Log` fragment. This verifies that example only, not all
+extraction quality.
 Even an oracle allowed to choose independently among these four displayed
 heads could directly support both films for only 12/20 questions. That is a
 ceiling for *this small head set*, not for the underlying corpus. A selector
