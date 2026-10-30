@@ -49,6 +49,7 @@ class ChunkConfiguration:
     minimum_words: int = 40
     normalization_version: str = NORMALIZATION_VERSION
     source_parser_version: str | None = None
+    extraction_version: str | None = None
 
     def __post_init__(self) -> None:
         if not (0 < self.minimum_words <= self.target_tokens <= self.maximum_tokens):
@@ -57,6 +58,8 @@ class ChunkConfiguration:
             raise ValueError("overlap_tokens must be non-negative and smaller than target_tokens.")
         if self.source_parser_version is not None and not self.source_parser_version.strip():
             raise ValueError("source_parser_version must be non-empty when specified.")
+        if self.extraction_version is not None and not self.extraction_version.strip():
+            raise ValueError("extraction_version must be non-empty when specified.")
 
     @property
     def payload(self) -> dict[str, int | str]:
@@ -64,6 +67,8 @@ class ChunkConfiguration:
         # Preserve the identity of existing runs created before source scoping.
         if self.source_parser_version is None:
             payload.pop("source_parser_version")
+        if self.extraction_version is None:
+            payload.pop("extraction_version")
         return payload
 
     @property
@@ -298,6 +303,17 @@ def build_evidence_chunks(
         raise ValueError(f"No passages use source parser version {config.source_parser_version!r} in this collection.")
     selected = [(passage, snapshot) for passage, snapshot in current
                 if config.source_parser_version is None or snapshot.parser_version == config.source_parser_version]
+    if config.extraction_version is not None:
+        selected = [(passage, snapshot) for passage, snapshot in selected
+                    if passage.extraction_version == config.extraction_version]
+        if not selected:
+            raise ValueError(f"No passages use extraction version {config.extraction_version!r} in this collection.")
+    else:
+        per_snapshot_versions: dict[str, set[str]] = {}
+        for passage, snapshot in selected:
+            per_snapshot_versions.setdefault(str(snapshot.id), set()).add(passage.extraction_version)
+        if any(len(versions) > 1 for versions in per_snapshot_versions.values()):
+            raise ValueError("A source snapshot has multiple extraction versions; select one in ChunkConfiguration.")
     configuration, configuration_hash = _input_configuration(config, selected)
     run = _run_for(db, collection_code=collection_code, language_code=language_code,
                    configuration_hash=configuration_hash, configuration=configuration)
@@ -386,6 +402,7 @@ def build_evidence_chunks(
         "run_id": str(run.id),
         "collection_code": collection_code,
         "source_parser_version": config.source_parser_version,
+        "extraction_version": config.extraction_version,
         "passages_requested": len(passages),
         "passages_eligible": passages_eligible,
         "chunks_created": created,

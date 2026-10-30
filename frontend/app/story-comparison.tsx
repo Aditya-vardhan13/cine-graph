@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ResearchDiscovery, ResearchFilm, ResearchPassagePage, StoryBrief, StoryBriefReading, StoryComparison, StoryComparisonEvidence, year } from "../lib/api";
+import { selectDraftEvidence } from "../lib/story-brief-evidence";
 import { parseWriterDecisionArchive, PinnedEvidence, renderWriterDecisionsMarkdown, WriterDecision } from "../lib/writer-study-export";
 
 const EXAMPLE_QUESTION = "How do these films turn the same idea into different character choices and consequences?";
@@ -445,12 +446,11 @@ function ComparisonResult({ result, saveNote }: { result: StoryComparison; saveN
   const pinsKey = draftStorageKey(result, "pins");
   const focus = result.lenses.find((lens) => lens.identifier === "central_question" && lens.first_evidence && lens.second_evidence)
     || result.lenses.find((lens) => lens.first_evidence && lens.second_evidence);
+  const draftSelection = selectDraftEvidence(pinned, result.first.entity_id, result.second.entity_id);
   useEffect(() => () => draftRequest.current?.abort(), []);
   async function requestBrief() {
-    if (result.answerability_status !== "candidate_evidence" || !focus) return;
-    const firstIds = focus.first_options.slice(0, 3).map((item) => item.chunk_id);
-    const secondIds = focus.second_options.slice(0, 3).map((item) => item.chunk_id);
-    if (!firstIds.length || !secondIds.length) return;
+    if (result.answerability_status !== "candidate_evidence" || !draftSelection.ready) return;
+    const { firstIds, secondIds } = draftSelection;
     draftRequest.current?.abort();
     const controller = new AbortController();
     draftRequest.current = controller;
@@ -466,11 +466,17 @@ function ComparisonResult({ result, saveNote }: { result: StoryComparison; saveN
           question: result.question, first_chunk_ids: firstIds, second_chunk_ids: secondIds,
         }),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(response.status === 422 && failure?.detail
+          ? failure.detail : "The local model was unavailable or failed its citation checks.");
+      }
       const draft: StoryBrief = await response.json();
       if (!controller.signal.aborted) setBrief(draft);
-    } catch {
-      if (!controller.signal.aborted) setBriefError("The experimental local draft was unavailable or failed its citation checks. The source passages below are still ready to study.");
+    } catch (error) {
+      if (!controller.signal.aborted) setBriefError(
+        `${error instanceof Error ? error.message : "The local draft could not be generated."} Your pinned sources remain available below.`,
+      );
     } finally {
       window.clearTimeout(deadline);
       if (draftRequest.current === controller) { draftRequest.current = null; setBriefLoading(false); }
@@ -492,6 +498,9 @@ function ComparisonResult({ result, saveNote }: { result: StoryComparison; saveN
   }, [loadedPinsKey, pinned, pinsKey]);
 
   function toggleEvidence(filmEntityId: string, evidence: StoryComparisonEvidence) {
+    draftRequest.current?.abort();
+    setBrief(null);
+    setBriefError(null);
     setPinned((current) => current.some((item) => item.chunk_id === evidence.chunk_id)
       ? current.filter((item) => item.chunk_id !== evidence.chunk_id)
       : [...current, {
@@ -522,7 +531,8 @@ function ComparisonResult({ result, saveNote }: { result: StoryComparison; saveN
     {result.fallback_reason && <p className="fallback-note">{result.fallback_reason}</p>}
     {result.model_draft_available && <section className="story-brief" aria-live="polite">
       <div className="story-brief-head"><div><p className="eyebrow">Experimental local draft</p><h3>A reading to challenge</h3></div><small>{briefLoading ? "Drafting from cited passages…" : brief ? `Local model · ${brief.model}` : "Optional · may be inaccurate"}</small></div>
-      {!brief && !briefLoading && <button className="story-brief-trigger" onClick={() => void requestBrief()}>Generate a cited draft from these passages ↗</button>}
+      {!brief && !briefLoading && <><button className="story-brief-trigger" disabled={!draftSelection.ready} onClick={() => void requestBrief()}>Draft from my pinned evidence ↗</button>
+        {!draftSelection.ready && <p className="story-brief-status">{draftSelection.reason}</p>}</>}
       {briefLoading && <p role="status" className="story-brief-status">Building a question-specific comparison from both films’ source passages…</p>}
       {briefError && <p role="status" className="story-brief-status">{briefError}</p>}
       {brief && <><div className="story-brief-grid">

@@ -639,7 +639,7 @@ class NarrativePassage(Base):
     __tablename__ = "narrative_passages"
     __table_args__ = (
         UniqueConstraint(
-            "source_snapshot_id", "section_locator", "ordinal", "content_hash",
+            "source_snapshot_id", "section_locator", "ordinal", "content_hash", "extraction_version",
             name="uq_narrative_passage_snapshot_locator",
         ),
     )

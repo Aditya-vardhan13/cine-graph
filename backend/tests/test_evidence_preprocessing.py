@@ -4,9 +4,13 @@ from app.services.evidence_preprocessing import ChunkConfiguration, chunk_passag
 def test_source_scope_changes_run_identity_without_changing_legacy_digest() -> None:
     legacy = ChunkConfiguration()
     scoped = ChunkConfiguration(source_parser_version="enwiki-pinned-revision-recovery-v1")
+    extracted = ChunkConfiguration(extraction_version="enwiki-readable-prose-mwparser-v2")
     assert "source_parser_version" not in legacy.payload
+    assert "extraction_version" not in legacy.payload
     assert scoped.payload["source_parser_version"] == "enwiki-pinned-revision-recovery-v1"
+    assert extracted.payload["extraction_version"] == "enwiki-readable-prose-mwparser-v2"
     assert legacy.digest != scoped.digest
+    assert legacy.digest != extracted.digest
 
 
 def test_sentence_chunking_is_deterministic_and_keeps_sentence_overlap() -> None:

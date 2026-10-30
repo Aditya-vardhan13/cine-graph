@@ -122,6 +122,7 @@ def _lexical_rows(
     evidence_class: str,
     candidate_limit: int,
     preprocessing_run_id: UUID,
+    restrict_sections: bool,
 ) -> list[tuple[EvidenceChunk, float]]:
     english = literal_column("'english'::regconfig")
     query = func.to_tsquery(english, lexical_tsquery(question_text))
@@ -133,7 +134,7 @@ def _lexical_rows(
         EvidenceChunk.preprocessing_run_id == preprocessing_run_id,
         score > 0,
     )
-    section_conditions = _section_conditions(question_id=question_id, evidence_class=evidence_class)
+    section_conditions = _section_conditions(question_id=question_id, evidence_class=evidence_class) if restrict_sections else ()
     if section_conditions:
         statement = statement.where(or_(*section_conditions))
     return [(chunk, float(row_score)) for chunk, row_score in db.execute(
@@ -150,6 +151,7 @@ def _semantic_rows(
     query_vector: list[float],
     evidence_class: str,
     candidate_limit: int,
+    restrict_sections: bool,
 ) -> list[tuple[EvidenceChunk, float]]:
     distance = EvidenceEmbedding.embedding.cosine_distance(query_vector)
     statement = (
@@ -162,7 +164,7 @@ def _semantic_rows(
             EvidenceChunk.quality_status == "eligible",
         )
     )
-    section_conditions = _section_conditions(question_id=question_id, evidence_class=evidence_class)
+    section_conditions = _section_conditions(question_id=question_id, evidence_class=evidence_class) if restrict_sections else ()
     if section_conditions:
         statement = statement.where(or_(*section_conditions))
     return [(chunk, 1.0 - float(distance_value)) for chunk, distance_value in db.execute(
@@ -197,8 +199,14 @@ def retrieve_narrative_candidates(
     model_name: str = "qwen3-embedding:0.6b",
     query_vector: list[float] | None = None,
     scope: RetrievalScope | None = None,
+    restrict_sections: bool = True,
 ) -> HybridRetrievalResult:
-    """Rank one film's eligible narrative evidence using the requested method."""
+    """Rank one film's evidence; allow read-only canaries to test section recall.
+
+    The default preserves the live route. ``restrict_sections=False`` removes
+    the SQL section exclusion, not any provenance, film, or corpus constraint.
+    It must be evaluated before changing the live product's default.
+    """
     route = route_research_question(question_id=question_id, evidence_class=evidence_class)
     if route.primary != RetrievalLane.NARRATIVE_SEMANTIC:
         raise ValueError(f"Question belongs to the {route.primary.value!r} lane, not narrative retrieval.")
@@ -240,6 +248,7 @@ def retrieve_narrative_candidates(
         evidence_class=evidence_class,
         candidate_limit=candidate_limit,
         preprocessing_run_id=scope.preprocessing_run_id,
+        restrict_sections=restrict_sections,
     ) if method in {NarrativeRetrievalMethod.LEXICAL, NarrativeRetrievalMethod.HYBRID} else []
     semantic_rows = _semantic_rows(
         db,
@@ -249,6 +258,7 @@ def retrieve_narrative_candidates(
         query_vector=query_vector,
         evidence_class=evidence_class,
         candidate_limit=candidate_limit,
+        restrict_sections=restrict_sections,
     ) if index_run is not None and query_vector is not None else []
 
     lexical_ids = [str(chunk.id) for chunk, _ in lexical_rows]

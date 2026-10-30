@@ -20,7 +20,8 @@ test("writer can search, compare, pin evidence, and export a study", async ({ pa
   await page.getByRole("button", { name: "Build evidence comparison" }).click();
   await expect(page).toHaveURL(/\/evidence$/);
   await expect(page.getByRole("heading", { name: /Batman Begins.*The Dark Knight/ })).toBeVisible();
-  await expect(page.getByText("Additional source context", { exact: false })).toBeVisible();
+  await expect(page.locator(".comparison-lens.focus-lens")).toHaveCount(1);
+  await expect(page.locator(".additional-context")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Generate a cited draft from these passages" })).toHaveCount(0);
 
   const firstAlternatives = page.getByRole("navigation", { name: "Source passages for Batman Begins" });

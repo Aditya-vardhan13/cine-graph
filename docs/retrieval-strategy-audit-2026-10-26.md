@@ -158,6 +158,58 @@ includes repeated query embedding/retrieval and is not endpoint latency.
    test. Change one variable at a time; no bulk indexing/model sweep until a
    canary demonstrates a gain.
 
+## First ten-film extraction canary and first twenty question review
+
+The initial corrective experiment is now isolated in `cinegraph_eval`. A
+versioned `mwparserfromhell` extractor derived new passages from the same ten
+retained Wikipedia revisions without rewriting v1 passages or source snapshots.
+It preserves image captions under separate source locators. Across 210 article
+sections, the read-only comparison found 50 comparable v1 passage units with
+obvious markup markers versus zero v2 units, while 4,677 characters of image
+captions were retained separately. This marker test does not establish that all
+source meaning or citation context survived extraction.
+
+The ten-film v2 canary has 596 derived passages, 580 eligible chunks and 580
+locally indexed 0.6B vectors in a separate collection. The unchanged hybrid
+retrieval method was then compared on the first 20 frozen questions under
+hard-section and whole-film search. A single agent reviewed the 73 distinct
+top-ranked passages *without seeing which variant returned them*, marking
+direct, partial or irrelevant support. The full question and source passage
+content are fingerprint-bound in local ignored review artifacts. This is a
+development diagnostic, not an independent gold set or a held-out result.
+
+| Extraction / section policy | Directly supported film sides | Questions with both sides directly supported |
+| --- | ---: | ---: |
+| v1 / hard section | 26/40 | 9/20 |
+| v1 / whole film | 21/40 | 6/20 |
+| v2 / hard section | 26/40 | 9/20 |
+| v2 / whole film | 20/40 | 5/20 |
+
+Opening every section exposes more candidates but promotes irrelevant cast,
+production, reception or legacy text for some plot questions. Parser cleanup
+also does not, by itself, improve top-one relevance. Neither change is being
+promoted to the live route. Next compare a soft section prior and passage
+context within the same frozen candidate pool; retain the hard route as the
+control, and audit answer-bearing spans rather than treating visibility as
+quality. Some v2 prose still carries bare citation bibliography fragments;
+that retention problem also needs a targeted fixture and fix before a wider
+rebuild.
+Even an oracle allowed to choose independently among these four displayed
+heads could directly support both films for only 12/20 questions. That is a
+ceiling for *this small head set*, not for the underlying corpus. A selector
+over the same four heads cannot meet the requested 16/20 first-stage target;
+the next test must inspect deeper candidates and missing source coverage.
+
+The local synthesis prompt no longer slices selected chunks at 1,000
+characters. It sends each pinned passage in full when a conservative UTF-8
+byte upper bound fits the configured 8,192-token context; otherwise it rejects
+the pack and asks for fewer pins before any model request. This protects the
+evidence chain, but the prompt's output still requires answer-quality review:
+valid reference IDs alone are not entailment proof.
+The writer desk now supplies only the passages the writer actually pinned
+(one to three per film) to the optional model draft. Changing a pin invalidates
+the prior draft instead of leaving a stale interpretation on screen.
+
 ## Research grounding and limits
 
 The [Qwen3 Embedding paper](https://arxiv.org/abs/2506.05176) supports considering

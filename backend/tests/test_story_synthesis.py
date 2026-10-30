@@ -1,9 +1,12 @@
 """Pure validation tests; no network, model, or mocked services."""
 import json
+from types import SimpleNamespace
 
 import pytest
 
-from app.services.story_synthesis import CitedSource, _validate_model_brief
+from app.services.story_synthesis import (
+    CitedSource, MAX_PROMPT_BYTES, _prompt, _require_prompt_fits, _validate_model_brief,
+)
 
 
 SOURCES = {
@@ -52,3 +55,14 @@ def test_model_brief_rejects_repeated_question_as_writing_move() -> None:
     payload["writing_move"] = question
     with pytest.raises(ValueError, match="no creative prompt"):
         _validate_model_brief(json.dumps(payload), SOURCES, question)
+
+
+def test_synthesis_preserves_the_full_passage_tail_or_rejects_the_pack() -> None:
+    long_source = "opening " + ("evidence " * 180) + "decisive ending consequence"
+    chunk = SimpleNamespace(section_title="Plot", content=long_source)
+    prompt = _prompt("What changes?", "Film A", "Film B", [("A1", chunk), ("B1", chunk)])
+    assert "decisive ending consequence" in prompt
+    assert prompt.count(long_source) == 2
+    _require_prompt_fits(prompt)
+    with pytest.raises(ValueError, match="no source text was silently shortened"):
+        _require_prompt_fits("x" * (MAX_PROMPT_BYTES + 1))

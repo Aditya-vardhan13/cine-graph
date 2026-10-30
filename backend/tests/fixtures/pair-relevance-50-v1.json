@@ -1,0 +1,108 @@
+{
+  "version": "pair-relevance-50-v1",
+  "collection": "english-1000-retained-narrative-v1",
+  "status": "development-questions-unlabelled",
+  "note": "Questions are frozen before inspecting this benchmark's rankings. Passage relevance requires independent source-linked labels; these questions alone are not a gold set.",
+  "pairs": [
+    {
+      "id": "P01", "films": ["Q23781155", "Q47703"], "titles": ["Avengers: Endgame", "The Godfather"],
+      "questions": [
+        "How do these follow the conflicts between family or close people when fighting injustice?",
+        "How does protecting loved ones pull a reluctant character into a larger violent conflict?",
+        "How does the loss of someone close change the group's next decision?",
+        "How does a character's loyalty to family conflict with a duty to protect others?",
+        "How does the ending complicate the idea that violence can keep a family safe?"
+      ]
+    },
+    {
+      "id": "P02", "films": ["Q788822", "Q104905"], "titles": ["Her", "WALL-E"],
+      "questions": [
+        "How does a bond with an artificial companion expose human loneliness?",
+        "How does each protagonist first turn toward a nonhuman relationship?",
+        "How does the artificial companion's growth change what the protagonist wants?",
+        "How do sound and visual choices make the nonhuman companion emotionally legible?",
+        "How did critics interpret the films' views of technology and intimacy?"
+      ]
+    },
+    {
+      "id": "P03", "films": ["Q163872", "Q183081"], "titles": ["The Dark Knight", "No Country for Old Men"],
+      "questions": [
+        "How does the antagonist force a protagonist to test a moral rule?",
+        "How does violence expose the limits of the police or other lawful institutions?",
+        "How does an apparently controlled plan unravel when the antagonist intervenes?",
+        "How does the ending resist a simple victory over the antagonist?",
+        "How did critics discuss the villain's threat and the film's moral ambiguity?"
+      ]
+    },
+    {
+      "id": "P04", "films": ["Q189505", "Q167726"], "titles": ["Jaws", "Jurassic Park"],
+      "questions": [
+        "How does an ignored warning allow a contained danger to become a public disaster?",
+        "How does an authority figure put commercial interests ahead of public safety?",
+        "How does a small group improvise survival after the threat escapes official control?",
+        "How did practical creature effects and technical limitations shape suspense?",
+        "How did each film influence later blockbuster or creature filmmaking?"
+      ]
+    },
+    {
+      "id": "P05", "films": ["Q29588607", "Q17738"], "titles": ["Spider-Man: Into the Spider-Verse", "Star Wars"],
+      "questions": [
+        "How does losing a mentor push a young hero toward a larger responsibility?",
+        "How does the hero initially resist the role others expect them to accept?",
+        "How do new allies help the hero act after a personal loss?",
+        "How do visual effects or animation make an unfamiliar world convincing?",
+        "How did each film change expectations for its genre or filmmaking form?"
+      ]
+    },
+    {
+      "id": "P06", "films": ["Q171048", "Q867283"], "titles": ["Toy Story", "The Iron Giant"],
+      "questions": [
+        "How does a nonhuman character choose an identity beyond the role assigned to them?",
+        "How does friendship challenge a character's fear of being replaced or rejected?",
+        "How does danger force the character to put a friend's needs before their own?",
+        "How did the animation process help audiences read emotion in nonhuman characters?",
+        "How did critical reception or later reassessment change the films' standing?"
+      ]
+    },
+    {
+      "id": "P07", "films": ["Q83495", "Q170564"], "titles": ["The Matrix", "Terminator 2: Judgment Day"],
+      "questions": [
+        "How does a machine-controlled future become the immediate threat to human freedom?",
+        "How does an unlikely guide or protector teach the protagonist to resist the system?",
+        "How does a character sacrifice themselves to interrupt the machines' plan?",
+        "How did visual effects make the machine threat feel new on screen?",
+        "How did each film's technical style influence later action cinema?"
+      ]
+    },
+    {
+      "id": "P08", "films": ["Q13417189", "Q44578"], "titles": ["Interstellar", "Titanic"],
+      "questions": [
+        "How does a dangerous journey separate loved ones across time or distance?",
+        "How does the protagonist choose between staying with someone and taking a risky chance?",
+        "How does a message or memory preserve a bond when reunion seems impossible?",
+        "How did large-scale sets or visual effects make the journey tangible?",
+        "How did audiences or critics respond to the balance of spectacle and intimate emotion?"
+      ]
+    },
+    {
+      "id": "P09", "films": ["Q61448040", "Q25136235"], "titles": ["Parasite", "Get Out"],
+      "questions": [
+        "How does entry into a wealthy household reveal a hidden system of exploitation?",
+        "How does a seemingly helpful invitation become a trap for the outsider?",
+        "How does the protagonist discover the household's secret and respond to it?",
+        "How do the house's spaces and visual design make power visible?",
+        "How did critics interpret the films' treatment of class or race?"
+      ]
+    },
+    {
+      "id": "P10", "films": ["Q1757288", "Q24871"], "titles": ["Mad Max: Fury Road", "Avatar"],
+      "questions": [
+        "How does a reluctant outsider join a resistance movement?",
+        "How does a divided loyalty force the outsider to choose a side?",
+        "How does protecting a vulnerable group change the goal of the journey?",
+        "How did practical effects or digital worldbuilding shape the action's physical impact?",
+        "How did critics assess the films' political or ecological themes?"
+      ]
+    }
+  ]
+}

@@ -28,6 +28,8 @@ from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, ret
 from app.services.research_catalog import search_research_films
 from app.services.research_passages import browse_research_passages
 from app.services.retrieval_scope import resolve_retrieval_scope
+from app.services.wikipedia_passages_v2 import materialise_passages
+from app.services.wikipedia_text_v2 import EXTRACTION_VERSION
 from tests.postgres_test_db import isolated_postgres_engine
 
 
@@ -472,3 +474,91 @@ def test_lexical_and_dense_rank_the_same_pinned_run_despite_newer_versions(resea
     assert resolve_retrieval_scope(db, collection_code=COLLECTION, model_name=model.model_name).index_run.id == index.id
     with pytest.raises(ValueError, match="No completed narrative"):
         resolve_retrieval_scope(db, collection_code="missing")
+
+
+def test_unrestricted_canary_recovers_source_section_hidden_by_story_route(research_db):
+    """A story query can find attributed production evidence without changing live defaults."""
+    db = research_db
+    snapshot = db.scalar(select(SourceSnapshot))
+    film_id = db.scalar(select(CanonicalEntity.id).where(CanonicalEntity.wikidata_id == "Q788822"))
+    production_excerpt = (
+        "The idea of the film initially came to Jonze in the early 2000s when he read "
+        "an article online that mentioned a website where a user could instant message "
+        "with an artificial intelligence. Jonze's interest in the project was renewed "
+        "after directing the short film I'm Here, which shares similar themes. "
+        "Inspiration also came from Charlie Kaufman's writing approach for Synecdoche, "
+        "New York, and the contradictory feelings people have about relationships and technology."
+    )
+    db.add(NarrativePassage(
+        subject_entity_id=film_id, source_snapshot_id=snapshot.id,
+        section_locator="production/development", section_title="Production / Development",
+        ordinal=0, content=production_excerpt,
+        content_hash=hashlib.sha256(production_excerpt.encode()).hexdigest(),
+        citation_markers=[], extraction_version="retained-test-v1",
+    ))
+    db.commit()
+    build_evidence_chunks(db, collection_code=COLLECTION)
+    scope = resolve_retrieval_scope(db, collection_code=COLLECTION)
+    arguments = dict(
+        subject_entity_id=film_id,
+        question_id="story.writer_focus",
+        question_text="How did Jonze discover online artificial intelligence chat?",
+        method=NarrativeRetrievalMethod.LEXICAL,
+        scope=scope,
+        limit=10,
+    )
+    restricted = retrieve_narrative_candidates(db, **arguments)
+    broad = retrieve_narrative_candidates(db, restrict_sections=False, **arguments)
+    assert all(item.section_locator == "plot" for item in restricted.evidence)
+    assert any(item.section_locator == "production/development" for item in broad.evidence)
+    assert all(item.source_snapshot_id == str(snapshot.id) for item in broad.evidence)
+
+
+def test_preprocessing_requires_explicit_extraction_version_for_same_snapshot(research_db):
+    db = research_db
+    original = db.scalar(select(NarrativePassage))
+    db.add(NarrativePassage(
+        subject_entity_id=original.subject_entity_id,
+        source_snapshot_id=original.source_snapshot_id,
+        section_locator=original.section_locator,
+        section_title=original.section_title,
+        ordinal=original.ordinal,
+        content=original.content,
+        content_hash=original.content_hash,
+        citation_markers=[],
+        extraction_version="enwiki-readable-prose-mwparser-v2",
+    ))
+    db.commit()
+    with pytest.raises(ValueError, match="multiple extraction versions"):
+        build_evidence_chunks(db, collection_code=COLLECTION)
+    selected = build_evidence_chunks(
+        db, collection_code=COLLECTION,
+        config=ChunkConfiguration(extraction_version="enwiki-readable-prose-mwparser-v2"),
+    )
+    assert selected["passages_requested"] == 1
+    assert selected["extraction_version"] == "enwiki-readable-prose-mwparser-v2"
+    chunks = list(db.scalars(select(EvidenceChunk).where(
+        EvidenceChunk.preprocessing_run_id == selected["run_id"],
+    )))
+    assert chunks and all(chunk.narrative_passage_id != original.id for chunk in chunks)
+
+
+def test_v2_derivatives_are_append_only_and_idempotent_in_test_database(research_db):
+    db = research_db
+    original = db.scalar(select(NarrativePassage))
+    snapshot = db.get(SourceSnapshot, original.source_snapshot_id)
+    retained_fragment = f"== Plot ==\n{original.content}"
+    first = materialise_passages(
+        db, entity_id=original.subject_entity_id, snapshot=snapshot, wikitext=retained_fragment,
+    )
+    db.commit()
+    second = materialise_passages(
+        db, entity_id=original.subject_entity_id, snapshot=snapshot, wikitext=retained_fragment,
+    )
+    db.commit()
+    assert first == {"prepared": 1, "created": 1, "reused": 0}
+    assert second == {"prepared": 1, "created": 0, "reused": 1}
+    versions = set(db.scalars(select(NarrativePassage.extraction_version).where(
+        NarrativePassage.source_snapshot_id == snapshot.id,
+    )))
+    assert versions == {"retained-test-v1", EXTRACTION_VERSION}

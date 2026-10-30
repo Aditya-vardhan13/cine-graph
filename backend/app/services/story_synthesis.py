@@ -38,6 +38,13 @@ class InvalidModelDraft(ValueError):
     """The model failed the citation or completeness contract."""
 
 
+MODEL_CONTEXT_TOKENS = 8192
+MODEL_OUTPUT_TOKENS = 430
+# A UTF-8 byte bound is deliberately stricter than a tokenizer estimate for
+# byte-backed tokenizers; leave room for the structured response and framing.
+MAX_PROMPT_BYTES = MODEL_CONTEXT_TOKENS - MODEL_OUTPUT_TOKENS - 512
+
+
 @dataclass(frozen=True)
 class CitedSource:
     ref: str
@@ -92,7 +99,7 @@ def _validate_model_brief(payload: str, sources: dict[str, CitedSource], questio
 def _prompt(question: str, first_title: str, second_title: str, passages: list[tuple[str, EvidenceChunk]]) -> str:
     entries = "\n\n".join(
         f"[{ref}] {first_title if ref.startswith('A') else second_title} · {chunk.section_title}\n"
-        f"{chunk.content[:1000]}"
+        f"{chunk.content}"
         for ref, chunk in passages
     )
     return (
@@ -109,6 +116,14 @@ def _prompt(question: str, first_title: str, second_title: str, passages: list[t
         "Return JSON with first, second, contrast objects containing text and refs, plus writing_move.\n\n"
         f"Writing question: {question.strip()}\n\n{entries}"
     )
+
+
+def _require_prompt_fits(prompt: str) -> None:
+    if len(prompt.encode("utf-8")) > MAX_PROMPT_BYTES:
+        raise ValueError(
+            "The selected evidence exceeds the local model's context budget. "
+            "Pin fewer passages; no source text was silently shortened."
+        )
 
 
 def synthesize_story_brief(
@@ -149,14 +164,17 @@ def synthesize_story_brief(
             sources[ref] = CitedSource(
                 ref, str(chunk.id), chunk.section_title,
                 snapshot.attribution_url or snapshot.canonical_url,
-                snapshot.source_revision, snapshot.license, chunk.content[:1000],
+                snapshot.source_revision, snapshot.license, chunk.content,
             )
+    prompt = _prompt(question, first.title, second.title, passages)
+    _require_prompt_fits(prompt)
     response = httpx.post(
         f"{base_url.rstrip('/')}/api/generate",
         json={
-            "model": model, "prompt": _prompt(question, first.title, second.title, passages),
+            "model": model, "prompt": prompt,
             "format": ModelBrief.model_json_schema(), "stream": False, "think": False,
-            "options": {"temperature": 0, "num_predict": 430, "num_ctx": 4096},
+            "options": {"temperature": 0, "num_predict": MODEL_OUTPUT_TOKENS,
+                        "num_ctx": MODEL_CONTEXT_TOKENS},
         },
         timeout=timeout_seconds,
     )

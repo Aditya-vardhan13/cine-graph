@@ -7,5 +7,6 @@ pgvector==0.4.1
 pydantic-settings==2.7.0
 httpx==0.28.1
 wikipedia-api==0.15.0
+mwparserfromhell==0.7.2
 spacy==3.8.7
 pytest==8.3.4

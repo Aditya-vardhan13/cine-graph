@@ -20,15 +20,9 @@ def evidence(identifier: str) -> HybridRetrievedEvidence:
     )
 
 
-def test_comparison_lenses_cover_story_character_craft_and_reception() -> None:
+def test_comparison_focuses_on_the_writer_question_only() -> None:
     identifiers = [lens.identifier for lens in COMPARISON_LENSES]
-    assert identifiers == [
-        "central_question",
-        "story_engine",
-        "character_change",
-        "craft_treatment",
-        "reception_legacy",
-    ]
+    assert identifiers == ["central_question"]
     assert all("artificial companion" in lens.query("artificial companion") for lens in COMPARISON_LENSES)
     assert all(lens.writer_prompt for lens in COMPARISON_LENSES)
 
@@ -39,6 +33,8 @@ def test_writer_focus_routes_by_requested_evidence_kind_without_film_topic_rules
     assert focus_evidence_question_id("How did editing and music make a chaotic chase readable?") == "craft.writer_focus"
     assert focus_evidence_question_id("Where do critics disagree about the ending?") == "reception.writer_focus"
     assert focus_evidence_question_id("How did reviewers assess its visual effects?") == "reception.writer_focus"
+    assert focus_evidence_question_id("How did these films influence later filmmaking?") == "reception.writer_focus"
+    assert focus_evidence_question_id("How did animation choices convey feeling?") == "craft.writer_focus"
 
 
 def test_first_unique_never_fills_a_sparse_lens_with_repeated_text() -> None:

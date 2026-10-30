@@ -49,60 +49,8 @@ COMPARISON_LENSES = (
         question_id="story.writer_focus",
         query_template="{focus}",
         writer_prompt=(
-            "Name the dramatic promise both films engage, then identify what each "
-            "protagonist risks losing by answering it differently."
-        ),
-    ),
-    ComparisonLensDefinition(
-        identifier="story_engine",
-        label="Story engine",
-        question_id="story.plot_character_structure",
-        query_template=(
-            "In relation to '{focus}', what central conflict, escalation, turning "
-            "point, and ending consequence drive this film?"
-        ),
-        writer_prompt=(
-            "Compare the chain of pressure and consequence, not merely the films' "
-            "shared subject matter."
-        ),
-    ),
-    ComparisonLensDefinition(
-        identifier="character_change",
-        label="Character change",
-        question_id="character.transformation",
-        query_template=(
-            "In relation to '{focus}', how do the protagonist's needs, choices, "
-            "relationships, and transformation develop?"
-        ),
-        writer_prompt=(
-            "Ask which choice changes the character, and whether the ending rewards, "
-            "punishes, or complicates that change."
-        ),
-    ),
-    ComparisonLensDefinition(
-        identifier="craft_treatment",
-        label="Craft treatment",
-        question_id="craft.execution",
-        query_template=(
-            "In relation to '{focus}', which writing, production, visual, editing, "
-            "sound, or performance choices shaped the treatment?"
-        ),
-        writer_prompt=(
-            "Separate the underlying idea from the craft decisions that make each "
-            "version feel different on screen."
-        ),
-    ),
-    ComparisonLensDefinition(
-        identifier="reception_legacy",
-        label="Reception and legacy",
-        question_id="reception.legacy",
-        query_template=(
-            "In relation to '{focus}', how was this treatment received, interpreted, "
-            "debated, or influential?"
-        ),
-        writer_prompt=(
-            "Treat reception as attributed context: it can reveal what audiences read "
-            "in the work, but it is not a universal verdict."
+            "Check what each passage actually establishes about your question. "
+            "Pin only evidence you can use to explain a specific contrast."
         ),
     ),
 )
@@ -112,14 +60,21 @@ _RECEPTION_FOCUS = re.compile(r"\b(?:critics?|reviewers?|reviews?|reception|crit
 _CRAFT_FOCUS = re.compile(
     r"\b(?:visuals?|cinematography|camerawork|camera|editing|lighting|music|score|"
     r"soundtrack|sound design|visual effects|special effects|practical effects|"
-    r"digital effects|image choices|production design|choreography|performance choices)\b",
+    r"digital effects|image choices|production design|choreography|performance choices|"
+    r"animation|animators?|filming|filmmaking technique|technical limitations)\b",
     re.I,
+)
+_LEGACY_FOCUS = re.compile(
+    r"\b(?:legacy|influenc(?:e|ed|ing)|later reassessment|critical standing|"
+    r"change expectations|changed expectations|later filmmaking)\b", re.I,
 )
 
 
 def focus_evidence_question_id(question: str) -> str:
     """Choose a source section by evidence kind, not a film-specific topic cue."""
     if _RECEPTION_FOCUS.search(question):
+        return "reception.writer_focus"
+    if _LEGACY_FOCUS.search(question):
         return "reception.writer_focus"
     if _CRAFT_FOCUS.search(question):
         return "craft.writer_focus"
@@ -264,7 +219,7 @@ def compare_story_evidence(
     embedding_client: OllamaEmbeddingClient | None = None,
     collection_code: str = DEFAULT_RESEARCH_COLLECTION,
 ) -> StoryComparisonResult:
-    """Retrieve five distinct, attributable evidence lenses for two films."""
+    """Retrieve source leads for the writer's question, without generic filler lanes."""
     if first_entity_id == second_entity_id:
         raise ValueError("Choose two different films to compare.")
     first = get_research_film(db, first_entity_id, collection_code=collection_code)

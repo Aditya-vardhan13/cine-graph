@@ -262,6 +262,7 @@ def test_story_comparison_returns_two_sided_attributable_evidence() -> None:
     assert payload["index_run_id"] is None
     assert payload["first"]["title"] == "Batman Begins"
     assert payload["second"]["title"] == "The Dark Knight"
+    assert [lens["identifier"] for lens in payload["lenses"]] == ["central_question"]
     paired = [lens for lens in payload["lenses"] if lens["first_evidence"] and lens["second_evidence"]]
     assert paired
     assert paired[0]["first_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/Batman_Begins"
