@@ -200,6 +200,20 @@ ceiling for *this small head set*, not for the underlying corpus. A selector
 over the same four heads cannot meet the requested 16/20 first-stage target;
 the next test must inspect deeper candidates and missing source coverage.
 
+A rank-blind top-three review packet is now available for those same frozen
+20 questions (242 distinct question/film/passage items, stored only under the
+ignored local evaluation directory). It is **not scored yet**: the additional
+passages need content-level review before a recall@3 number is credible.
+Inspection of the eight questions missed by the four-head oracle shows more
+than a single failure mode. For example, a later *Her* plot passage describes
+Theodore's first turn to Samantha but is not first-ranked for that question;
+the *Jurassic Park* passage describing investor pressure does not itself prove
+Hammond knowingly prioritized profit over safety. These are respectively a
+ranking miss and a possible premise/evidence gap. We must distinguish them
+before tuning a ranker or generating a comparison. Compound questions may
+also require two passages per film to cover separate facets; a top-one score
+must not be mistaken for complete answer quality.
+
 The local synthesis prompt no longer slices selected chunks at 1,000
 characters. It sends each pinned passage in full when a conservative UTF-8
 byte upper bound fits the configured 8,192-token context; otherwise it rejects

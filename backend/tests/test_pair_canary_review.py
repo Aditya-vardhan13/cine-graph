@@ -78,3 +78,32 @@ def test_compact_review_requires_each_case_and_exact_passage_count() -> None:
     compact["cases"]["P01-Q1"]["sequence"] = "D"
     with pytest.raises(ValueError, match="Incomplete review sequence"):
         score(packet, mapping, compact)
+
+
+def test_top_three_scores_candidate_recall_without_relabeling_heads() -> None:
+    first, second = _capture("v1"), _capture("v2")
+    for capture in (first, second):
+        for case in capture["results"]:
+            for side in case["sides"]:
+                for field in ("restricted_top_three", "whole_film_top_three"):
+                    head = side[field][0]
+                    side[field] = [
+                        {**head, "content": f"{head['content']} rank {rank}"}
+                        for rank in (1, 2, 3)
+                    ]
+    packet, mapping = make_packet(first, second, depth=3)
+    assert len(packet["items"]) == 480
+    labels = {"fingerprint": packet["fingerprint"], "labels": {
+        item["key"]: {
+            "support": "direct" if item["passage"].endswith("rank 3") else "irrelevant",
+            "rationale": "Only the third passage addresses the question.",
+        }
+        for item in packet["items"]
+    }}
+    scored = score(packet, mapping, labels)
+    assert scored["metrics"]["v2-restricted"]["direct_pairs"] == 20
+    assert scored["metrics"]["v2-restricted"]["pair_success_at_3"] == 1.0
+    assert "pair_success_at_1" not in scored["metrics"]["v2-restricted"]
+    assert "top-3" in scored["head_oracle"]["caution"]
+    with pytest.raises(ValueError, match="review depths"):
+        make_packet(first, second, depth=2)

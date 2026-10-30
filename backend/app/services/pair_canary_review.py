@@ -19,7 +19,9 @@ def _canonical(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
-def make_packet(v1: dict, v2: dict) -> tuple[dict, dict]:
+def make_packet(v1: dict, v2: dict, *, depth: int = 1) -> tuple[dict, dict]:
+    if depth not in (1, 3):
+        raise ValueError("Only top-one and top-three review depths are supported.")
     if v1.get("case_count") != v2.get("case_count") or v1.get("case_count") != 20:
         raise ValueError("A first-stage review requires the same twenty frozen questions.")
     if v1.get("method") != v2.get("method") or v1["method"] != "hybrid":
@@ -39,22 +41,21 @@ def make_packet(v1: dict, v2: dict) -> tuple[dict, dict]:
                                       ("whole-film", "whole_film_top_three")):
                     variant = f"{prefix}-{suffix}"
                     options = side[field]
-                    if not options:
-                        chosen[variant] = None
-                        continue
-                    passage = options[0]
-                    identity = {
-                        "case_id": first["case_id"],
-                        "film_qid": side["film_qid"],
-                        "question": first["question"],
-                        "source_snapshot_id": passage["source_snapshot_id"],
-                        "section": passage["section_locator"],
-                        "passage": passage["content"],
-                    }
-                    digest = hashlib.sha256(_canonical(identity).encode("utf-8")).hexdigest()
-                    key = f"{first['case_id']}|{side['film_qid']}|{digest[:20]}"
-                    candidates[key] = {"key": key, **identity}
-                    chosen[variant] = key
+                    keys = []
+                    for passage in options[:depth]:
+                        identity = {
+                            "case_id": first["case_id"],
+                            "film_qid": side["film_qid"],
+                            "question": first["question"],
+                            "source_snapshot_id": passage["source_snapshot_id"],
+                            "section": passage["section_locator"],
+                            "passage": passage["content"],
+                        }
+                        digest = hashlib.sha256(_canonical(identity).encode("utf-8")).hexdigest()
+                        key = f"{first['case_id']}|{side['film_qid']}|{digest[:20]}"
+                        candidates[key] = {"key": key, **identity}
+                        keys.append(key)
+                    chosen[variant] = (keys[0] if keys else None) if depth == 1 else keys
             items.extend(candidates.values())
             mapping.append({
                 "case_id": first["case_id"], "film_qid": v1_side["film_qid"],
@@ -63,8 +64,9 @@ def make_packet(v1: dict, v2: dict) -> tuple[dict, dict]:
     items.sort(key=lambda item: item["key"])
     fingerprint = hashlib.sha256(_canonical(items).encode("utf-8")).hexdigest()
     return (
-        {"version": "pair-canary-review-v1", "fingerprint": fingerprint, "items": items},
-        {"fingerprint": fingerprint, "variants": VARIANTS, "mapping": mapping},
+        {"version": "pair-canary-review-v1" if depth == 1 else "pair-canary-review-depth-3-v1",
+         "fingerprint": fingerprint, "items": items},
+        {"fingerprint": fingerprint, "variants": VARIANTS, "depth": depth, "mapping": mapping},
     )
 
 
@@ -104,36 +106,37 @@ def score(packet: dict, mapping: dict, labels: dict) -> dict:
         raise ValueError("Each review requires direct/partial/irrelevant support and a rationale.")
     rows = []
     for row in mapping["mapping"]:
-        supports = {
-            variant: (by_key[key]["support"] if key is not None else "missing")
-            for variant, key in row["variants"].items()
-        }
+        supports = {}
+        for variant, selected in row["variants"].items():
+            keys = selected if isinstance(selected, list) else ([selected] if selected is not None else [])
+            supports[variant] = [by_key[key]["support"] for key in keys]
         rows.append({"case_id": row["case_id"], "film_qid": row["film_qid"], "supports": supports})
     metrics = {}
+    depth = mapping.get("depth", 1)
     for variant in VARIANTS:
-        side_direct = sum(row["supports"][variant] == "direct" for row in rows)
+        side_direct = sum("direct" in row["supports"][variant] for row in rows)
         cases = {}
         for row in rows:
-            cases.setdefault(row["case_id"], []).append(row["supports"][variant] == "direct")
+            cases.setdefault(row["case_id"], []).append("direct" in row["supports"][variant])
         pair_direct = sum(len(sides) == 2 and all(sides) for sides in cases.values())
         metrics[variant] = {
             "direct_sides": side_direct,
             "sides": len(rows),
             "direct_pairs": pair_direct,
             "pairs": len(cases),
-            "pair_success_at_1": round(pair_direct / len(cases), 4),
+            f"pair_success_at_{depth}": round(pair_direct / len(cases), 4),
         }
     by_case = {}
     for row in rows:
         by_case.setdefault(row["case_id"], []).append(
-            any(row["supports"][variant] == "direct" for variant in VARIANTS)
+            any("direct" in row["supports"][variant] for variant in VARIANTS)
         )
     head_oracle_pairs = sum(len(sides) == 2 and all(sides) for sides in by_case.values())
     return {
         "fingerprint": fingerprint, "reviewed_passages": len(expected), "metrics": metrics,
         "head_oracle": {
             "direct_pairs": head_oracle_pairs, "pairs": len(by_case),
-            "caution": "Only the four displayed top-one variants, not the full candidate pool.",
+            "caution": f"Only the four displayed top-{depth} variants, not the full candidate pool.",
         },
     }
 
@@ -153,10 +156,11 @@ def main() -> None:
     parser.add_argument("--packet", type=Path, required=True)
     parser.add_argument("--mapping", type=Path, required=True)
     parser.add_argument("--labels", type=Path)
+    parser.add_argument("--depth", type=int, choices=(1, 3), default=1)
     args = parser.parse_args()
     paths = [_local_report(path) for path in (args.v1, args.v2, args.packet, args.mapping)]
     v1, v2 = (json.loads(path.read_text(encoding="utf-8")) for path in paths[:2])
-    packet, mapping = make_packet(v1, v2)
+    packet, mapping = make_packet(v1, v2, depth=args.depth)
     for path, payload in zip(paths[2:], (packet, mapping), strict=True):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
