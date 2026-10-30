@@ -110,3 +110,23 @@ capture. Query embedding batch: 1,995.88 ms; combined database ranking for
 not endpoint p95. The 242-item top-three review packet is not yet fully labeled.
 The isolated integration suite passed 65 tests and Playwright passed 7 flows.
 These validate functionality, not answer quality. The experiment goal remains open.
+
+## Encoder runtime checkpoint
+
+The existing Conda interpreter reports x86_64. Encoder experiments have a
+separate project-local arm64 Python 3.11 environment at
+`data/venvs/rag-encoders`, installed from
+`backend/requirements-rag-experiments.txt`. This does not change Conda or the
+API environment. Native PyTorch 2.8.0 and NumPy 2.2.6 import successfully;
+Metal is available outside the restricted sandbox (the sandbox reports it
+unavailable). Record the actual device per run; do not compare sandbox CPU
+timings to unrestricted Metal timings as if they were model-size effects.
+
+Official repository revisions resolved for the next encoder trials:
+
+- E5 base: `d128750597153bb5987e10b1c3493a34e5a4502a`.
+- BGE-M3: `5617a9f61b028005a4858fdac845db406aefb181`.
+
+The official BGE repository has `pytorch_model.bin`, not safetensors; its
+adapter uses PyTorch's restricted weights-only loader, with remote code
+disabled. These are runtime preparations, not completed model evaluations.

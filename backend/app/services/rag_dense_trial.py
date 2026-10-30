@@ -52,6 +52,7 @@ def main() -> None:
     parser.add_argument("--revision", required=True, help="HF commit SHA or exact local Ollama model digest")
     parser.add_argument("--dimensions", type=int, required=True)
     parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--device", choices=("cpu", "mps"), default="cpu")
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -71,6 +72,7 @@ def main() -> None:
     contract = {"provider": args.provider, "model": args.model, "revision": args.revision,
                 "dimension": args.dimensions, "representation": "source-window-128w-overlap32-v1",
                 "pooling": {"ollama": "model-native", "e5": "masked-mean-l2", "bge": "cls-l2"}[args.provider],
+                "device": "ollama-managed" if args.provider == "ollama" else args.device,
                 "corpus": expected}
     cache = args.cache_dir / digest(contract)
     cache.mkdir(parents=True, exist_ok=True)
@@ -98,15 +100,22 @@ def main() -> None:
         os.environ["HF_HUB_DISABLE_XET"] = "1"
         import torch
         from transformers import AutoModel, AutoTokenizer
+        if args.device == "mps" and not torch.backends.mps.is_available():
+            raise ValueError("MPS was requested but is unavailable in this interpreter.")
+        torch.set_num_threads(4)
         model_args = dict(revision=args.revision, cache_dir=str(args.cache_dir / "weights"), trust_remote_code=False)
         tokenizer = AutoTokenizer.from_pretrained(args.model, **model_args)
-        model = AutoModel.from_pretrained(args.model, use_safetensors=True, **model_args).eval()
+        # The official pinned BGE-M3 repository ships a PyTorch state dict,
+        # not safetensors. Require the restricted weights-only loader.
+        model = AutoModel.from_pretrained(args.model, use_safetensors=args.provider == "e5",
+                                          weights_only=True, **model_args).to(args.device).eval()
         max_tokens = 512 if args.provider == "e5" else 8192
         def embed(values, query=False):
             prefix = ("query: " if query else "passage: ") if args.provider == "e5" else ""
             batch = tokenizer([prefix + value for value in values], padding=True, truncation=False, return_tensors="pt")
             if batch["input_ids"].shape[1] > max_tokens:
                 raise ValueError("Input exceeds model budget; no silent truncation is permitted.")
+            batch = {key: value.to(args.device) for key, value in batch.items()}
             with torch.inference_mode():
                 hidden = model(**batch).last_hidden_state
                 if args.provider == "e5":
@@ -114,7 +123,7 @@ def main() -> None:
                     pooled = hidden.masked_fill(~mask[..., None].bool(), 0).sum(1) / mask.sum(1)[..., None]
                 else:
                     pooled = hidden[:, 0]
-                return torch.nn.functional.normalize(pooled, p=2, dim=1).tolist()
+                return torch.nn.functional.normalize(pooled, p=2, dim=1).cpu().tolist()
     load_ms = (perf_counter() - load_start) * 1000
     timings = []
     def cached_vectors(values, *, query=False):

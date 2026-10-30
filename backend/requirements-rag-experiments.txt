@@ -1,0 +1,8 @@
+# Offline encoder experiments only; install into project-local native arm64 venv.
+# Deliberately separate from the API image and the user's Conda environment.
+torch==2.8.0
+transformers==4.57.6
+numpy==2.2.6
+huggingface-hub==0.36.2
+safetensors==0.6.2
+pytest==8.3.4
