@@ -130,3 +130,30 @@ Official repository revisions resolved for the next encoder trials:
 The official BGE repository has `pytorch_model.bin`, not safetensors; its
 adapter uses PyTorch's restricted weights-only loader, with remote code
 disabled. These are runtime preparations, not completed model evaluations.
+
+## Initial executions and source-level diagnostic
+
+The cleaned eight-film / first-20 corpus export contains 465 eligible passages.
+Full-film exact dense retrieval is complete for Qwen 4B (native 2,560 dimensions)
+and Qwen 0.6B (1,024 dimensions). Neither trial restricts source sections.
+Uncached capture wall times were 739,747.6 ms and 98,075.7 ms respectively.
+The batch sizes differ (2 vs 8), so this is not an isolated latency comparison
+or a request SLO. Document vectors are retained in local resumable caches.
+
+A separate 4B query ablation adds the target film title while reusing identical
+document vectors. Its 40 query embeddings and capture took 13,860.7 ms warm.
+This number excludes indexing and is not comparable to the uncached totals.
+
+One source-aware development review has exact spans for P02-Q2 (first turn
+toward a nonhuman relationship). Both opening plot passages support it. With
+shared-question full-film retrieval, neither model returns both reviewed source
+spans within top ten. Film-title query context brings the WALL-E opening into
+4B's results at rank eight, while the first result is still cast commentary.
+This is evidence of a query/ranking issue and one-case coverage recovery, not
+an aggregate accuracy gain. No 20-question percentage is asserted from this
+single-case review. The original top-one gate is unchanged.
+
+E5's pinned files are now local. The common-window E5 run uses Metal, native
+768-dimensional vectors, correct query/passage prefixes, and disabled network.
+Results remain pending. A common-window Qwen comparison is required before
+attributing any E5 gain to the encoder rather than the representation change.
