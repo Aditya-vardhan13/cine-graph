@@ -26,8 +26,18 @@ if [ ! -x "$test_python" ]; then
   echo "Conda test interpreter not found: $test_python" >&2
   exit 1
 fi
+test_pythonpath="$backend_dir"
+if ! "$test_python" -c 'import mwparserfromhell' >/dev/null 2>&1; then
+  vendored_parser="$repo_root/data/vendor/mwparserfromhell"
+  if [ ! -d "$vendored_parser/mwparserfromhell" ]; then
+    echo "Install backend/requirements.txt in the Conda environment before integration tests." >&2
+    exit 1
+  fi
+  # Local ignored fallback used by the parser canary; CI installs the pinned package.
+  test_pythonpath="$test_pythonpath:$vendored_parser"
+fi
 
 CINEGRAPH_RUN_INTEGRATION=1 \
 CINEGRAPH_INTEGRATION_API_URL=http://127.0.0.1:18001 \
 CINEGRAPH_TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:5433/cinegraph_test \
-PYTHONPATH="$backend_dir" "$test_python" -m pytest -m integration "$backend_dir/tests" -q
+PYTHONPATH="$test_pythonpath" "$test_python" -m pytest -m integration "$backend_dir/tests" -q
