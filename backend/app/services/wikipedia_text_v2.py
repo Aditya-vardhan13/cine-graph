@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from html import unescape
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 import mwparserfromhell
 from mwparserfromhell.nodes import Text
@@ -48,7 +48,7 @@ def _media_caption(link) -> str:
     return re.sub(r"\s+", " ", unescape(re.sub(r"'{2,5}", "", text))).strip()
 
 
-def readable_wikitext(value: str) -> ReadableWikitext:
+def readable_wikitext(value: str, *, preserve_language_templates: bool = False) -> ReadableWikitext:
     """Strip nested syntax while keeping linked prose and the discarded provenance.
 
     Media links are handled explicitly because mwparserfromhell intentionally
@@ -74,6 +74,12 @@ def readable_wikitext(value: str) -> ReadableWikitext:
         if str(tag.tag).strip().casefold() in _PRESENTATION_TAGS:
             citations.append(str(tag))
             code.remove(tag)
+    if preserve_language_templates:
+        # Apply only after discarding references/media: their original source
+        # markup is retained verbatim in the associated provenance fields.
+        for template in reversed(code.filter_templates(recursive=True)):
+            if str(template.name).strip().casefold() == "lang" and template.has("2"):
+                code.replace(template, str(template.get("2").value))
     stripped = unescape(re.sub(r"'{2,5}", "", code.strip_code(normalize=True, collapse=True)))
     text = re.sub(r"\s+", " ", stripped).strip()
     return ReadableWikitext(
@@ -81,7 +87,8 @@ def readable_wikitext(value: str) -> ReadableWikitext:
     )
 
 
-def chunk_section_v2(value: str, *, limit: int = 1500) -> Iterable[str]:
+def chunk_section_v2(value: str, *, limit: int = 1500,
+                     reader: Callable[[str], ReadableWikitext] = readable_wikitext) -> Iterable[str]:
     """Group paragraphs without splitting a multiline citation or template.
 
     Only top-level text nodes contain real paragraph boundaries. A blank line
@@ -110,10 +117,10 @@ def chunk_section_v2(value: str, *, limit: int = 1500) -> Iterable[str]:
 
     buffer = ""
     for paragraph in paragraphs:
-        parsed = readable_wikitext(paragraph)
+        parsed = reader(paragraph)
         if not parsed.text and not parsed.media_captions:
             continue
-        if buffer and len(readable_wikitext(buffer).text) + len(parsed.text) > limit:
+        if buffer and len(reader(buffer).text) + len(parsed.text) > limit:
             yield buffer
             buffer = paragraph
         else:

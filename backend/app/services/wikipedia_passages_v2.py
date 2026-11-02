@@ -41,15 +41,16 @@ class DerivedPassage:
         return hashlib.sha256(self.content.encode("utf-8")).hexdigest()
 
 
-def derive_passages(wikitext: str) -> list[DerivedPassage]:
+def derive_passages(wikitext: str, *, reader=readable_wikitext, chunker=chunk_section_v2,
+                    section_splitter=split_sections) -> list[DerivedPassage]:
     """Keep image captions distinct from article prose under stable locators."""
     passages = []
     next_ordinal: dict[str, int] = {}
-    for section in split_sections(wikitext):
+    for section in section_splitter(wikitext):
         locator = str(section["locator"])
         title = str(section["title"])
-        for raw in chunk_section_v2(str(section["content"])):
-            parsed = readable_wikitext(raw)
+        for raw in chunker(str(section["content"])):
+            parsed = reader(raw)
             if parsed.text:
                 ordinal = next_ordinal.get(locator, 0)
                 passages.append(DerivedPassage(
@@ -69,14 +70,15 @@ def derive_passages(wikitext: str) -> list[DerivedPassage]:
 
 def materialise_passages(
     db: Session, *, entity_id: UUID, snapshot: SourceSnapshot, wikitext: str,
+    extraction_version: str = EXTRACTION_VERSION, passage_builder=derive_passages,
 ) -> dict[str, int]:
     """Append one versioned derivative set; reject drift for a pinned revision."""
     if snapshot.license != "CC BY-SA 4.0" or not snapshot.attribution_url:
         raise ValueError("Narrative extraction requires attributable CC BY-SA source material.")
-    prepared = derive_passages(wikitext)
+    prepared = passage_builder(wikitext)
     existing_rows = list(db.scalars(select(NarrativePassage).where(
         NarrativePassage.source_snapshot_id == snapshot.id,
-        NarrativePassage.extraction_version == EXTRACTION_VERSION,
+        NarrativePassage.extraction_version == extraction_version,
     )))
     existing = {
         (passage.section_locator, passage.ordinal, passage.content_hash): passage
@@ -102,7 +104,7 @@ def materialise_passages(
             content=item.content,
             content_hash=item.content_hash,
             citation_markers=list(item.citation_markers),
-            extraction_version=EXTRACTION_VERSION,
+            extraction_version=extraction_version,
         ))
         created += 1
     return {"prepared": len(prepared), "created": created, "reused": len(prepared) - created}

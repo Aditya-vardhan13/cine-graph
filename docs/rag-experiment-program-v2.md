@@ -125,6 +125,47 @@ source-bound relevance labels are still missing; this is not gold or a scored
 holdout. The corpus fingerprint is
 `b6638287c54c9f05f1a23da7e1585a687c976ea97fa7fc5cb03bfad09f06562b`.
 
+#### Holdout source audit and language-template loss
+
+On the eight unranked holdout films, a simple markup diagnostic flagged 26 of
+184 eligible recovered-v1 chunks; the separate parser-v2 canary flagged 0 of
+182. This detector is only a presentation warning, not a completeness or
+accuracy score. Directly inspecting the retained Black Swan snapshot exposed
+an important counterexample: both older extractions dropped the visible text
+inside `{{lang|it|...}}`, leaving a dancer's role blank. Thus removal of markup
+alone had concealed missing information.
+
+An **eval-only**, additive parser-v3 canary preserves the visible second
+parameter of `lang` templates while retaining the previous media and reference
+handling. It does not change the default v2 parser, raw snapshots, live corpus,
+or assertions. Using the same eight verified snapshots and chunker v4, the v3
+run created 210 chunks, 28 excluded by quality rules, with 182 eligible. A
+rerun reused all 210 and preserved the 28 excluded count. Comparing the 182
+v2 and v3 eligible chunks by source/section/ordinal produced two changed chunks
+and no unmatched keys: the restored dancer role in the plot and descriptive
+words in a critical-review sentence. This verifies those two examples, not
+complete preservation of all possible Wikipedia template types.
+
+The preliminary, single-reviewer holdout draft now covers all 20 questions:
+11 marked supported and 9 uncertain under its narrowly defined facets, with
+45 exact source quotations. All 45 quotes occur uniquely in the corresponding
+film's v3 chunks. This is a quote-preservation diagnostic only: labels were
+authored against v1, were not silently migrated to v3, and still need source
+and independent review. No holdout ranking has been run. The v3 export's local
+fingerprint is `dc5e56b02be3f6767539696bfe876080133ebea26976dd684be431198637d663`.
+The read-only `rag_source_rebinding_audit` verifies the source and target
+fingerprints, identical frozen questions and film identities, exact source
+snapshot ID, and every quote's exact offsets. Its separate output contains
+candidate locations, not a review artifact accepted by the relevance scorer.
+On this local comparison it reports 45 unique, zero missing and zero ambiguous
+locations. A location match alone is not independent source review.
+
+The source canary rerun also exposed a preprocessing accounting defect:
+previously excluded chunks were counted only on creation, so a rerun could
+overwrite its excluded total with zero. Reused excluded chunks now remain in the
+total; the regression uses a separate collection in `cinegraph_test` and the
+evaluation canary rerun confirmed 28 excluded chunks remain reported.
+
 ## Continuation: query planning and retrieval controls (2026-11-02)
 
 Completed twenty-case offline replay against the same 465 frozen full passages.

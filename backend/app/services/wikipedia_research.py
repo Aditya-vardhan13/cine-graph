@@ -70,12 +70,12 @@ def clean_wikitext(value: str) -> str:
     return value
 
 
-def split_sections(wikitext: str) -> list[dict[str, object]]:
+def split_sections(wikitext: str, *, is_substantive=clean_wikitext) -> list[dict[str, object]]:
     """Split wikitext into a lead and hierarchical non-reference sections."""
     matches = list(HEADING.finditer(wikitext))
     sections: list[dict[str, object]] = []
     lead = wikitext[: matches[0].start()] if matches else wikitext
-    if clean_wikitext(lead):
+    if is_substantive(lead):
         sections.append({"locator": "lead", "title": "Lead", "content": lead})
 
     hierarchy: dict[int, list[str]] = {}
@@ -93,7 +93,7 @@ def split_sections(wikitext: str) -> list[dict[str, object]]:
         end = matches[index + 1].start() if index + 1 < len(matches) else len(wikitext)
         top_level = path[0].strip().lower()
         content = wikitext[start:end]
-        if top_level not in SKIP_TOP_LEVEL and clean_wikitext(content):
+        if top_level not in SKIP_TOP_LEVEL and is_substantive(content):
             sections.append({
                 "locator": "/".join(section_slug(part) for part in path),
                 "title": " / ".join(path),
