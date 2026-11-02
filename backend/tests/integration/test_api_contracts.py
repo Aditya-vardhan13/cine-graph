@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import hashlib
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -13,7 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     Assertion, AssertionEvidence, CanonicalEntity, DataSource, EmbeddingIndexRun, EmbeddingModel,
-    EvidenceChunk, EvidenceEmbedding, SourceAssertion, SourceObject, SourceSnapshot,
+    EvidenceChunk, EvidenceChunkRun, EvidenceEmbedding, ReferenceCollection, ReferenceCollectionMembership,
+    SourceAssertion, SourceObject, SourceSnapshot,
 )
 from app.migrations import alembic_config
 from app.services.evidence_preprocessing import ChunkConfiguration, build_evidence_chunks, evidence_chunk_quality_report
@@ -38,6 +39,32 @@ pytestmark = [
 
 def api_get(path: str) -> httpx.Response:
     return httpx.get(f"{API_URL}{path}", timeout=5.0)
+
+
+def test_preprocessing_rerun_preserves_excluded_count_in_real_postgresql() -> None:
+    from sqlalchemy.engine.url import make_url
+    assert make_url(DATABASE_URL).database == "cinegraph_test"
+    code = f"integration-excluded-{uuid4().hex}"
+    with Session(create_engine(DATABASE_URL)) as db:
+        films = list(db.scalars(select(CanonicalEntity).where(
+            CanonicalEntity.wikidata_id.in_(["Q163872", "Q166262"]))))
+        assert films
+        db.add(ReferenceCollection(code=code, title="Isolated exclusion regression",
+                                   description="Temporary test-database-only collection.", language_code="en",
+                                   selection_method="test", selection_version="v1"))
+        db.flush()
+        db.add_all(ReferenceCollectionMembership(collection_code=code, entity_id=film.id,
+                   selection_position=index, selection_signals={}, source_reference="test:fixture")
+                   for index, film in enumerate(films, 1))
+        db.commit()
+        config = ChunkConfiguration(minimum_words=300)
+        first = build_evidence_chunks(db, collection_code=code, config=config)
+        second = build_evidence_chunks(db, collection_code=code, config=config)
+        run = db.get(EvidenceChunkRun, UUID(first["run_id"]))
+        assert first["chunks_excluded"] > 0
+        assert second["chunks_reused"] > 0
+        assert second["chunks_excluded"] == first["chunks_excluded"]
+        assert run.chunks_excluded == first["chunks_excluded"]
 
 
 def test_health_and_catalogue_are_served_from_real_postgresql() -> None:

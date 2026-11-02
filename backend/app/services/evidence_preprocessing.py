@@ -342,6 +342,8 @@ def build_evidence_chunks(
                 key = (passage.id, prepared.ordinal)
                 if key in existing:
                     reused += 1
+                    if existing[key].quality_status == "excluded":
+                        excluded += 1
                     continue
                 status = prepared.quality_status
                 duplicate_of_chunk_id = None
