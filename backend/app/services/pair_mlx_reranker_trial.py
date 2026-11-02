@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import hashlib
 from pathlib import Path
 from time import perf_counter
 
@@ -106,8 +107,13 @@ def main() -> None:
     mx.reset_peak_memory()
 
     capture = json.loads(args.capture.read_text(encoding="utf-8"))
-    if len(capture["cases"]) != 50 or capture["method"] not in {"hybrid", "candidate-union"}:
-        raise ValueError("Reranker trial requires a complete hybrid or candidate-union capture.")
+    if not 1 <= len(capture["cases"]) <= 50 or capture["method"] not in {"hybrid", "candidate-union"}:
+        raise ValueError("Reranker trial requires one to fifty frozen hybrid or candidate-union cases.")
+    capture_fingerprint = hashlib.sha256(json.dumps(capture, sort_keys=True).encode()).hexdigest()
+    if args.resume and args.output.exists():
+        previous = json.loads(args.output.read_text(encoding="utf-8"))
+        if previous.get("capture_fingerprint") != capture_fingerprint:
+            raise ValueError("Reranker checkpoint does not bind this exact capture content.")
     if not args.model.is_dir():
         raise ValueError("The quantized reranker must already exist in a local directory.")
     model, tokenizer = load(str(args.model))
@@ -177,7 +183,8 @@ def main() -> None:
             row[f"{side}_elapsed_ms"] = round((perf_counter() - started) * 1000, 1)
         rows.append(row)
         _write(args.output, {"model": str(args.model), "instruction": instruction,
-                             "capture": str(args.capture), "complete": len(rows) == 50,
+                             "capture": str(args.capture), "capture_fingerprint": capture_fingerprint,
+                             "complete": len(rows) == len(capture["cases"]),
                              "runtime": {**runtime_limits, "peak_memory_bytes": mx.get_peak_memory()},
                              "cases": rows})
         print(f"{len(rows):02d}/{args.max_cases} {case['case_id']}", flush=True)

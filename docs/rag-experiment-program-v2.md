@@ -196,3 +196,24 @@ No winner is promoted. Prioritize pooled relevance review, candidate diversity,
 and bounded reranking on a common pool; then test generated comparisons on
 the same evidence. The measured first-rank weakness is still incompatible
 with declaring the product's retrieval problem solved.
+
+### Pooled-positive correction and fixed-pool reranker
+
+Subsequent source review identified valid P03-Q2 alternatives already in the
+captured pool: Eckhart's account of Dent's legal constraints, and Turan's
+description of a deputy's misplaced confidence before being killed. Adding
+those exact source spans changes the unchanged 4B film-context run's coverage
+to 1/14 at one, 8/14 at three, 9/14 at five and 13/14 at ten. This is explicitly
+a **label correction**, not a retrieval improvement. The preceding table is
+the earlier selected-span diagnostic and must not be silently compared with
+the revised labels. More alternative positives still need review.
+
+A source-bound ten-candidate-per-film pool from that 4B film-context run is
+now frozen for the quantized 4B reranker. It preserves all twenty questions,
+including the unresolved ones, without using their labels in inference.
+Checkpoints bind capture content, and the runner now accepts frozen prefixes
+of up to fifty questions instead of requiring an artificial fifty-row input.
+The experiment is pending. The first pair took 23,564.7 ms and 21,098.7 ms for
+its two film sides; this flags a serious interactive-latency concern, not a
+full latency distribution or proof that batching/other rerankers cannot help.
+The next control should include a smaller cross-encoder on the same pool.
