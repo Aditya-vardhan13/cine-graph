@@ -217,3 +217,45 @@ The experiment is pending. The first pair took 23,564.7 ms and 21,098.7 ms for
 its two film sides; this flags a serious interactive-latency concern, not a
 full latency distribution or proof that batching/other rerankers cannot help.
 The next control should include a smaller cross-encoder on the same pool.
+
+### Reasoning and instruction-following research follow-up
+
+[BRIGHT](https://arxiv.org/html/2407.12883v3) distinguishes reasoning-heavy
+retrieval from topical matching and experiments with query-side reasoning.
+Our hypothesis, not a demonstrated film-domain result: questions about causal
+choices, initial versus final states and analogous relationships may need a
+bounded query plan rather than one broad question vector.
+
+[FollowIR](https://arxiv.org/html/2403.15246v3) evaluates altered relevance
+instructions and finds that many retrievers respond to instruction keywords
+without honoring the conditions. This motivates counterfactual query controls
+in CineGraph: first encounter versus ending, plot event versus attributed
+critical interpretation, and protective choice versus subsequent consequence.
+Success requires the requested evidence to change, not merely embedding the
+extra words. No FollowIR score is claimed for our models.
+
+[BRIGHT-Pro](https://arxiv.org/html/2605.04018v1), a 2026 preprint, expands narrow
+positive sets into multi-aspect evidence and studies complementary retrieval
+in static and iterative settings. This supports checking alternative positives
+and complete evidence packs alongside single-passage metrics. Its results do
+not establish a need for our own training or an unbounded agent loop.
+
+The next pipeline ablation after fixed-pool reranking should compare the
+unchanged question with a small, bounded plan of evidence needs, retaining the
+original query branch. Such plans must be based on the question, not our gold
+labels; invented movie events must never enter the evidence corpus. Any
+generated query reformulation remains an ephemeral retrieval aid, not a fact.
+First verify the observed rank/latency tradeoffs and alternative positives;
+do not add a new production service or fine-tune a retriever on these twenty
+inspected development questions.
+
+The small reranker control is pinned to
+`cross-encoder/ms-marco-MiniLM-L6-v2` revision
+`233902d25c440f23af6f7d6e94d2946bac0bee0a`.
+Its [official model card](https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2)
+documents pairwise sequence-classification logits. Our adapter scores exact
+128-word source windows without truncation, then takes the maximum window
+score per original candidate, preserving the winning span. This is a different
+native input contract from full-passage 4B reranking, so any operational gain
+must not be attributed solely to parameter count. Files are local; execution
+is queued after the 4B run, not concurrent with it.
