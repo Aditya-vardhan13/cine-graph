@@ -51,6 +51,62 @@ changed. A separately reviewed, film-pair-disjoint evaluation remains necessary
 before claiming usefulness or an 80% quality target. Tests of schema validity
 are deliberately not answer-quality scores.
 
+### Citation-first four-pair development check
+
+One question per development pair was selected in advance (P01-Q1 through
+P04-Q1), using the same Qwen4B retrieval rankings and source packs. Constrained
+decoding required both films in the comparison and generated source IDs before
+each interpretation. Four outputs passed the then-current syntax/reference
+contract; revalidation using the subsequently strengthened completeness rule
+rejects P02-Q1 for a cut-off limitation. All four need more than structural
+validation and are not approved for a writer-facing feature:
+
+- **Endgame / Godfather:** improved attribution of Vito's decision versus the
+  earlier draft, but incorrectly attributes a filmmaker's comment and its
+  selected quote fragments do not cover every claim in the reading.
+- **Her / WALL-E:** the response makes broad claims about both artificial
+  relationships without adequately distinguishing the human's relationship in
+  *Her* from the robots' relationship in *WALL-E*. Its limitation is truncated.
+- **Dark Knight / No Country:** some source-grounded villain analysis is
+  relevant, but it does not clearly establish the asked-for moral rule of a
+  protagonist in each film and selected fragments under-support specific claims.
+- **Jaws / Jurassic Park:** the second reading asserts a warning was ignored,
+  while its cited fragment establishes disabled fences and the ensuing attack,
+  not that Nedry ignored a warning. The comparison therefore forces the premise.
+
+This is one developer's source-aware review, not an independent rating or a
+representative success-rate estimate. The observed quotation windows can begin
+or end mid-sentence. A separate, source-fingerprinted English spaCy sentencizer
+index and opt-in sentence-ID experiment were prepared to test whether complete
+sentence citations help. The stored evidence is never rewritten. Sentence
+boundaries can still be wrong, and a correct quotation can still fail to support
+the claim. Other languages require their own explicitly selected segmenter.
+
+The sentence-index run produced 3,377 spans over 465 frozen passages. It
+preserves source offsets and rejects gaps containing non-whitespace text. Ten
+spans under twelve characters are ineligible as citations and explicitly
+reported; none in this corpus exceeded the 2,500-character source-span limit.
+This is model-free English segmentation, not ground-truth semantic analysis.
+
+Two of four sentence-ID cases completed before local disk headroom fell below
+the experiment's 6 GiB reserve during inference; the process was stopped and
+its two per-case checkpoints retained. Free space recovered after the process
+ended, consistent with memory pressure and swap, but the precise cause was not
+measured. In P01-Q1, the citation for the Romanoff sacrifice was an unrelated
+cast-list sentence. In P02-Q1, the citation for a claim about human isolation
+was a sentence about EVE being sent to diagnostics. Both outputs met the
+reference-format contract but failed direct citation-support inspection.
+Complete sentence boundaries improve readability, not semantic relevance.
+No result is claimed for the remaining two cases.
+
+The offline runner now checks free space before each case and periodically
+during streamed token generation. If the reserve is crossed, it stops without
+overwriting completed case checkpoints. This cannot guarantee protection during
+initial model loading or prompt prefill; adequate free disk and memory still
+need to be available before running. Streaming output preservation and the
+low-space stop policy are covered by pure tests; a live rerun remains pending
+until there is sufficient headroom.
+
 ## Continuation: query planning and retrieval controls (2026-11-02)
 
 Completed twenty-case offline replay against the same 465 frozen full passages.

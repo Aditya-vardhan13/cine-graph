@@ -1,12 +1,14 @@
 from copy import deepcopy
 import json
 import re
+from types import SimpleNamespace
 
 import pytest
 
 from app.services.rag_dense_trial import digest
+from app.services.rag_sentence_index import build_index
 from app.services.rag_grounded_trial import (
-    answer_schema, messages, pack_evidence, quote_spans, resolve_span_answer, validate_answer,
+    answer_schema, collect_generation, messages, pack_evidence, quote_spans, resolve_span_answer, select_cases, system_prompt, validate_answer,
 )
 
 
@@ -89,14 +91,51 @@ def test_exact_quotation_is_not_treated_as_entailment_or_quality():
 def test_model_text_cut_off_by_schema_length_is_rejected():
     corpus, case = example()
     pack = pack_evidence(corpus, case, token_count=len)
-    for field in ("first", "writing_move"):
+    for field in ("first", "limit", "writing_move"):
         draft = payload()
         if field == "first":
             draft[field]["reading"] = draft[field]["reading"].rstrip(".")
+        elif field == "limit":
+            draft["first"]["limit"] = draft["first"]["limit"].rstrip(".")
         else:
             draft[field] = draft[field].rstrip(".")
         with pytest.raises(ValueError):
             validate_answer(json.dumps(draft), pack)
+
+
+def test_predeclared_case_selection_preserves_frozen_order_and_rejects_unknowns():
+    cases = [{"case_id": key} for key in ("A", "B", "C")]
+    assert select_cases(cases, ["C", "A"]) == [cases[0], cases[2]]
+    for selected in (["A", "A"], ["missing"]):
+        with pytest.raises(ValueError):
+            select_cases(cases, selected)
+    assert system_prompt(span_ids=True, citation_first=True) != system_prompt(span_ids=True, citation_first=False)
+
+
+def test_optional_sentence_citations_are_bound_to_the_exact_corpus():
+    corpus, case = example()
+    index = build_index(corpus, lambda text: [(0, len(text))], segmenter_version="fixture")
+    pack = pack_evidence(corpus, case, token_count=len, sentence_index=index)
+    spans = quote_spans(pack)
+    assert spans["A1.S1"]["quote"] == pack["entries"][0]["content"]
+    broken = deepcopy(index)
+    broken["documents"][0]["spans"][0]["end"] -= 1
+    with pytest.raises(ValueError, match="frozen corpus"):
+        pack_evidence(corpus, case, token_count=len, sentence_index=broken)
+
+
+def test_generation_stream_checks_space_and_preserves_complete_output():
+    chunks = [SimpleNamespace(text=text, generation_tokens=i, finish_reason=None if i == 1 else "stop",
+              generation_tps=10.0, prompt_tps=20.0) for i, text in ((1, "one "), (32, "two"))]
+    checked = []
+    text, stats = collect_generation(chunks, check_space=lambda: checked.append(True))
+    assert text == "one two" and stats["finish_reason"] == "stop" and len(checked) == 2
+    with pytest.raises(ValueError, match="no generation"):
+        collect_generation([], check_space=lambda: None)
+    def low_disk():
+        raise RuntimeError("disk reserve")
+    with pytest.raises(RuntimeError, match="disk reserve"):
+        collect_generation(chunks, check_space=low_disk)
 
 
 def test_span_ids_preserve_every_source_character_and_resolve_without_model_copying():
@@ -117,6 +156,8 @@ def test_span_ids_preserve_every_source_character_and_resolve_without_model_copy
     assert comparison["minItems"] == comparison["maxItems"] == 2
     assert all(ref.startswith("A") for ref in comparison["prefixItems"][0]["properties"]["ref"]["enum"])
     assert all(ref.startswith("B") for ref in comparison["prefixItems"][1]["properties"]["ref"]["enum"])
+    first = answer_schema(pack, span_ids=True, citation_first=True)["properties"]["first"]["properties"]
+    assert list(first) == ["support", "reading", "limit"]
     draft["first"]["support"][0]["ref"] = "B1.W1"
     with pytest.raises(ValueError, match="wrong film"):
         resolve_span_answer(json.dumps(draft), pack)
