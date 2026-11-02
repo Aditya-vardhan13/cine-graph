@@ -560,3 +560,110 @@ and complementary evidence needs, keeping the unmodified retrieval branch.
 Six unresolved questions and unreviewed alternative positives remain separate
 quality work; they cannot be hidden by calling the fourteen-question subset
 an 80-percent success on the original task.
+
+## Revised dataset-first execution plan (3 November 2026)
+
+The dated source review is in
+[the external-data audit](open-narrative-datasets-audit-2026-11.md). Persistent
+continuity is in [project memory](project-memory.md) and the
+[narrative research skill](skills/cinegraph-narrative-research/SKILL.md).
+
+### Completed: separate usable source evidence from benchmark answers
+
+Pinned SemEval narrative similarity and MF² releases now have an offline,
+versioned preparation adapter. The current validated local run is
+`data/evaluation/external-prepared/v1-run4/`:
+
+- 1,325 evidence documents: **1,219 distinct story summaries** (not all films),
+  53 MF² transcripts and 53 synopses. These are not 1,325 new catalog films.
+- 5,051 exact 160-word/32-word-overlap passages linked to parent offsets.
+- 2,369 benchmark inputs and separately stored gold rows: 639 SemEval triples
+  and two independent claims for each of 865 eligible MF² pairs.
+- Three identical fact/fib pairs quarantined, never silently repaired.
+- Retained raw captures and hashes; every derivative source-bound. Subtitle
+  rendering removes counters/times but maps dialogue back to raw character
+  offsets. Negative cue indices and fractional timestamps are not story facts;
+  two orphan blocks remain untimed. No speaker names are inferred.
+- 59,475 subtitle source spans verified, no parsing errors in the selected run.
+  This proves preservation, **not transcription accuracy**; visible noise in
+  transcript 32 warrants separate source-quality review.
+- Gold labels/comments/annotation dimensions are absent from model inputs and
+  evidence. MF² true/false arm order is deterministically counterbalanced.
+- Nominal identity metadata stays unreviewed. Test identity metadata is
+  explicitly projected from the original release's label-bearing file, with
+  its source locator; answer labels themselves remain in the gold artifact.
+
+An existing two-document BM25 policy is the cheap development-only control:
+111/200 correct (55.5%), zero ties. This is relative whole-story similarity,
+**not** user-question evidence retrieval, generated-answer correctness or
+writer usefulness. No test ranking or test model generation has been run.
+
+### Gate 1: source detail, rights and identities before product ingestion
+
+Use these sources locally for research now; keep them outside live product
+evidence until canonical film identity and per-asset usage are reviewed. MF²
+release-level CC BY 4.0 is not automatic proof of every subtitle's upstream
+rights. SemEval attribution/share-alike and original canaries must survive use.
+Do not mix novels into the English film catalog. Future approved ingestion must
+use existing snapshot/passage/assertion boundaries, not a parallel fact graph.
+
+Review a stratified sample of each source kind for broken extraction, speaker
+ambiguity, transcript quality and whether requested facts are even observable.
+MF²'s visual-only questions require sufficient visual evidence or an explicit
+text-only support label; full-benchmark text scores cannot establish film-level
+understanding. No new bulk scraping is needed for this gate.
+
+### Gate 2: external benchmarks without split contamination
+
+Preserve official splits. SemEval has 164 exact story strings shared by dev/test.
+Only 92 test triples are text-disjoint from dev+sample, and only **61** also have
+nonoverlapping supplied Wikidata work IDs after conservative identity checking.
+This is a candidate external evaluation subset, not proof that pretrained
+models have never seen the stories. Freeze and retain its IDs before evaluating.
+Never tune on it or call both task tracks independent training examples.
+
+Compare whole-story embedding similarity on SemEval development data first;
+report triplet accuracy, ties and breakdowns, keeping supplied interpretations
+in gold only. Keep our own pairwise user-question evidence tests: external
+similarity and claim verification are complementary controls, not replacements.
+
+### Gate 3: fixed-evidence quantized generation comparisons
+
+Once source sufficiency is established, compare the locally available Qwen 3
+4B and 8B Q4_K_M checkpoints on identical bounded evidence, prompts, sampling
+and output budgets. Distinguish these from Qwen3-4B-Instruct-2507 MLX weights;
+changing checkpoint family/runtime is not an isolated size comparison.
+
+Start with source-bound claim diagnostics and our existing comparison questions.
+Record evidence support, correct character attribution, answered facets,
+limitations/abstention, latency and memory/disk footprint. Only an independent
+writer review can establish creative usefulness. FP16/distillation is not a
+default fix: quality retention needs a separate control and memory feasibility.
+Do not load models while the retained disk-headroom guard would fail.
+
+### Execution and regression rules
+
+Commands:
+
+```sh
+conda activate cine-graph
+python scripts/prepare_narrative_benchmarks.py --output data/evaluation/external-prepared/<new-run>
+python scripts/validate_narrative_preparation.py data/evaluation/external-prepared/<new-run>
+PYTHONPATH=backend python -m pytest backend/tests/test_external_narrative_preparation.py backend/tests/test_narrative_benchmark_acquisition.py -q
+```
+
+Use one background job handle and durable run report; do not duplicate quiet
+work. Earlier failed/intermediate runs remain for diagnosis; do not point new
+experiments at them. No product UI, operational DB, model weights or retrieval
+defaults changed in the preparation milestone. Product promotion still needs
+its PostgreSQL/API/browser gates, not just these offline preparation checks.
+
+### MF² label-blind retrieval diagnostic
+
+The offline worker `scripts/build_narrative_retrieval_packet.py` completed a
+film-scoped diagnostic-development subset: 190 claim queries across five films,
+with 1,540 claim queries outside this subset. The worker did not open gold labels
+or load a model. Its lexical top-six passages are unscored research leads, not
+validated answers. This subset derives from the release's official test data and
+is no longer an untouched test set. The frozen contract and results remain local
+under `data/evaluation/external-prepared/`.

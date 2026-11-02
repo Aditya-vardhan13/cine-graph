@@ -3,6 +3,10 @@
 Read [docs/core-architecture-and-test-gates-v1.md](docs/core-architecture-and-test-gates-v1.md)
 before changing corpus, intelligence, retrieval, or test infrastructure.
 
+For project continuity read [docs/project-memory.md](docs/project-memory.md).
+For narrative dataset preparation or grounded model evaluation, use the
+project-local [narrative research skill](docs/skills/cinegraph-narrative-research/SKILL.md).
+
 Non-negotiable rules:
 
 - Keep raw data, database volumes, model weights, embeddings, and snapshots local.
