@@ -1,0 +1,14 @@
+{
+  "version": "rag-holdout-identities-v1",
+  "status": "title-year-mapping-requires-source-review-before-scoring",
+  "films": [
+    {"title": "Whiplash", "year": 2014, "qid": "Q15648198"},
+    {"title": "Black Swan", "year": 2010, "qid": "Q180214"},
+    {"title": "Arrival", "year": 2016, "qid": "Q20382729"},
+    {"title": "Eternal Sunshine of the Spotless Mind", "year": 2004, "qid": "Q208269"},
+    {"title": "Moon", "year": 2009, "qid": "Q26751"},
+    {"title": "Ex Machina", "year": 2014, "qid": "Q16635326"},
+    {"title": "Zodiac", "year": 2007, "qid": "Q218172"},
+    {"title": "Spotlight", "year": 2015, "qid": "Q18154496"}
+  ]
+}

@@ -104,8 +104,26 @@ during streamed token generation. If the reserve is crossed, it stops without
 overwriting completed case checkpoints. This cannot guarantee protection during
 initial model loading or prompt prefill; adequate free disk and memory still
 need to be available before running. Streaming output preservation and the
-low-space stop policy are covered by pure tests; a live rerun remains pending
-until there is sufficient headroom.
+low-space stop policy are covered by pure tests; see the live run below.
+
+On 2026-11-03 the guarded streaming runner completed a real P03-Q1 local
+inference, with a normal stop after 460 output tokens (approximately 15.3
+generation tokens/s and 163.8 prompt tokens/s for that single run). Its source
+IDs and JSON structure validated; this is not an entailment or usefulness
+assessment. Memory and latency are local measurements, not production SLOs.
+
+The eight frozen holdout titles were matched to explicit candidate Wikidata
+identities and found in `cinegraph_eval`. The selected, completed recovered
+Wikipedia v1 chunk run contains 184 eligible chunks for these films and was
+exported read-only to a fingerprinted local corpus, without ranking. The two
+retained passage records per film use separate legacy/recovered records for
+the same Wikipedia revision: they are not independent sources. This export
+uses the recovered v1 extraction and v3 chunker, whereas the four-pair
+development canary uses parser v2 and chunker v4. Extraction differences must
+be accounted for before comparing their results. Identity/source review and
+source-bound relevance labels are still missing; this is not gold or a scored
+holdout. The corpus fingerprint is
+`b6638287c54c9f05f1a23da7e1585a687c976ea97fa7fc5cb03bfad09f06562b`.
 
 ## Continuation: query planning and retrieval controls (2026-11-02)
 
