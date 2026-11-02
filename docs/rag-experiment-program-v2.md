@@ -2,6 +2,55 @@
 
 Status: research and evaluation design in progress; no model winner selected.
 
+## Source-linked generation diagnostic (2026-11-02)
+
+The first user question, Endgame versus The Godfather, was tested on a
+balanced pack of the five highest-ranked complete passages per film with the
+local Qwen3-4B-Instruct-2507 4-bit checkpoint. The evidence pack is drawn from
+the frozen development corpus, without passing reviewed labels to the model.
+It preserves full chunks and validates the actual tokenized prompt size.
+
+An unconstrained attempt exceeded its output budget and produced malformed
+JSON and mismatched quotes. An early schema-constrained implementation applied
+the chat template twice. Those structured outputs are invalid **experiments**
+and must not be used to compare model quality. The corrected implementation
+feeds native chat-template token IDs to MLX once, and applies the official
+Outlines schema logits processor directly.
+
+The corrected greedy run selected immutable source-window IDs and resolved
+those IDs back to exact source text. Its schema enforces one citation for each
+film in the comparison. That citation-format contract passed, but a manual
+source check failed: the model attributed the decision to end vendettas after
+Sonny's death to Michael when the retained source says Vito. The output is
+therefore not safe to ship. Exact substring binding and both-film citations
+cannot prove entailment or reliably identify who performed an action. This is
+one examined development case, not an estimate of model accuracy.
+
+Research on [attribute-first generation](https://aclanthology.org/2024.acl-long.182/)
+and [ALCE citation evaluation](https://aclanthology.org/2023.emnlp-main.398/)
+supports separating evidence selection, answer quality and attribution review.
+The span-ID diagnostic is inspired by this distinction; it is not a
+reimplementation or a reproduction of either paper's method or results.
+
+The official model card recommends non-greedy sampling; a seeded
+temperature-0.7, top-p-0.8, top-k-20 experiment is implemented separately.
+Its presence penalty uses a documented 2,048-token local window, rather than
+claiming exact parity with every serving implementation. On this same case,
+the sampled result also attributed Vito's decision to Michael, and the schema's
+character bound cut the scene idea off mid-sentence. Citation validity alone
+initially missed the latter; the deterministic validator now rejects visibly
+unfinished readings and scene ideas. A single seed and single question cannot
+establish whether sampling generally helps. A newer pinned
+Qwen3.5-4B checkpoint was being downloaded for a controlled comparison, but
+the transfer was paused when free disk approached 6 GiB. Two partial files are
+retained locally; no completed comparison is claimed. Docker was unavailable,
+so the separate holdout-film database and source review were not run.
+
+These trials are offline only: no live retrieval, prompt or production API has
+changed. A separately reviewed, film-pair-disjoint evaluation remains necessary
+before claiming usefulness or an 80% quality target. Tests of schema validity
+are deliberately not answer-quality scores.
+
 ## Continuation: query planning and retrieval controls (2026-11-02)
 
 Completed twenty-case offline replay against the same 465 frozen full passages.

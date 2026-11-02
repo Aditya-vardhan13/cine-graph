@@ -1,0 +1,6 @@
+# Optional offline native Apple Silicon experiment environment only.
+# Do not add model experimentation dependencies to the API image.
+mlx==0.32.4
+mlx-lm==0.31.3
+transformers==5.20.2
+outlines==1.3.3
