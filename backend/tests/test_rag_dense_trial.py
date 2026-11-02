@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from app.services.rag_dense_trial import rank_windows, source_windows
+from app.services.rag_dense_trial import pack_parent_context, rank_windows, source_windows
 
 
 def test_windows_preserve_exact_source_spans_and_cover_tail():
@@ -24,3 +24,17 @@ def test_rank_uses_film_scope_cosine_and_stable_ties():
         rank_windows(docs, matrix, np.zeros(2), film_qid="Q1")
     with pytest.raises(ValueError, match="dimensions"):
         rank_windows(docs, matrix, np.zeros(3), film_qid="Q1")
+
+
+def test_parent_context_preserves_source_and_reports_budget_omissions():
+    corpus = {"documents": [{"chunk_id": key, "film_qid": "Q1", "content": text,
+                              "source_snapshot_id": "revision"}
+                             for key, text in (("A", "Full parent."), ("B", "Another parent."))]}
+    ranked = [{"chunk_id": "A", "start": 2, "end": 6}, {"chunk_id": "A"}, {"chunk_id": "B"}]
+    packed = pack_parent_context(corpus, ranked, film_qid="Q1", character_budget=15)
+    assert len(packed["parents"]) == 1
+    assert packed["parents"][0]["text"] == "Full parent."
+    assert packed["parents"][0]["retrieved_anchor"] == ranked[0]
+    assert packed["omitted"] == [{"chunk_id": "B", "reason": "context_budget"}]
+    with pytest.raises(ValueError, match="outside"):
+        pack_parent_context(corpus, ranked, film_qid="Q2")

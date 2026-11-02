@@ -31,6 +31,34 @@ def digest(value: object) -> str:
                                       separators=(",", ":")).encode()).hexdigest()
 
 
+def pack_parent_context(corpus: dict, ranked: list[dict], *, film_qid: str,
+                        character_budget: int = 6000, max_parents: int = 3) -> dict:
+    """Expand retrieved anchors to complete source chunks under an explicit budget."""
+    if character_budget < 1 or max_parents < 1:
+        raise ValueError("Context budgets must be positive.")
+    documents = {row["chunk_id"]: row for row in corpus["documents"]}
+    selected, omitted, seen = [], [], set()
+    used = 0
+    for anchor in ranked:
+        identifier = anchor["chunk_id"]
+        doc = documents.get(identifier)
+        if doc is None or doc["film_qid"] != film_qid:
+            raise ValueError("Context anchor is outside the selected film/corpus.")
+        if identifier in seen:
+            continue
+        seen.add(identifier)
+        length = len(doc["content"])
+        if len(selected) >= max_parents or used + length > character_budget:
+            omitted.append({"chunk_id": identifier, "reason": "context_budget"})
+            continue
+        selected.append({"chunk_id": identifier, "start": 0, "end": length,
+                         "source_snapshot_id": doc["source_snapshot_id"],
+                         "text": doc["content"], "retrieved_anchor": anchor})
+        used += length
+    return {"parents": selected, "omitted": omitted, "characters": used,
+            "character_budget": character_budget, "max_parents": max_parents}
+
+
 def rank_windows(documents: list[dict], matrix: np.ndarray, query: np.ndarray,
                  *, film_qid: str, limit: int = 10) -> list[dict]:
     if matrix.ndim != 2 or matrix.shape != (len(documents), query.size):
