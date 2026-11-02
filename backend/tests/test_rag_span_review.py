@@ -67,3 +67,18 @@ def test_quote_authoring_compiles_unique_exact_offsets_without_inventing_labels(
     authored["cases"][0]["evidence"][0]["quote"] = "absent"
     with pytest.raises(ValueError, match="exactly one"):
         bind_review_quotes(corpus, authored)
+
+
+def test_conjunctive_source_group_requires_all_supporting_spans():
+    corpus, review = example()
+    first = review["cases"][0]["evidence"][0]
+    first.update(quote="A choice", start=0, end=8, evidence_group="linked")
+    second = {**first, "quote": "cost.", "start": 15, "end": 20}
+    # Resolve offsets from the real fixture text, without changing its fingerprint.
+    second["start"] = corpus["documents"][0]["content"].index("cost.")
+    second["end"] = second["start"] + len("cost.")
+    review["cases"][0]["evidence"].append(second)
+    rankings = {"C1": {"A": [{"chunk_id": "A", "start": 0, "end": 8}], "B": [{"chunk_id": "B"}]}}
+    assert score_span_coverage(corpus, review, rankings, k=2)["both_films_covered"] == 0
+    rankings["C1"]["A"].append({"chunk_id": "A", "start": second["start"], "end": second["end"]})
+    assert score_span_coverage(corpus, review, rankings, k=2)["both_films_covered"] == 1

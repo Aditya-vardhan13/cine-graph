@@ -157,3 +157,42 @@ E5's pinned files are now local. The common-window E5 run uses Metal, native
 768-dimensional vectors, correct query/passage prefixes, and disabled network.
 Results remain pending. A common-window Qwen comparison is required before
 attributing any E5 gain to the encoder rather than the representation change.
+
+## First controlled source-visibility results (2026-11-02)
+
+All four common-window trials completed on the identical 931 source windows.
+The initial source-aware review covers all 20 development questions: 14 have
+defined supporting spans and six have unresolved direct-source coverage. This
+is one agent's development review, not independent adjudication or a holdout.
+Unresolved questions remain visible and require source/interpretive review;
+they are not silently relabeled as retrieval failures or removed to claim 80%.
+
+Counts below are questions where both films' **selected support spans** are
+visible in the retrieved evidence. They are not graded relevance, answer
+correctness, MRR, or the original pair-success@1 benchmark. Other valid
+passages may be missing from the positive labels. Linked evidence groups
+require all their component spans: a cast relation alone cannot prove a
+relationship's narrative consequence.
+
+| Configuration | Both-film span coverage @1 | @5 | @10 |
+| --- | ---: | ---: | ---: |
+| Qwen 0.6B full passage | 1/14 | 8/14 | 10/14 |
+| Qwen 4B full passage | 4/14 | 9/14 | 10/14 |
+| Qwen 4B full passage + target-film query | 1/14 | 8/14 | 12/14 |
+| Qwen 0.6B common windows | 1/14 | 5/14 | 8/14 |
+| Qwen 4B common windows | 3/14 | 6/14 | 8/14 |
+| E5 base common windows | 0/14 | 0/14 | 5/14 |
+| BGE-M3 dense common windows | 0/14 | 4/14 | 6/14 |
+
+The union of these displayed top-ten pools covers the selected spans for 13/14
+source-supported questions. This is only a candidate-visibility ceiling for
+that union, not a production retrieval score. P03-Q2 remains absent under the
+selected exact spans; inspect other valid evidence before declaring a source
+or model failure. Near-duplicate overlapping windows also consume retrieval
+slots, so window scores must be accompanied by unique-parent/context-budget
+evaluation rather than treated as an automatic architecture improvement.
+
+No winner is promoted. Prioritize pooled relevance review, candidate diversity,
+and bounded reranking on a common pool; then test generated comparisons on
+the same evidence. The measured first-rank weakness is still incompatible
+with declaring the product's retrieval problem solved.

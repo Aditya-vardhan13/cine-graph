@@ -64,6 +64,8 @@ def validate_review(corpus: dict, review: dict) -> None:
                     not evidence.get("rationale", "").strip() or
                     not evidence["facet_ids"] or not set(evidence["facet_ids"]).issubset(facets)):
                 raise ValueError("Every span needs valid facet labels, support and rationale.")
+            if "evidence_group" in evidence and not str(evidence["evidence_group"]).strip():
+                raise ValueError("Evidence group labels cannot be empty.")
 
 
 def score_span_coverage(corpus: dict, review: dict, rankings: dict, *, k: int) -> dict:
@@ -92,7 +94,7 @@ def score_span_coverage(corpus: dict, review: dict, rankings: dict, *, k: int) -
             candidates = rankings.get(case["case_id"], {}).get(qid)
             if candidates is None:
                 raise ValueError("Missing rankings cannot silently score as a retrieval failure.")
-            covered = set()
+            covered, hits = set(), set()
             for candidate in candidates[:k]:
                 doc = documents.get(candidate["chunk_id"])
                 if doc is None or doc["film_qid"] != qid:
@@ -101,9 +103,15 @@ def score_span_coverage(corpus: dict, review: dict, rankings: dict, *, k: int) -
                 end = candidate.get("end", len(doc["content"]))
                 if not 0 <= start < end <= len(doc["content"]):
                     raise ValueError("Ranked window offsets are invalid.")
-                for item in positives:
+                for index, item in enumerate(positives):
                     if item["chunk_id"] == candidate["chunk_id"] and start <= item["start"] and end >= item["end"]:
-                        covered.update(item["facet_ids"])
+                        hits.add(index)
+            groups = {}
+            for index, item in enumerate(positives):
+                groups.setdefault(item.get("evidence_group", f"single:{index}"), []).append(index)
+            for indexes in groups.values():
+                if all(index in hits for index in indexes):
+                    covered.update(facet for index in indexes for facet in positives[index]["facet_ids"])
             sides.append({"film_qid": qid, "covered_facets": sorted(covered),
                           "required_facets": sorted(expected), "complete": covered == expected})
         rows.append({"case_id": case["case_id"], "sides": sides,
