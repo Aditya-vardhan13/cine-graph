@@ -2,6 +2,103 @@
 
 Status: research and evaluation design in progress; no model winner selected.
 
+## Continuation: query planning and retrieval controls (2026-11-02)
+
+Completed twenty-case offline replay against the same 465 frozen full passages.
+No document re-embedding and no working-database reads or writes were needed:
+the original Qwen4B native matrix was reused only after its content/order/run/
+model cache key matched. The local Ollama digest was checked and the matrix
+SHA256 recorded in the result. Every query branch stays within its selected film.
+
+The first two question-only 4-bit Qwen3 instruction-planner prompts produced
+valid JSON but narrowed the user's meaning: "injustice" became "systemic
+injustice", with invented domestic settings or oppression. These plans were
+rejected before retrieval. A versioned third experiment allows only exact
+contiguous phrases from the question, enforced in code; the original question
+is always retained. Seventeen of twenty plans passed that contract; three
+fell back explicitly to the original question. Passing this contract does not
+prove that a selected phrase retains all the original qualifiers or is useful.
+
+The replay compares original-query dense retrieval, extractive-branch reciprocal
+rank fusion, extractive round-robin diversification, the existing film-scoped
+BM25 policy and original-query dense/BM25 equal-weight RRF. Branch depth is 30,
+output depth 10, RRF constant 60. All variants use the same current span review;
+there were no label changes in this comparison.
+
+| Policy | Both-film source coverage @1 | @3 | @5 | @10 |
+| --- | ---: | ---: | ---: | ---: |
+| Qwen4B original query with film context | 1/14 | 8/14 | 9/14 | 13/14 |
+| Extractive branches, RRF | 1/14 | 7/14 | 7/14 | 12/14 |
+| Extractive branches, round-robin | 1/14 | 6/14 | 8/14 | 13/14 |
+| Original query BM25 | 0/14 | 0/14 | 3/14 | 4/14 |
+| Original dense + BM25 RRF | 1/14 | 3/14 | 5/14 | 8/14 |
+
+Decision: none of these additions is promoted to live retrieval. They regress
+near-top evidence visibility and add planning latency. Exact phrase extraction
+often repeats most of the question rather than offering useful complementary
+branches. More query variants are not inherently better. Native full-passage
+dense retrieval remains the stronger development control, not a release winner.
+
+These are coverage counts for fourteen supported, reviewed questions inside a
+twenty-question development set, **not 93% answer accuracy**, not the original
+20-case top-one criterion, and not an independent holdout. Six uncertain source
+premises remain unresolved. The next distinct architecture experiment, trained
+multi-vector late interaction, is reported below. Generation and fresh held-out writer
+utility checks remain outstanding. Do not rerun another arbitrary weight sweep
+on these twenty questions and call it generalisation.
+
+Local artifacts (ignored): `data/evaluation/rag-v2/query-plans-v3-first20.json`
+and `query-replay-v3-first20.json`. Reproducible policy/CLI entry point:
+`app.services.rag_query_replay`; source visibility scoring remains
+`rag_span_review`, not an automated answer-quality judge.
+
+### Trained multi-vector architecture completed
+
+Executed the official BGE-M3 trained projection at the same pinned encoder
+revision used for the dense-window control. The adapter follows the
+[official projection and normalization contract](https://github.com/FlagOpen/FlagEmbedding/blob/master/FlagEmbedding/finetune/embedder/encoder_only/m3/modeling.py)
+and [inference token selection and mean MaxSim](https://github.com/FlagOpen/FlagEmbedding/blob/master/FlagEmbedding/inference/embedder/encoder_only/m3.py):
+drop CLS, retain non-padding tokens including EOS, normalize each projected
+token, then average each query token's maximum passage-token similarity.
+No random projection, query expansion, learned sparse head or blended-score
+tuning is involved. This is BGE-M3 late interaction, not a ColBERTv2 checkpoint.
+
+All 931 source windows and twenty questions completed. Inputs and source-window
+offsets match the existing dense-window representation. Token matrices use
+float32 and approximately 646 MB of local disk (decimal units), materially
+more than single-vector storage. Initial encoding took 99.1 seconds, excluding
+model load and disk writes. A verified warm-cache replay scored a pair at p50
+220 ms / p95 415 ms, excluding query encoding and model load; this is small-corpus
+exact search, not a million-film production latency estimate. Accelerator batch
+scoring agreed with the independent NumPy reference within 2.98e-8 on the
+retained runtime parity check. Cached vectors also passed dimension, finiteness
+and per-token normalization checks.
+
+| Fixed-window architecture | Both-film source coverage @1 | @3 | @5 | @10 |
+| --- | ---: | ---: | ---: | ---: |
+| BGE-M3 dense CLS control | 0/14 | not re-tabulated | 4/14 | 6/14 |
+| BGE-M3 trained token-level MaxSim | 0/14 | 4/14 | 6/14 | 7/14 |
+
+Late interaction improves the BGE dense control's coverage here, but still
+does not beat Qwen4B full passages (9/14 @5, 13/14 @10). It is not promoted.
+The result argues against replacing the database or embedding architecture
+on reputation alone. General semantic matching is still insufficient for some
+multi-part narrative questions; evidence selection and supported interpretation
+must be checked separately.
+
+The next evaluation barrier is frozen separately in
+`backend/tests/fixtures/rag-holdout-questions-v1.json`: twenty questions across
+four pairs/eight films, disjoint from all ten pairs in the earlier development
+set. Titles/years are grounded in the user-provided CSV. The questions have not
+been ranked; source IDs and source-bound labels still need independent review.
+This is a frozen question design, **not an already validated test set**. Do not
+tune on its retrieval outputs or claim held-out accuracy before labels exist.
+
+Runtime artifacts remain ignored locally: `bge-multivector-first20.json` records
+the uncached run; `bge-multivector-verified-first20.json` records cache validation
+and scoring parity. No live retrieval, database schema, source assertions or
+user UI changed in this milestone.
+
 ## Objective and assumptions
 
 The product must help a writer answer a specific question about two films,

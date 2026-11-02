@@ -1,0 +1,52 @@
+{
+  "version": "rag-holdout-questions-v1",
+  "status": "frozen-question-design-not-yet-source-labelled",
+  "identity_source": "User-provided imdb_top_1000.csv titles and release years; resolve source IDs before execution",
+  "protocol": "No ranking or source-label inspection during development tuning. Source review must mark support, partial support, disagreement and absence rather than assume a shared premise. This is not gold until source-bound labels are frozen independently of rankings. Do not silently substitute films, questions or sources.",
+  "pairs": [
+    {
+      "id": "H01",
+      "films": [{"title": "Whiplash", "year": 2014}, {"title": "Black Swan", "year": 2010}],
+      "questions": [
+        "What does each protagonist risk losing in pursuit of artistic excellence, and which decisions show that cost?",
+        "Does pressure come primarily from a mentor, a rival, or the protagonist, and how does the source evidence distinguish them?",
+        "Do the endings present artistic achievement as a victory, a loss, or an unresolved combination?",
+        "What documented sound or editing choices shape the experience of performance in each film?",
+        "Where do attributed critics disagree about whether the film endorses or criticizes its character's ambition?"
+      ]
+    },
+    {
+      "id": "H02",
+      "films": [{"title": "Arrival", "year": 2016}, {"title": "Eternal Sunshine of the Spotless Mind", "year": 2004}],
+      "questions": [
+        "How does the order in which information is revealed change our understanding of a central relationship?",
+        "When does knowledge about a relationship affect a character's choice, and what consequences follow?",
+        "Do the films make remembering and forgetting serve the same dramatic purpose, or different ones?",
+        "Which documented writing or editing decisions help an audience follow the films' treatment of time?",
+        "Which interpretations of love and loss are attributed to critics, and which are explicitly discussed by the filmmakers?"
+      ]
+    },
+    {
+      "id": "H03",
+      "films": [{"title": "Moon", "year": 2009}, {"title": "Ex Machina", "year": 2014}],
+      "questions": [
+        "How does restricted access to information affect whom a protagonist trusts?",
+        "What does a character learn that changes their understanding of their own situation, and what do they do next?",
+        "Does an artificial character help a human escape control, reinforce that control, or complicate that distinction?",
+        "Which documented production-design or effects decisions make the confined setting dramatically useful?",
+        "Where do attributed interpretations of agency and personhood differ between the films?"
+      ]
+    },
+    {
+      "id": "H04",
+      "films": [{"title": "Zodiac", "year": 2007}, {"title": "Spotlight", "year": 2015}],
+      "questions": [
+        "How does an investigation turn incomplete information into a decision to keep pursuing a story?",
+        "What personal or institutional pressures obstruct the investigation, and how do characters respond?",
+        "Does the ending resolve the investigation, the investigator's personal conflict, both, or neither?",
+        "What documented research or writing choices distinguish a dramatized investigation from a factual record?",
+        "What do attributed critics praise or criticize about the way each film creates tension from investigative work?"
+      ]
+    }
+  ]
+}
