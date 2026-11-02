@@ -3,6 +3,25 @@ from __future__ import annotations
 
 import hashlib
 import json
+from copy import deepcopy
+
+
+def bind_review_quotes(corpus: dict, authored: dict) -> dict:
+    """Compile human-authored exact quotations to source offsets; never infer labels."""
+    review = deepcopy(authored)
+    documents = {row["chunk_id"]: row for row in corpus["documents"]}
+    for case in review["cases"]:
+        for evidence in case["evidence"]:
+            if "start" in evidence or "end" in evidence:
+                continue
+            doc = documents.get(evidence["chunk_id"])
+            quote = evidence["quote"]
+            if doc is None or not quote or doc["content"].count(quote) != 1:
+                raise ValueError("Authored quotation must identify exactly one source span.")
+            evidence["start"] = doc["content"].index(quote)
+            evidence["end"] = evidence["start"] + len(quote)
+    validate_review(corpus, review)
+    return review
 
 
 def validate_review(corpus: dict, review: dict) -> None:

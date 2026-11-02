@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from app.services.rag_span_review import score_span_coverage, validate_review
+from app.services.rag_span_review import bind_review_quotes, score_span_coverage, validate_review
 
 
 def example():
@@ -55,3 +55,15 @@ def test_rejects_invented_quotes_wrong_film_and_unlabeled_facets():
     review["cases"][0]["evidence"].pop()
     with pytest.raises(ValueError, match="every facet"):
         score_span_coverage(corpus, review, {"C1": {"A": [], "B": []}}, k=1)
+
+
+def test_quote_authoring_compiles_unique_exact_offsets_without_inventing_labels():
+    corpus, review = example()
+    authored = deepcopy(review)
+    for item in authored["cases"][0]["evidence"]:
+        del item["start"], item["end"]
+    assert bind_review_quotes(corpus, authored) == review
+    assert "start" not in authored["cases"][0]["evidence"][0]
+    authored["cases"][0]["evidence"][0]["quote"] = "absent"
+    with pytest.raises(ValueError, match="exactly one"):
+        bind_review_quotes(corpus, authored)
