@@ -271,3 +271,31 @@ The prompt cannot receive corpus text or gold labels. Syntactic validation
 does not prove that generated queries preserve meaning or avoid invented
 details; inspect those properties on the development questions and contrast
 controls before using the plans in a retrieval quality claim.
+
+## Completed fixed-pool reranker controls
+
+All twenty frozen questions completed in both runs, using the same ten parent
+passages per film and the revised pooled-positive review. Counts below still
+refer to selected-span visibility on the fourteen source-supported questions,
+not answer quality or the original twenty-question acceptance score.
+
+| Selection | Both-film coverage @1 | @3 | @5 | @10 | Pair reranking p50 / p95 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| No reranker (4B film-context retrieval order) | 1/14 | 8/14 | 9/14 | 13/14 | Not applicable |
+| Quantized Qwen reranker 4B | 3/14 | 8/14 | 11/14 | 13/14 | 49.687 s / 52.474 s |
+| MiniLM-L6 cross-encoder | 1/14 | 4/14 | 6/14 | 13/14 | 0.331 s / 0.681 s |
+
+The MiniLM load took 393.9 ms separately. The Qwen run reported a peak MLX
+allocator footprint of 2,795,617,576 bytes; this is not process RSS or a hard
+OS memory cap. These are local experiment timings, not production SLOs.
+Qwen consumes full passages; MiniLM uses maximum logit over exact source
+windows due its input limit. Thus the operational comparison does not isolate
+parameter count or batching alone. MiniLM's winning source span is retained.
+
+Neither configuration is promoted. Qwen's modest coverage gain does not yet
+justify its interactive cost, while MiniLM's fast execution loses useful
+selected evidence near the top. The next test addresses query representation
+and complementary evidence needs, keeping the unmodified retrieval branch.
+Six unresolved questions and unreviewed alternative positives remain separate
+quality work; they cannot be hidden by calling the fourteen-question subset
+an 80-percent success on the original task.
