@@ -259,3 +259,15 @@ score per original candidate, preserving the winning span. This is a different
 native input contract from full-passage 4B reranking, so any operational gain
 must not be attributed solely to parameter count. Files are local; execution
 is queued after the 4B run, not concurrent with it.
+
+The question-planning candidate is
+[Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507),
+using its [4-bit MLX conversion](https://huggingface.co/mlx-community/Qwen3-4B-Instruct-2507-4bit)
+at revision `50d427756c6b1b2fe0c0a10f67fbda1fc8e82c1b`. The official model
+is non-thinking; the local conversion is approximately 2.26 GB. This is not an
+embedding model or a source of movie facts. Its question-only planning contract
+retains the original retrieval branch and permits at most three added queries.
+The prompt cannot receive corpus text or gold labels. Syntactic validation
+does not prove that generated queries preserve meaning or avoid invented
+details; inspect those properties on the development questions and contrast
+controls before using the plans in a retrieval quality claim.
