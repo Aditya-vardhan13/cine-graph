@@ -667,3 +667,22 @@ or load a model. Its lexical top-six passages are unscored research leads, not
 validated answers. This subset derives from the release's official test data and
 is no longer an untouched test set. The frozen contract and results remain local
 under `data/evaluation/external-prepared/`.
+
+### Whole-story embedding development control
+
+The project-local Qwen3 embedding 0.6B Q8_0 model (digest
+`ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d`)
+encoded 479 distinct development stories in about 57 seconds on the local M1.
+Symmetric whole-story cosine produced 121/200 correct (60.5%), zero ties;
+the earlier two-candidate BM25 control scored 111/200 (55.5%). On paired cases,
+both were correct 69 times, both wrong 37, embedding alone correct 52 and
+BM25 alone correct 42. This is a small, inspected development set; the ten-case
+difference does not establish general superiority. The underlying model may
+already have encountered these stories during pretraining.
+
+The source-preserving evaluation artifacts and vectors are local in
+`data/evaluation/external-prepared/semeval-qwen06-dev-run1/`. No held-out cases
+were evaluated, no retrieval settings changed, and no model or dataset was
+promoted into the product. This compares whole-story similarity, not the
+question-conditioned film-pair or writer-usefulness objective. The worker
+checked the six-GiB disk reserve between batches and refused truncation.
