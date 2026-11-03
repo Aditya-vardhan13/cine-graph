@@ -56,6 +56,7 @@ export type FilmDetail = Film & {
   research_available: boolean;
   research_release_year: number | null;
   research_release_source_url: string | null;
+  release_date_matches_recorded_event: boolean;
   release_year_conflict: boolean;
   wikidata_id: string | null;
   countries: string[];
@@ -110,6 +111,11 @@ export type ResearchFilm = {
     assertion_id: string; source_url: string; source_revision: string | null; review_status: string;
     source_name: string | null; source_rights_status: string | null; source_license: string | null;
   }>>;
+  release_events: Array<{
+    assertion_id: string; year: number; date: string | null; place_ids: string[]; source_url: string;
+    source_revision: string | null; review_status: string; source_name: string | null;
+    source_rights_status: string | null; source_license: string | null;
+  }>;
 };
 
 export type ResearchPassagePage = {

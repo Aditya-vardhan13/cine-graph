@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import case, func, select
@@ -42,6 +43,7 @@ class ResearchFilm:
     original_language_ids: tuple[str, ...]
     metadata_issues: tuple[str, ...]
     metadata_evidence: dict[str, list[dict[str, str | None]]]
+    release_events: tuple[dict[str, Any], ...]
 
 
 def research_films_from_entities(

@@ -490,11 +490,21 @@ def get_film(film_id: UUID, db: Session = Depends(get_db)) -> FilmDetail:
                      if film.entity_id else None)
     research_year = research_film.release_year if research_film else None
     release_evidence = research_film.metadata_evidence.get("release_event", []) if research_film else []
+    release_date_matches_event = bool(
+        film.release_date and research_film and any(
+            event.get("date") == film.release_date.isoformat()
+            for event in research_film.release_events
+        )
+    )
     return FilmDetail(
         **item.model_dump(), entity_id=film.entity_id, research_available=research_film is not None,
         research_release_year=research_year,
         research_release_source_url=release_evidence[0]["source_url"] if release_evidence else None,
-        release_year_conflict=bool(research_year and film.release_date and research_year != film.release_date.year),
+        release_date_matches_recorded_event=release_date_matches_event,
+        release_year_conflict=bool(
+            research_year and film.release_date and research_year != film.release_date.year
+            and not release_date_matches_event
+        ),
         wikidata_id=film.wikidata_id, countries=film.country_codes,
         aliases=[alias.value for alias in film.aliases],
         credits=[CreditOut(person_id=credit.person.id, name=credit.person.canonical_name, role=credit.role, character_name=credit.character_name) for credit in sorted(film.credits, key=lambda c: (c.role, c.person.canonical_name))],

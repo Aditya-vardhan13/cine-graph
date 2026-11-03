@@ -49,6 +49,7 @@ class FilmDetail(FilmListItem):
     research_available: bool
     research_release_year: int | None
     research_release_source_url: str | None
+    release_date_matches_recorded_event: bool
     release_year_conflict: bool
     wikidata_id: str | None
     countries: list[str]
@@ -106,6 +107,19 @@ class FilmComparison(BaseModel):
     signals: list[SimilarityFactor]
 
 
+class ResearchReleaseEventOut(BaseModel):
+    assertion_id: str
+    year: int
+    date: date | None
+    place_ids: list[str]
+    source_url: str
+    source_revision: str | None
+    review_status: str
+    source_name: str | None
+    source_rights_status: str | None
+    source_license: str | None
+
+
 class ResearchFilmOut(BaseModel):
     entity_id: UUID
     film_id: UUID | None
@@ -120,6 +134,7 @@ class ResearchFilmOut(BaseModel):
     original_language_ids: list[str]
     metadata_issues: list[str]
     metadata_evidence: dict[str, list[dict[str, str | None]]]
+    release_events: list[ResearchReleaseEventOut]
 
 
 class ResearchPassageOut(BaseModel):

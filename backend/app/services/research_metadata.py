@@ -47,6 +47,7 @@ def display_metadata(
     groups = {p: [a for a in admitted if a.predicate == p] for p in METADATA_PREDICATES}
     issues: set[str] = set()
     dates: list[tuple[int, date | None, MetadataAssertion]] = []
+    release_events: list[dict[str, Any]] = []
     for item in groups["release_event"]:
         value = item.value
         raw = str(value.get("time", ""))
@@ -66,6 +67,26 @@ def display_metadata(
             issues.add("release_value_not_displayable")
             continue
         dates.append((year, exact, item))
+        place_ids = sorted({
+            place["datavalue"]["value"]["id"]
+            for place in item.qualifiers.get("P291", [])
+            if isinstance(place, dict)
+            and isinstance(place.get("datavalue"), dict)
+            and isinstance(place["datavalue"].get("value"), dict)
+            and isinstance(place["datavalue"]["value"].get("id"), str)
+        })
+        release_events.append({
+            "assertion_id": item.assertion_id,
+            "year": year,
+            "date": exact.isoformat() if exact else None,
+            "place_ids": place_ids,
+            "source_url": item.source_url,
+            "source_revision": item.source_revision,
+            "review_status": item.review_status,
+            "source_name": item.source_name,
+            "source_rights_status": item.source_rights_status,
+            "source_license": item.source_license,
+        })
     earliest_year = min((row[0] for row in dates), default=None)
     first_year_dates = [row for row in dates if row[0] == earliest_year]
     # A year/month-precision assertion can predate a known day in the same year.
@@ -102,6 +123,9 @@ def display_metadata(
                            if isinstance(a.value.get("wikidata_id"), str)})
     language_code = language_code_for_qids(set(language_ids))
     evidence_groups = {**groups, "release_event": release_evidence}
+    release_events.sort(key=lambda event: (
+        event["year"], event["date"] or "", event["place_ids"], event["assertion_id"],
+    ))
     return {
         "release_date": exact_release.isoformat() if exact_release else None,
         "release_year": earliest_year,
@@ -110,6 +134,7 @@ def display_metadata(
         "genres": tuple(sorted({genre_labels[qid] for qid in genre_ids if qid in genre_labels})),
         "genre_ids": tuple(genre_ids), "language_code": language_code,
         "original_language_ids": tuple(language_ids), "metadata_issues": tuple(sorted(issues)),
+        "release_events": tuple(release_events),
         "metadata_evidence": {field: [
             {"assertion_id": a.assertion_id, "source_url": a.source_url,
              "source_revision": a.source_revision, "review_status": a.review_status,

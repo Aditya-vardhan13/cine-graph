@@ -112,11 +112,15 @@ def test_search_detail_comparison_and_lineage_return_evidence_backed_contracts()
     assert detail_payload["entity_id"]
     assert detail_payload["release_date"] == "2022-10-06"
     assert detail_payload["research_release_year"] == 2008
-    assert detail_payload["release_year_conflict"] is True
+    assert detail_payload["release_date_matches_recorded_event"] is True
+    assert detail_payload["release_year_conflict"] is False
     assert detail_payload["research_release_source_url"] == "https://www.wikidata.org/wiki/Q163872"
     research_profile = api_get(f"/api/v1/research/films/{detail_payload['entity_id']}")
     assert research_profile.status_code == 200
     assert research_profile.json()["film_id"] == knight_id
+    release_events = research_profile.json()["release_events"]
+    assert [event["date"] for event in release_events] == ["2008-07-18", "2022-10-06"]
+    assert release_events[1]["place_ids"] == ["Q851"]
     assert api_get(f"/api/v1/research/films/{uuid4()}").status_code == 404
 
     begins = api_get("/api/v1/films?q=begins&limit=5").json()[0]

@@ -389,3 +389,33 @@ quality, deploy, or provision for 100,000 films.
   projections; source eligible character credits; complete a full source-
   policy-aware intake review; and run the frozen writer-question evaluation
   after enrichment. This checkpoint is not Phase 1 or Phase 3 completion.
+
+### Follow-up implementation — preserve release-event scope
+
+- Read-only inspection of *The Dark Knight Rises* showed that the legacy
+  `Film.release_date` value `2022-10-06` is not its first release, but it is
+  present as an exact, source-backed release event qualified to place `Q851`.
+  The same eligible Wikidata revision records its 2012 release events. The
+  earlier UI therefore mislabeled a valid later event as a date conflict by
+  comparing years while discarding event qualifiers.
+- The research metadata projection now retains all eligible dated release
+  events, including year, exact date where known, place IDs, source/revision,
+  rights and license metadata. The film page can inspect those events and
+  distinguish a recorded later event from a date not supported by the current
+  research sources. `release_date`/`release_year` remain the earliest recorded
+  event, not a claim that every territory used that date.
+- Added a pure policy test for a 2008 first release plus a 2022 event qualified
+  to Q851; the isolated PostgreSQL/API fixture exercises the same distinction.
+  Browser coverage now expands the film's event list and verifies the place
+  link. This corrects presentation only; it does not rewrite a catalog row or
+  endorse every Wikidata release assertion.
+- Verification after the change: 238 backend unit tests passed (60 skipped),
+  69 isolated PostgreSQL/API integration tests passed, all 7 Playwright flows
+  passed using the installed Chrome, and the Next.js production build passed.
+  The local working-catalog inspection used a read-only transaction; no
+  working corpus rows were modified.
+- Still pending for Phase 1: produce explicit dispositions for the 23 pilot
+  identity candidates; review all pilot release-date/event mappings rather
+  than extrapolating from this example; determine whether eligible
+  actor-to-character evidence is absent or only missing from the main profile;
+  and audit source/parser selection before any batch ingestion.

@@ -22,6 +22,22 @@ def test_earliest_recorded_release_does_not_confuse_rerelease_with_original():
     assert result["metadata_evidence"]["release_event"][0]["source_revision"] == "123"
 
 
+def test_all_release_events_keep_their_place_and_source_context():
+    first = release("+2008-07-18T00:00:00Z")
+    later = replace(
+        release("+2022-10-06T00:00:00Z"),
+        assertion_id="later-release",
+        qualifiers={"P291": [{"datavalue": {"value": {"id": "Q851"}}}]},
+    )
+    result = display_metadata([later, first], genre_labels={})
+    assert result["release_date"] == "2008-07-18"
+    assert [event["date"] for event in result["release_events"]] == [
+        "2008-07-18", "2022-10-06",
+    ]
+    assert result["release_events"][1]["place_ids"] == ["Q851"]
+    assert result["release_events"][1]["assertion_id"] == "later-release"
+
+
 def test_year_precision_does_not_invent_a_day():
     result = display_metadata([release("+2005-00-00T00:00:00Z", 9), release("+2005-11-18T00:00:00Z")], genre_labels={})
     assert result["release_year"] == 2005

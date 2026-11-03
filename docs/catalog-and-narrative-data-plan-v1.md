@@ -541,3 +541,27 @@ readiness is asserted until the baseline and source constraints are measured.
   trace the legacy `Film` projection conflict by field/source assertion, then
   resolve pilot identities and source eligible actor-to-character data before
   any 100-film write batch.
+
+### Follow-up — release events keep their territory context
+
+- A read-only source audit explained one of the most visible date anomalies:
+  *The Dark Knight Rises* has a 2022-10-06 event qualified to place Q851 in the
+  same Wikidata revision that records its 2012 releases. It was a later
+  territory event, not evidence that the film premiered in 2022. The previous
+  profile compared years but had dropped the event qualifiers, so it called a
+  valid alternate event a conflict.
+- The API now returns every eligible, parseable release event with its date or
+  year, place IDs, source, revision, review state, license and rights state.
+  The film page labels the first recorded event separately and exposes the
+  other dates as inspectable evidence; a legacy date that matches a recorded
+  event is not presented as a conflict. Unsupported mismatches remain a
+  warning. No source assertion or working profile value was edited.
+- Verification: 238 backend unit tests passed (60 skipped); the isolated
+  `cinegraph_test` integration/API suite passed 69; Playwright passed all 7
+  browser flows including the release-event list; Next.js production build
+  passed. Working-catalog inspection was read-only.
+- This is one resolved presentation case, not a complete release-event audit.
+  Next in Phase 1 is a reproducible per-film review for all 100 legacy profile
+  dates, explicit dispositions for 23 identity candidates, and a separate
+  source-eligible actor-to-character audit. The product is not yet ready for
+  batch enrichment or a writer-quality claim.

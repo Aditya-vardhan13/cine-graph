@@ -76,7 +76,7 @@ def seed() -> None:
             original_language_code="en", country_codes=["US", "GB"], wikidata_id="Q166262", entity_id=begins_entity.id,
         )
         knight = Film(
-            # Deliberately stale legacy date: the reviewed source assertion below is the display lead.
+            # Later territory-specific release; the earliest release remains in the sourced event set.
             canonical_title="The Dark Knight", release_date=date(2022, 10, 6), runtime_minutes=152,
             original_language_code="en", country_codes=["US", "GB"], wikidata_id="Q163872", entity_id=knight_entity.id,
         )
@@ -102,6 +102,14 @@ def seed() -> None:
                 source_id=source.id, source_reference=reference, review_status="published", rank="normal",
                 value_json={"type": "time", "time": "+2008-07-18T00:00:00Z", "precision": 11,
                             "calendar_model": "Q1985727"},
+            ),
+            Assertion(
+                subject_entity_id=knight_entity.id, predicate="release_event", assertion_kind="source_fact",
+                source_id=source.id, source_reference=reference, review_status="published", rank="normal",
+                value_json={"type": "time", "time": "+2022-10-06T00:00:00Z", "precision": 11,
+                            "calendar_model": "Q1985727"},
+                qualifiers={"P291": [{"snaktype": "value", "property": "P291",
+                    "datavalue": {"value": {"id": "Q851"}, "type": "wikibase-entityid"}}]},
             ),
             Assertion(
                 subject_entity_id=begins_entity.id, predicate="release_event", assertion_kind="source_fact",

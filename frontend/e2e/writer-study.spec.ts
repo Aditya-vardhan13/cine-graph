@@ -93,8 +93,10 @@ test("film profile opens the writer desk with that film selected", async ({ page
   expect(films.ok()).toBeTruthy();
   const film = (await films.json())[0];
   await page.goto(`/films/${film.id}`);
-  await expect(page.getByText(/legacy profile records 2022, but research assertions identify 2008/)).toBeVisible();
+  await expect(page.getByText(/catalog date 2022-10-06 is a separately recorded release event/)).toBeVisible();
   await expect(page.locator(".film-hero .metadata")).toContainText("2008-07-18");
+  await page.getByText("Recorded release events (2)").click();
+  await expect(page.getByRole("link", { name: "Place Q851" })).toHaveAttribute("href", "https://www.wikidata.org/wiki/Q851");
   await page.getByRole("link", { name: "Study this film as a writer" }).click();
   await expect(page).toHaveURL(/\/research\//);
   await page.getByRole("link", { name: /Bring into a comparison/ }).click();
