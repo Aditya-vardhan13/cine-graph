@@ -218,12 +218,17 @@ def compare_story_evidence(
     requested_method: NarrativeRetrievalMethod = NarrativeRetrievalMethod.HYBRID,
     embedding_client: OllamaEmbeddingClient | None = None,
     collection_code: str = DEFAULT_RESEARCH_COLLECTION,
+    include_noncommercial: bool = False,
 ) -> StoryComparisonResult:
     """Retrieve source leads for the writer's question, without generic filler lanes."""
     if first_entity_id == second_entity_id:
         raise ValueError("Choose two different films to compare.")
-    first = get_research_film(db, first_entity_id, collection_code=collection_code)
-    second = get_research_film(db, second_entity_id, collection_code=collection_code)
+    first = get_research_film(
+        db, first_entity_id, collection_code=collection_code, include_noncommercial=include_noncommercial,
+    )
+    second = get_research_film(
+        db, second_entity_id, collection_code=collection_code, include_noncommercial=include_noncommercial,
+    )
     if first is None or second is None:
         raise LookupError("One or both films are unavailable for narrative comparison.")
 

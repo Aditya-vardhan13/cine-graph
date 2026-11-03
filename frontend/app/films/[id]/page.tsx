@@ -23,8 +23,10 @@ export default async function FilmPage({ params }: { params: Promise<{ id: strin
   const graph = graphResult.status === "fulfilled" ? graphResult.value : null;
   const similar = similarResult.status === "fulfilled" ? similarResult.value : null;
   const research = researchResult.status === "fulfilled" ? researchResult.value : null;
-  const displayYear = research?.release_year ?? film.research_release_year ?? year(film.release_date);
-  const displayRuntime = research?.runtime_minutes ?? film.runtime_minutes;
+  const displayYear = research?.release_year ?? film.research_release_year ??
+    (film.research_available ? null : year(film.release_date));
+  const displayRuntime = research ? research.runtime_minutes :
+    film.research_available ? null : film.runtime_minutes;
   const displayLanguage = research?.language_code ?? film.language_code;
   const displayGenres = research?.genres.length ? research.genres : film.genres;
   const sourcedCredits = film.sourced_credit_groups?.find((group) => group.credits.some((credit) => credit.character_name)) || film.sourced_credit_groups?.[0];
@@ -47,7 +49,7 @@ export default async function FilmPage({ params }: { params: Promise<{ id: strin
 
     <section className="panel similarity"><div><p className="eyebrow">Evidence-backed paths</p><h2>Where to go next</h2><p>Only shared creative people or genres count as a catalog lead here. A matching release year alone is not a meaningful connection.</p></div><div className="similar-list">{meaningfulSimilar.length ? meaningfulSimilar.map((item) => <Link href={`/films/${item.id}`} key={item.id} className="similar"><div><b>{item.title}</b><small>{item.factors.filter((factor) => factor.label !== "Release era").map((factor) => `${factor.label}: ${factor.evidence}`).join(" · ")}</small></div><span>↗</span></Link>) : <p role="status" className="muted">No meaningful catalog connection is available yet. {film.research_available && film.entity_id && <Link href={`/research/${film.entity_id}`}>Explore this film’s source passages instead ↗</Link>}</p>}</div></section>
 
-    <section className="panel provenance"><p className="eyebrow">Evidence</p><h2>Field provenance</h2><div className="source-table">{film.provenance.map((entry, index) => <a key={`${entry.field_name}-${index}`} href={entry.source_reference} target="_blank" rel="noopener noreferrer"><span>{entry.field_name.replaceAll("_", " ")}</span><b>{entry.source_name}</b><small>{entry.license}</small><i>↗</i></a>)}{researchSources.map((entry) => <a key={`${entry.field}-${entry.assertion_id}`} href={entry.source_url} target="_blank" rel="noopener noreferrer"><span>{entry.field.replaceAll("_", " ")}</span><b>{sourceHost(entry.source_url)}</b><small>Revision {entry.source_revision ? `${entry.source_revision.slice(0, 12)}${entry.source_revision.length > 12 ? "…" : ""}` : "not supplied"} · {entry.review_status}</small><i>↗</i></a>)}</div>{!film.provenance.length && !researchSources.length && <p className="muted">No inspectable field source is available for this profile yet.</p>}</section>
+    <section className="panel provenance"><p className="eyebrow">Evidence</p><h2>Field provenance</h2><div className="source-table">{film.provenance.map((entry, index) => <a key={`${entry.field_name}-${index}`} href={entry.source_reference} target="_blank" rel="noopener noreferrer"><span>{entry.field_name.replaceAll("_", " ")}</span><b>{entry.source_name}</b><small>{entry.license}</small><i>↗</i></a>)}{researchSources.map((entry) => <a key={`${entry.field}-${entry.assertion_id}`} href={entry.source_url} target="_blank" rel="noopener noreferrer"><span>{entry.field.replaceAll("_", " ")}</span><b>{entry.source_name || sourceHost(entry.source_url)}</b><small>{entry.source_license || "License not recorded"} · {entry.source_rights_status || "rights not classified"} · revision {entry.source_revision ? `${entry.source_revision.slice(0, 12)}${entry.source_revision.length > 12 ? "…" : ""}` : "not supplied"} · {entry.review_status}</small><i>↗</i></a>)}</div>{!film.provenance.length && !researchSources.length && <p className="muted">No inspectable field source is available for this profile yet.</p>}</section>
   </main>;
 }
 

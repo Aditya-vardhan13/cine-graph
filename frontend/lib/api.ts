@@ -106,7 +106,10 @@ export type ResearchFilm = {
   genre_ids: string[];
   original_language_ids: string[];
   metadata_issues: string[];
-  metadata_evidence: Record<string, Array<{assertion_id: string; source_url: string; source_revision: string | null; review_status: string}>>;
+  metadata_evidence: Record<string, Array<{
+    assertion_id: string; source_url: string; source_revision: string | null; review_status: string;
+    source_name: string | null; source_rights_status: string | null; source_license: string | null;
+  }>>;
 };
 
 export type ResearchPassagePage = {

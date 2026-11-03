@@ -13,8 +13,9 @@ from uuid import UUID
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Assertion, CanonicalEntity, Genre, ReferenceCollectionMembership
+from app.models import Assertion, CanonicalEntity, DataSource, Genre, ReferenceCollectionMembership
 from app.services.research_metadata import METADATA_PREDICATES, MetadataAssertion, display_metadata
+from app.services.source_rights_policy import displayable_rights_statuses
 
 
 DEFAULT_RESEARCH_COLLECTION = "english-1000-retained-narrative-v1"
@@ -43,26 +44,38 @@ class ResearchFilm:
     metadata_evidence: dict[str, list[dict[str, str | None]]]
 
 
-def research_films_from_entities(db: Session, entities: list[CanonicalEntity]) -> tuple[ResearchFilm, ...]:
+def research_films_from_entities(
+    db: Session,
+    entities: list[CanonicalEntity],
+    *,
+    include_noncommercial: bool = False,
+) -> tuple[ResearchFilm, ...]:
     if not entities:
         return ()
-    assertions = db.scalars(select(Assertion).where(
+    statement = select(Assertion, DataSource.name, DataSource.rights_status, DataSource.license).join(
+        DataSource, DataSource.id == Assertion.source_id,
+    ).where(
         Assertion.subject_entity_id.in_([e.id for e in entities]),
         Assertion.predicate.in_(METADATA_PREDICATES),
         Assertion.assertion_kind == "source_fact",
         Assertion.review_status.in_(("resolved", "published")),
-    )).all()
-    genre_ids = {a.value_json.get("wikidata_id") for a in assertions
-                 if a.predicate == "genre" and a.value_json}
+    )
+    statement = statement.where(DataSource.rights_status.in_(
+        displayable_rights_statuses(include_noncommercial=include_noncommercial),
+    ))
+    assertions = db.execute(statement).all()
+    genre_ids = {assertion.value_json.get("wikidata_id") for assertion, *_ in assertions
+                 if assertion.predicate == "genre" and assertion.value_json}
     labels = dict(db.execute(select(Genre.wikidata_id, Genre.label).where(
         Genre.wikidata_id.in_(genre_ids)
     )).all()) if genre_ids else {}
     by_entity: dict[UUID, list[MetadataAssertion]] = {e.id: [] for e in entities}
-    for assertion in assertions:
+    for assertion, source_name, rights_status, license_name in assertions:
         by_entity[assertion.subject_entity_id].append(MetadataAssertion(
             str(assertion.id), assertion.predicate, assertion.value_json or {},
             assertion.qualifiers or {}, assertion.review_status, assertion.rank,
             assertion.source_reference or "", assertion.source_revision,
+            source_name, rights_status, license_name,
         ))
     return tuple(ResearchFilm(
         entity_id=entity.id, film_id=entity.film_profile.id if entity.film_profile else None,
@@ -92,27 +105,40 @@ def get_research_film(
     entity_id: UUID,
     *,
     collection_code: str = DEFAULT_RESEARCH_COLLECTION,
+    include_noncommercial: bool = False,
 ) -> ResearchFilm | None:
     entity = db.scalar(_research_entity_query(collection_code).where(CanonicalEntity.id == entity_id))
-    return research_films_from_entities(db, [entity])[0] if entity else None
+    return research_films_from_entities(db, [entity], include_noncommercial=include_noncommercial)[0] if entity else None
 
 
-def sourced_release_years(db: Session, entity_ids: set[UUID]) -> dict[UUID, int]:
+def sourced_release_years(
+    db: Session,
+    entity_ids: set[UUID],
+    *,
+    include_noncommercial: bool = False,
+) -> dict[UUID, int]:
     """Use the same reviewed-assertion date policy for cross-film era signals."""
     if not entity_ids:
         return {}
-    assertions = db.scalars(select(Assertion).where(
+    statement = select(Assertion, DataSource.name, DataSource.rights_status, DataSource.license).join(
+        DataSource, DataSource.id == Assertion.source_id,
+    ).where(
         Assertion.subject_entity_id.in_(entity_ids),
         Assertion.predicate == "release_event",
         Assertion.assertion_kind == "source_fact",
         Assertion.review_status.in_(("resolved", "published")),
-    )).all()
+    )
+    statement = statement.where(DataSource.rights_status.in_(
+        displayable_rights_statuses(include_noncommercial=include_noncommercial),
+    ))
+    assertions = db.execute(statement).all()
     by_entity: dict[UUID, list[MetadataAssertion]] = {}
-    for assertion in assertions:
+    for assertion, source_name, rights_status, license_name in assertions:
         by_entity.setdefault(assertion.subject_entity_id, []).append(MetadataAssertion(
             str(assertion.id), assertion.predicate, assertion.value_json or {},
             assertion.qualifiers or {}, assertion.review_status, assertion.rank,
             assertion.source_reference or "", assertion.source_revision,
+            source_name, rights_status, license_name,
         ))
     return {
         entity_id: year
@@ -127,6 +153,7 @@ def search_research_films(
     query_text: str,
     limit: int = 8,
     collection_code: str = DEFAULT_RESEARCH_COLLECTION,
+    include_noncommercial: bool = False,
 ) -> tuple[ResearchFilm, ...]:
     normalized = query_text.strip()
     if not normalized:
@@ -148,4 +175,4 @@ def search_research_films(
         .order_by(relevance, func.length(display_label), label)
         .limit(limit)
     ).unique().all()
-    return research_films_from_entities(db, list(entities))
+    return research_films_from_entities(db, list(entities), include_noncommercial=include_noncommercial)

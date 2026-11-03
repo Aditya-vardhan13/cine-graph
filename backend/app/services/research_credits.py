@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Assertion, DataSource
+from app.services.source_rights_policy import displayable_rights_statuses
 
 
 @dataclass(frozen=True)
@@ -55,8 +56,9 @@ def sourced_credit_groups(db: Session, entity_id: UUID, *, limit_per_source: int
         Assertion.assertion_kind == "source_fact",
         Assertion.review_status.in_(("resolved", "published")),
     ]
-    if not include_noncommercial:
-        conditions.append(DataSource.rights_status != "local_noncommercial_only")
+    conditions.append(DataSource.rights_status.in_(
+        displayable_rights_statuses(include_noncommercial=include_noncommercial),
+    ))
     rows = db.execute(
         select(Assertion, DataSource).join(DataSource, DataSource.id == Assertion.source_id).where(*conditions)
     ).all()

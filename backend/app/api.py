@@ -249,13 +249,17 @@ def research_films(
         query_text=q,
         limit=limit,
         collection_code=settings.research_collection_code,
+        include_noncommercial=settings.serve_noncommercial_sources,
     )
     return [research_film_item(film) for film in films]
 
 
 @router.get("/research/films/{entity_id}", response_model=ResearchFilmOut)
 def research_film_by_id(entity_id: UUID, db: Session = Depends(get_db)) -> ResearchFilmOut:
-    film = get_research_film(db, entity_id, collection_code=settings.research_collection_code)
+    film = get_research_film(
+        db, entity_id, collection_code=settings.research_collection_code,
+        include_noncommercial=settings.serve_noncommercial_sources,
+    )
     if film is None:
         raise HTTPException(status_code=404, detail="Film is not in the current research collection")
     return research_film_item(film)
@@ -269,7 +273,10 @@ def research_film_passages(
     offset: int = Query(default=0, ge=0, le=1000),
     db: Session = Depends(get_db),
 ) -> ResearchPassagePageOut:
-    film = get_research_film(db, entity_id, collection_code=settings.research_collection_code)
+    film = get_research_film(
+        db, entity_id, collection_code=settings.research_collection_code,
+        include_noncommercial=settings.serve_noncommercial_sources,
+    )
     if film is None:
         raise HTTPException(status_code=404, detail="Film is not in the current research collection")
     try:
@@ -312,7 +319,10 @@ def compare_films(first_id: UUID, second_id: UUID, db: Session = Depends(get_db)
     first, second = load_film_with_connection_data(db, first_id), load_film_with_connection_data(db, second_id)
     if not first or not second:
         raise HTTPException(status_code=404, detail="One or both films were not found")
-    release_years = sourced_release_years(db, {entity_id for entity_id in (first.entity_id, second.entity_id) if entity_id})
+    release_years = sourced_release_years(
+        db, {entity_id for entity_id in (first.entity_id, second.entity_id) if entity_id},
+        include_noncommercial=settings.serve_noncommercial_sources,
+    )
     signals = connection_signals(
         first, second,
         first_release_year=release_years.get(first.entity_id),
@@ -335,6 +345,7 @@ def discover_films_for_question(
         exclude_entity_ids=set(request.exclude_entity_ids),
         limit=request.limit,
         collection_code=settings.research_collection_code,
+        include_noncommercial=settings.serve_noncommercial_sources,
         embedding_client=OllamaEmbeddingClient(
             base_url=settings.ollama_base_url,
             timeout_seconds=settings.interactive_embedding_timeout_seconds,
@@ -370,6 +381,7 @@ def compare_film_stories(
                 timeout_seconds=settings.interactive_embedding_timeout_seconds,
             ),
             collection_code=settings.research_collection_code,
+            include_noncommercial=settings.serve_noncommercial_sources,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -426,6 +438,7 @@ def generate_story_brief(request: StoryBriefRequest, db: Session = Depends(get_d
             base_url=settings.story_synthesis_base_url or settings.ollama_base_url,
             timeout_seconds=settings.story_synthesis_timeout_seconds,
             collection_code=settings.research_collection_code,
+            include_noncommercial=settings.serve_noncommercial_sources,
         )
     except InvalidModelDraft as exc:
         raise HTTPException(status_code=503, detail="Local model did not produce a sufficiently cited draft") from exc
@@ -470,7 +483,10 @@ def get_film(film_id: UUID, db: Session = Depends(get_db)) -> FilmDetail:
     if not film:
         raise HTTPException(status_code=404, detail="Film not found")
     item = film_item(film)
-    research_film = (get_research_film(db, film.entity_id, collection_code=settings.research_collection_code)
+    research_film = (get_research_film(
+        db, film.entity_id, collection_code=settings.research_collection_code,
+        include_noncommercial=settings.serve_noncommercial_sources,
+    )
                      if film.entity_id else None)
     research_year = research_film.release_year if research_film else None
     release_evidence = research_film.metadata_evidence.get("release_event", []) if research_film else []
@@ -533,7 +549,10 @@ def similar_films(film_id: UUID, limit: int = Query(default=8, ge=1, le=20), db:
     if not target:
         raise HTTPException(status_code=404, detail="Film not found")
     candidates = db.scalars(select(Film).options(selectinload(Film.genres).selectinload(FilmGenre.genre), selectinload(Film.credits).selectinload(FilmCredit.person)).where(Film.id != film_id, Film.review_status == "published")).unique().all()
-    release_years = sourced_release_years(db, {film.entity_id for film in (target, *candidates) if film.entity_id})
+    release_years = sourced_release_years(
+        db, {film.entity_id for film in (target, *candidates) if film.entity_id},
+        include_noncommercial=settings.serve_noncommercial_sources,
+    )
     scored: list[SimilarFilmOut] = []
     for candidate in candidates:
         factors = connection_signals(

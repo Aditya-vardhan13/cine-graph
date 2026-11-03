@@ -145,6 +145,7 @@ def discover_research_films(
     exclude_entity_ids: set[UUID] | None = None,
     limit: int = 6,
     collection_code: str = DEFAULT_RESEARCH_COLLECTION,
+    include_noncommercial: bool = False,
     embedding_client: OllamaEmbeddingClient | None = None,
 ) -> DiscoveryResult:
     normalized = question.strip()
@@ -185,7 +186,9 @@ def discover_research_films(
     entities = list(db.scalars(select(CanonicalEntity).options(
         selectinload(CanonicalEntity.film_profile),
     ).where(CanonicalEntity.id.in_(entity_ids), CanonicalEntity.entity_kind == "film")).all())
-    films = {film.entity_id: film for film in research_films_from_entities(db, entities)}
+    films = {film.entity_id: film for film in research_films_from_entities(
+        db, entities, include_noncommercial=include_noncommercial,
+    )}
     snapshots = {snapshot.id: snapshot for snapshot in db.scalars(select(SourceSnapshot).where(
         SourceSnapshot.id.in_([chunk.source_snapshot_id for chunk, _ in candidates]),
     )).all()}

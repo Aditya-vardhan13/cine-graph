@@ -131,13 +131,18 @@ def synthesize_story_brief(
     first_chunk_ids: list[UUID], second_chunk_ids: list[UUID],
     model: str, base_url: str, timeout_seconds: float,
     collection_code: str = DEFAULT_RESEARCH_COLLECTION,
+    include_noncommercial: bool = False,
 ) -> StoryBrief:
     if first_entity_id == second_entity_id:
         raise ValueError("Choose two different films.")
     if unmet_source_requirement(question) is not None:
         raise ValueError("The selected sources cannot substantiate this type of question.")
-    first = get_research_film(db, first_entity_id, collection_code=collection_code)
-    second = get_research_film(db, second_entity_id, collection_code=collection_code)
+    first = get_research_film(
+        db, first_entity_id, collection_code=collection_code, include_noncommercial=include_noncommercial,
+    )
+    second = get_research_film(
+        db, second_entity_id, collection_code=collection_code, include_noncommercial=include_noncommercial,
+    )
     if first is None or second is None:
         raise LookupError("One or both films are outside the current research collection.")
     scope = resolve_retrieval_scope(db, collection_code=collection_code)

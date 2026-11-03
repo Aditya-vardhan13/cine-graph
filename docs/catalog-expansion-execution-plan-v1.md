@@ -1,9 +1,8 @@
 # CineGraph catalog expansion: execution plan v1
 
-Status: proposed next execution plan, dated 3 November 2026. This turns the
-existing catalog strategy into an operational sequence; it does not claim the
-catalog is ready, benchmark data is product-cleared, or answers are
-writer-grade.
+Status: execution underway, updated 3 November 2026. This is an operational
+sequence, not a claim that the catalog is ready, benchmark data is
+product-cleared, or answers are writer-grade.
 
 Related: [catalog and narrative data plan](catalog-and-narrative-data-plan-v1.md),
 [architecture and test gates](core-architecture-and-test-gates-v1.md),
@@ -352,3 +351,41 @@ quality, deploy, or provision for 100,000 films.
 - `indexed`: eligible passages have current index entries.
 - `evidence-ready for question`: evidence supports this specific query and
   needed film(s); it is not a permanent completeness property of a film.
+
+## Implementation checkpoint — 3 November 2026
+
+- The pilot manifest now has a reproducible, offline validator. It checks the
+  three input fingerprints, exact CSV row correspondence, identity-state
+  shape and rank-specific IMDb-review evidence. The local result remains
+  77 exact title/year candidates and 23 review-required crosslinks; none was
+  approved or merged by this check.
+- A read-only query of the same 100-film pilot through the rights-aware
+  research read model returns 100/100 release years, 70/100 exact release
+  dates and 82/100 runtimes from display-eligible metadata. This is better than
+  the unfiltered projection's 0/100 runtime output, where restricted-source
+  conflicts masked otherwise consistent open Wikidata values. It is still
+  presence, not factual review.
+- Research metadata, era signals and sourced-credit groups now use a shared
+  source-rights policy. Default display accepts `open`, `attributed_reuse` and
+  `attribution_required`; `local_noncommercial_only` needs the explicit local
+  setting. `metadata_link_only` and `review_required` are excluded. API
+  evidence now carries source name, license and rights status; the film page no
+  longer falls back to an unsourced/legacy value when research metadata exists
+  but has no eligible value.
+- Actor-character values for the pilot were found in restricted IMDb/TMDb
+  assertions, but no character-bearing cast mapping was in the prior
+  rights-filtered set. The data currently shown by default therefore still
+  lacks actor-to-character mapping; it needs an eligible source, not a UI
+  guess. (Review this count again after the tighter source-state policy.)
+- Verification so far: source-rights/metadata unit tests pass; the complete
+  read-model PostgreSQL integration suite passes 13/13 against
+  `cinegraph_test`; the repository integration gate passed 69 tests; frontend
+  production build passed. A normal Conda collection initially lacked the
+  pinned `mwparserfromhell` package; the project-local vendor fallback was
+  used for offline unit collection. No working-corpus records were changed by
+  tests.
+- Still pending: record dispositions for all 23 identities; audit which
+  metadata conflicts are genuinely alternate release events versus bad old
+  projections; source eligible character credits; complete a full source-
+  policy-aware intake review; and run the frozen writer-question evaluation
+  after enrichment. This checkpoint is not Phase 1 or Phase 3 completion.

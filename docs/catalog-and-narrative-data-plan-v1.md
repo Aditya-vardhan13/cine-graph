@@ -505,3 +505,39 @@ readiness is asserted until the baseline and source constraints are measured.
 - Next implementation step: reconcile the pilot's legacy profile date/runtime
   fields with research assertions and exercise the existing local intake
   pipeline on isolated test data before any batch enrichment.
+
+### Follow-up implementation — source-eligible research metadata
+
+- A read-only SQL audit found the original shared research projection mixed
+  open Wikidata assertions with `local_noncommercial_only` IMDb/TMDb metadata.
+  Conflicting runtime values caused the conservative policy to return no
+  runtime for all 100 pilot films, even though source-by-source evaluation
+  yielded a single displayable Wikidata runtime for 82. It also queried sources
+  marked `metadata_link_only` or `review_required` as though they were
+  displayable.
+- Added the pure `source_rights_policy` with explicit eligibility states.
+  Research film metadata, release-era signals and sourced credit groups now
+  filter through it. Default display permits `open`, `attributed_reuse` and
+  `attribution_required`; local non-commercial use is an explicit opt-in;
+  link-only and unresolved rights are excluded. Research API results now retain
+  source name, license and rights status for each metadata assertion.
+- The film profile no longer substitutes legacy profile date/runtime values
+  when the research profile exists but has no eligible value. The old values
+  remain visible only when no research profile is available. Existing sourced
+  release conflicts remain explicit.
+- Re-audited the pilot through the implemented default read model (read-only):
+  100 release years, 70 exact dates, 82 runtimes. This is a projection result,
+  not a human factual audit or evidence that these fields meet a paid product's
+  licensing requirements.
+- Added policy unit tests and a real PostgreSQL test demonstrating that
+  non-commercial data only affects local output when explicitly opted in,
+  while link-only and unresolved sources remain excluded. Full
+  `test_research_read_models.py`: 13 passed against `cinegraph_test`; full
+  repository integration runner: 69 passed; normal backend suite with the
+  local parser vendor fallback: 229 passed, 60 skipped; frontend production
+  build passed. The integration runner's API contract run uses only the
+  dedicated `cinegraph_test` stack.
+- No corpus rows, source snapshots, passages or vectors were changed. Next:
+  trace the legacy `Film` projection conflict by field/source assertion, then
+  resolve pilot identities and source eligible actor-to-character data before
+  any 100-film write batch.

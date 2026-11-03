@@ -34,6 +34,9 @@ class MetadataAssertion:
     rank: str | None
     source_url: str
     source_revision: str | None
+    source_name: str | None = None
+    source_rights_status: str | None = None
+    source_license: str | None = None
 
 
 def display_metadata(
@@ -109,7 +112,9 @@ def display_metadata(
         "original_language_ids": tuple(language_ids), "metadata_issues": tuple(sorted(issues)),
         "metadata_evidence": {field: [
             {"assertion_id": a.assertion_id, "source_url": a.source_url,
-             "source_revision": a.source_revision, "review_status": a.review_status}
+             "source_revision": a.source_revision, "review_status": a.review_status,
+             "source_name": a.source_name, "source_rights_status": a.source_rights_status,
+             "source_license": a.source_license}
             for a in sorted(items, key=lambda a: a.assertion_id)
         ] for field, items in evidence_groups.items()},
     }

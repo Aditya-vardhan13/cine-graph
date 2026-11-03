@@ -25,7 +25,7 @@ from app.services.embedding_index import _ordered_chunks_and_contents, instructi
 from app.services.embedding_index_reuse import create_exact_reuse_index, plan_exact_embedding_reuse
 from app.services.embedding_evaluation import _evaluation_rows
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
-from app.services.research_catalog import search_research_films
+from app.services.research_catalog import search_research_films, sourced_release_years
 from app.services.research_passages import browse_research_passages
 from app.services.retrieval_scope import resolve_retrieval_scope
 from app.services.wikipedia_passages_v2 import materialise_passages
@@ -46,8 +46,10 @@ def research_db():
         db.add(LanguageEdition(code="en", display_name="English", script="Latin", enabled=True))
         source = DataSource(name="English Wikipedia", url="https://en.wikipedia.org/", source_type="wiki",
                             license="CC BY-SA 4.0", rights_status="open")
+        metadata_source = DataSource(name="Wikidata", url="https://www.wikidata.org/", source_type="metadata",
+                                     license="CC0 1.0", rights_status="open")
         film = CanonicalEntity(canonical_label="Her (2013 film)", entity_kind="film", wikidata_id="Q788822")
-        db.add_all([source, film])
+        db.add_all([source, metadata_source, film])
         db.flush()
         db.add(ReferenceCollection(code=COLLECTION, title="Retained fixture", description="Offline test",
                                    language_code="en", selection_method="fixture", selection_version="1"))
@@ -75,7 +77,7 @@ def research_db():
             db.add(Assertion(subject_entity_id=film.id, predicate=assertion["predicate"],
                              value_json=assertion["value"], qualifiers={}, assertion_kind="source_fact",
                              review_status="resolved", rank="normal", source_reference=retained["metadata_source"],
-                             source_revision=retained["metadata_revision"]))
+                             source_revision=retained["metadata_revision"], source_id=metadata_source.id))
         db.commit()
         yield db
     engine.dispose()
@@ -92,6 +94,70 @@ def test_canonical_metadata_works_without_legacy_profile(research_db):
     assert result.language_code == "en"
     assert result.genre_ids == ["Q471839"]
     assert result.metadata_evidence["release_event"][0]["source_revision"] == "2513891788"
+    assert result.metadata_evidence["release_event"][0]["source_name"] == "Wikidata"
+    assert result.metadata_evidence["release_event"][0]["source_rights_status"] == "open"
+    assert result.metadata_evidence["release_event"][0]["source_license"] == "CC0 1.0"
+
+
+def test_noncommercial_metadata_is_excluded_unless_explicitly_enabled(research_db):
+    film = search_research_films(research_db, query_text="her", collection_code=COLLECTION)[0]
+    restricted = DataSource(
+        name="Local non-commercial test source", url="https://example.test/",
+        source_type="metadata", license="local-only", rights_status="local_noncommercial_only",
+    )
+    link_only = DataSource(
+        name="Link-only metadata test source", url="https://example.test/link-only",
+        source_type="metadata", license="link-only", rights_status="metadata_link_only",
+    )
+    unresolved = DataSource(
+        name="Unreviewed metadata test source", url="https://example.test/review",
+        source_type="metadata", license="under-review", rights_status="review_required",
+    )
+    research_db.add_all([restricted, link_only, unresolved])
+    research_db.flush()
+    research_db.add_all([
+        Assertion(
+            subject_entity_id=film.entity_id, predicate="release_event",
+            value_json={"type": "time", "time": "+2012-01-01T00:00:00Z", "precision": 11,
+                        "calendar_model": "Q1985727"}, qualifiers={}, assertion_kind="source_fact",
+            review_status="resolved", rank="normal", source_id=restricted.id,
+            source_reference="https://example.test/her", source_revision="restricted-1",
+        ),
+        Assertion(
+            subject_entity_id=film.entity_id, predicate="runtime",
+            value_json={"type": "quantity", "amount": "+140", "unit": "Q7727"},
+            qualifiers={}, assertion_kind="source_fact", review_status="resolved", rank="normal",
+            source_id=restricted.id, source_reference="https://example.test/her", source_revision="restricted-1",
+        ),
+        Assertion(
+            subject_entity_id=film.entity_id, predicate="release_event",
+            value_json={"type": "time", "time": "+2010-01-01T00:00:00Z", "precision": 11,
+                        "calendar_model": "Q1985727"}, qualifiers={}, assertion_kind="source_fact",
+            review_status="resolved", rank="normal", source_id=link_only.id,
+            source_reference="https://example.test/her/link-only", source_revision="link-only-1",
+        ),
+        Assertion(
+            subject_entity_id=film.entity_id, predicate="runtime",
+            value_json={"type": "quantity", "amount": "+180", "unit": "Q7727"},
+            qualifiers={}, assertion_kind="source_fact", review_status="resolved", rank="normal",
+            source_id=unresolved.id, source_reference="https://example.test/her/review", source_revision="review-1",
+        ),
+    ])
+    research_db.flush()
+
+    default_view = search_research_films(research_db, query_text="her", collection_code=COLLECTION)[0]
+    local_research_view = search_research_films(
+        research_db, query_text="her", collection_code=COLLECTION, include_noncommercial=True,
+    )[0]
+    assert default_view.release_date == "2013-10-12"
+    assert default_view.runtime_minutes == 126
+    assert local_research_view.release_year == 2012
+    assert local_research_view.runtime_minutes is None
+    assert "runtime_requires_version_or_value_resolution" in local_research_view.metadata_issues
+    assert sourced_release_years(research_db, {film.entity_id}) == {film.entity_id: 2013}
+    assert sourced_release_years(research_db, {film.entity_id}, include_noncommercial=True) == {
+        film.entity_id: 2012,
+    }
 
 
 def test_single_film_passage_browser_uses_active_source_linked_chunks(research_db):
