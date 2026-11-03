@@ -464,6 +464,15 @@ readiness is asserted until the baseline and source constraints are measured.
   Away`. The crosslinks are not merges or approval; inspect the linked source
   assertions and movie identity before accepting them. The IMDb dataset is
   non-commercial and these local artifacts remain ignored/uncommitted.
+- A second read-only audit queried the existing evidence chain for each of the
+  23 linked IDs. All 23 have a `resolved` `imdb_identifier` assertion whose
+  evidence is a Wikidata `P345` source assertion with the same IMDb ID; all 23
+  link to unique Wikidata and IMDb IDs and have source attribution URLs. The
+  evidence report is local at
+  `data/evaluation/catalog-pilot-identity-evidence-v1.json`. This validates the
+  recorded crosslink provenance, not independent film content, rights, or
+  permission to use IMDb dataset fields commercially. Keep the 23 flagged
+  until their review decision is recorded.
 - Updated `current_passage_rows` to choose only the approved extraction version
   for known source-parser adapters and to fail closed if an unknown adapter has
   multiple extraction versions. Added an integration fixture proving that an
