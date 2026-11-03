@@ -482,3 +482,26 @@ readiness is asserted until the baseline and source constraints are measured.
   database. Next: resolve/triage the 23 candidate identities, add unit tests and
   a reproducible gate for the pilot manifest, then audit and enrich missing
   fields only through the existing source-provenance intake pipeline.
+
+### Follow-up implementation — pilot manifest gate
+
+- Added `backend/app/services/catalog_pilot_manifest.py` as a pure validator
+  for the frozen pilot's input fingerprints, row-to-CSV correspondence,
+  identity-state structure, candidate counts and exact-title/year evidence.
+  Crosslinks must remain explicitly review-required; structural validation
+  never declares a film identity correct or its source commercially eligible.
+- Added `scripts/validate_catalog_pilot.py`, an offline read-only CLI restricted
+  to local `data/evaluation` artifacts and the supplied project CSV. It does
+  not open the database or alter the manifest.
+- Added seven fixture-based unit tests (no mocks or network). All seven pass.
+- Ran the validator against local `catalog-pilot-top100-v5.json`, its exact
+  readiness report, IMDb candidate-review artifact and CSV. Result: 100 rows,
+  77 `exact_title_year`, 23 `review_required_unique_imdb_crosslink`, 100 unique
+  candidate film IDs; all three input fingerprints match. This proves
+  reproducibility and structure only, not the unresolved identity decisions.
+- No working-corpus rows or files outside the project were changed. The
+  operational roadmap is in
+  [catalog-expansion-execution-plan-v1.md](catalog-expansion-execution-plan-v1.md).
+- Next implementation step: reconcile the pilot's legacy profile date/runtime
+  fields with research assertions and exercise the existing local intake
+  pipeline on isolated test data before any batch enrichment.
