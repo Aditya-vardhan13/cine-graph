@@ -56,9 +56,19 @@ def main():
                 JOIN source_snapshots s ON s.id=n.source_snapshot_id
                 WHERE f.id = ANY(%s::uuid[]) ORDER BY f.id, n.source_snapshot_id, n.section_locator, n.ordinal""",
                 ([c["catalog_film_id"] for c in selected],)).fetchall()
+            legacy_rows = conn.execute("""SELECT f.id AS film_id, f.wikidata_id, n.id AS document_id,
+                n.document_type, n.content, n.license, n.attribution_url, n.source_revision, n.access_scope,
+                c.match_status, c.match_method
+                FROM films f JOIN corpus_records c ON c.film_id=f.id
+                JOIN narrative_documents n ON n.corpus_record_id=c.id
+                WHERE f.id = ANY(%s::uuid[]) ORDER BY f.id, n.id""",
+                ([c["catalog_film_id"] for c in selected],)).fetchall()
     byfilm = defaultdict(list)
     for row in rows:
         byfilm[str(row["film_id"])].append(row)
+    legacy_byfilm = defaultdict(list)
+    for row in legacy_rows:
+        legacy_byfilm[str(row["film_id"])].append(row)
     results = []
     for candidate in selected:
         sources = defaultdict(list)
@@ -74,10 +84,20 @@ def main():
             comparisons.append({"source_snapshot_id": snapshot_id, "source_url": first["canonical_url"],
                 "source_revision": first["source_revision"], "license": first["license"],
                 "passages": len(passages), **source_coverage(docs[candidate["document_id"]]["content"], text)})
+        legacy_comparisons = []
+        for row in legacy_byfilm[candidate["catalog_film_id"]]:
+            if row["wikidata_id"] not in candidate["source_qids"]:
+                raise ValueError("Catalog identity changed since the candidate audit.")
+            legacy_comparisons.append({"document_id": str(row["document_id"]), "document_type": row["document_type"],
+                "attribution_url": row["attribution_url"], "source_revision": row["source_revision"],
+                "license": row["license"], "access_scope": row["access_scope"],
+                "match_status": row["match_status"], "match_method": row["match_method"],
+                **source_coverage(docs[candidate["document_id"]]["content"], row["content"])})
         results.append({"document_id": candidate["document_id"], "catalog_film_id": candidate["catalog_film_id"],
                         "catalog_title": candidate["catalog_title"], "source_qids": candidate["source_qids"],
                         "total_existing_passages": len(byfilm[candidate["catalog_film_id"]]),
-                        "plot_snapshot_comparisons": comparisons, "review_status": "review_required"})
+                        "plot_snapshot_comparisons": comparisons, "legacy_document_comparisons": legacy_comparisons,
+                        "review_status": "review_required"})
     output = {"version": "external-passage-overlap-v1", "candidate_file_sha256": hashlib.sha256(candidates_raw).hexdigest(),
         "prepared_documents_sha256": digest, "read_only": True, "items": results,
         "caution": "Five-word lexical overlap only; zero or high overlap does not prove novelty, duplication, rights, or relevance."}
@@ -85,6 +105,7 @@ def main():
     with args.output.open("x") as f:
         json.dump(output, f, indent=2)
     print(json.dumps({"candidates": len(results), "with_existing_plot": sum(bool(r["plot_snapshot_comparisons"]) for r in results),
+                      "with_legacy_documents": sum(bool(r["legacy_document_comparisons"]) for r in results),
                       "read_only": True}))
 
 

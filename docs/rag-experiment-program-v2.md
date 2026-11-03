@@ -788,3 +788,20 @@ equivalence, authorship, licence compliance or suitability for users. The
 benchmark snapshot does not itself establish a specific Wikipedia revision for
 each summary; source attribution and identity review remain prerequisites to
 any product-facing use. No database records were inserted or updated.
+
+The follow-up read-only check also examined legacy `narrative_documents` joined
+through `corpus_records`, rather than assuming the newer passage projection was
+the whole catalog. One of the six films without newer passages, `Bullseye!`,
+has a matched legacy plot summary; 76.1% of the candidate's unique five-word
+shingles appear in that document. Five candidates had neither a newer narrative
+passage nor a legacy narrative document linked to the matched film at audit time.
+These remain unreviewed candidates—not five approved additions. For example,
+the matched `Roma` is the 1972 Federico Fellini film, not the 2018 film; its
+Wikidata identity is [Q18423](https://www.wikidata.org/wiki/Q18423). Language
+edition, title identity, source licence and attribution must be resolved before
+adding anything to the user-facing collection.
+
+The revised report, including legacy document IDs, match status, access scope
+and source links, is local at
+`data/evaluation/external-prepared/semeval-passage-overlap-v2.json`. As above,
+lexical overlap is an indicator, not a legal or semantic duplicate decision.
