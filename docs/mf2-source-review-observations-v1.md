@@ -39,3 +39,18 @@ allow insufficient evidence, and distinguish text-only from visual requirements.
 Check person identity and causality rather than treating keyword overlap as
 entailment. Review a broader, stratified set before drawing an aggregate quality
 conclusion. No test-set or product accuracy is asserted by these examples.
+
+## Label-blind source-diversity control
+
+An offline deterministic ablation interleaved source documents within the
+existing frozen six-passage pool. It did not open gold labels or retrieve new
+passages. On all 190 diagnostic queries, both transcript and synopsis appear
+in the top two for 91 cases before interleaving and 165 afterward; at top three
+the counts are 129 and 165. The unchanged top-six pool contains both sources in
+165 cases, so 25 cases cannot be made source-diverse by reordering alone.
+
+This establishes only source visibility. It can also move irrelevant passages
+upward and relevant ones downward; it is not an accuracy improvement and must
+not be promoted to product retrieval without source-aware relevance review.
+The reproducible local report and rankings are under
+`data/evaluation/external-prepared/mf2-source-diversity-dev-run1/`.

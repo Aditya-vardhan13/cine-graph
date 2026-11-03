@@ -5,6 +5,30 @@ from app.services.external_narrative_preparation import text_id
 from app.services.lexical_retrieval import Bm25Index
 
 
+def interleave_sources(ranked: list[dict], *, limit: int = 6) -> list[dict]:
+    """Diversify an existing ranked pool without fabricating new candidates.
+
+    Start with the best overall candidate, then alternate distinct documents
+    in their first-seen order. This is an offline diagnostic, not a truth score.
+    """
+    if limit < 1:
+        raise ValueError("Limit must be positive.")
+    groups = {}
+    seen = set()
+    for candidate in ranked:
+        identifier = candidate["passage_id"]
+        if identifier in seen:
+            raise ValueError("Duplicate ranked passage.")
+        seen.add(identifier)
+        groups.setdefault(candidate["document_id"], []).append(candidate)
+    result = []
+    while len(result) < limit and any(groups.values()):
+        for group in groups.values():
+            if group and len(result) < limit:
+                result.append(group.pop(0))
+    return result
+
+
 def diagnostic_dev_film(document_id: str) -> bool:
     parts = document_id.split(":")
     if len(parts) != 3 or parts[0] != "mf2" or not parts[1].isdigit():

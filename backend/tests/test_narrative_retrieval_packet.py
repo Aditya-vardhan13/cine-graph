@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.narrative_retrieval_packet import diagnostic_dev_film, rank_claim
+from app.services.narrative_retrieval_packet import diagnostic_dev_film, interleave_sources, rank_claim
 
 
 def test_scope_and_query_change_the_ranked_leads_without_labels():
@@ -27,3 +27,11 @@ def test_diagnostic_split_is_deterministic_and_film_scoped():
     assert 0 < sum(membership) < len(membership)
     with pytest.raises(ValueError):
         diagnostic_dev_film("Q1")
+
+
+def test_interleaving_only_reorders_existing_passages_and_preserves_within_source_order():
+    rows = [{"passage_id": str(i), "document_id": doc} for i, doc in enumerate(["A", "A", "A", "B", "B"])]
+    assert [p["passage_id"] for p in interleave_sources(rows)] == ["0", "3", "1", "4", "2"]
+    assert [p["passage_id"] for p in interleave_sources(rows, limit=2)] == ["0", "3"]
+    with pytest.raises(ValueError, match="Duplicate"):
+        interleave_sources([rows[0], rows[0]])
