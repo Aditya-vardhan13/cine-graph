@@ -805,3 +805,21 @@ The revised report, including legacy document IDs, match status, access scope
 and source links, is local at
 `data/evaluation/external-prepared/semeval-passage-overlap-v2.json`. As above,
 lexical overlap is an indicator, not a legal or semantic duplicate decision.
+
+### Bulk parser-quality review before changing live evidence
+
+`scripts/audit_wikipedia_parser_delta.py` compares v2 and v3 derivations from
+the same checksum-verified recovered Wikipedia revisions. It uses a read-only
+database transaction, keeps the corpus unchanged, and writes a local review
+report listing changed, added and removed locator/ordinal keys. Different
+keys can reflect rechunking, not necessarily missing information. A difference
+is a review lead, not proof that v3 is correct or that retrieval improved.
+
+On 3 November 2026 the existing recovery audit rechecked 1,000 recovered
+revisions and matched all 24,446 historical passage keys exactly; this proves
+reproducibility of the older parser, not completeness. A five-film parser-delta
+smoke run completed with one changed film and no processing errors. The full
+collection comparison should be reviewed for diverse changed examples,
+including languages, section types and unusual templates, before choosing a
+version for any product-facing extraction. Continue to preserve the benchmark
+holdout and source identity boundaries described above.
