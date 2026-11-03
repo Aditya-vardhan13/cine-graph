@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from collections import defaultdict
 import hashlib
 import json
 from pathlib import Path
@@ -32,12 +33,27 @@ def compare_passages(old, new):
     a, b = keyed(old), keyed(new)
     common = a.keys() & b.keys()
     changed = [key for key in common if a[key] != b[key]]
+    def section_text(passages):
+        sections = defaultdict(list)
+        for passage in passages:
+            sections[passage.section_locator].append((passage.ordinal, passage.content))
+        return {locator: "".join("".join(value.split()) for _, value in sorted(parts))
+                for locator, parts in sections.items()}
+
+    def is_subsequence(needle, haystack):
+        iterator = iter(haystack)
+        return all(any(character == candidate for candidate in iterator) for character in needle)
+
+    old_sections, new_sections = section_text(old), section_text(new)
+    suspicious = sorted(locator for locator, value in old_sections.items()
+                        if not is_subsequence(value, new_sections.get(locator, "")))
     return {
         "old_passages": len(a), "new_passages": len(b),
         "changed_shared_keys": len(changed),
         "old_only_keys": len(a.keys() - b.keys()),
         "new_only_keys": len(b.keys() - a.keys()),
         "changed_locators": sorted({key[0] for key in changed}),
+        "sections_with_possible_v2_text_loss": suspicious,
     }
 
 
@@ -87,10 +103,10 @@ def main():
         engine.dispose()
     counts = Counter("changed" if row["changed_shared_keys"] or row["old_only_keys"] or row["new_only_keys"]
                      else "unchanged" for row in results)
-    report = {"version": "wikipedia-parser-delta-v1", "database_read_only": True,
+    report = {"version": "wikipedia-parser-delta-v2", "database_read_only": True,
               "selection": "latest recovered-v1 passage snapshot per film", "limit": args.limit,
               "counts": dict(counts), "errors": errors, "films": results,
-              "caution": "Key changes are review leads, not proof of improvement or retrieval accuracy."}
+              "caution": "Key and whitespace-insensitive subsequence checks are review leads; passing does not prove preservation, improvement, or retrieval accuracy."}
     payload = (json.dumps(report, ensure_ascii=False, indent=2) + "\n").encode()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("xb") as out:
