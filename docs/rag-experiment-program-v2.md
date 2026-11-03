@@ -704,3 +704,38 @@ The successful CPU run used the already-existing project-local `rag-encoders`
 environment with torch 2.8. The output and vectors remain local under
 `data/evaluation/external-prepared/semeval-bgem3-dev-run3/`; no held-out cases
 were evaluated and no product configuration was changed.
+
+### Frozen source-identity-disjoint external subset
+
+After the development controls, 61 test case IDs were frozen before either
+model was run, using `scripts/freeze_narrative_holdout.py`; the manifest records
+the exact prepared-corpus hashes and did not open gold labels. The two selected
+models used the same 170 distinct story summaries, whole-story symmetric cosine,
+and fixed cases. Predictions were written before scoring. Results:
+
+| Method | Label matches / 61 | Ties |
+| --- | ---: | ---: |
+| Qwen3 embedding 0.6B Q8_0 | 37 | 0 |
+| BGE-M3 dense CLS float32 | 40 | 0 |
+| Two-candidate lexical control | 38 | 0 |
+
+For the two embedding models, both matched 33, both missed 17, Qwen alone
+matched four and BGE alone matched seven. The sample is too small and stories
+can occur in multiple triples, so these are not independent Bernoulli trials or
+evidence of a statistically reliable model winner. The lexical score is an
+additional post-run baseline, not a newly tuned method. Identity disjointness
+uses supplied, unreviewed IDs; model pretraining exposure is unknown.
+
+This is an external story-similarity check, **not** evidence that our product
+answers a writer's question, understands a scene, or retrieves good passages.
+No source, labels or vectors were added to the live corpus or committed. Local
+artifacts retain the frozen-manifest fingerprint. The worker's first report
+version string included `dev` even on these runs; its explicit `split` and
+manifest fingerprint identify the actual test scope. The next schema version
+removes that misleading suffix.
+
+The original worker parsed all 400 test-label JSON rows into memory after
+predictions before filtering down to the frozen 61; only those 61 were scored
+or printed. This does not affect those predictions, but was broader access than
+intended. The worker now filters IDs before parsing label JSON. Treat the
+remaining test labels as not manually inspected, not as technically unread.
