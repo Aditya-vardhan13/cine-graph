@@ -739,3 +739,28 @@ predictions before filtering down to the frozen 61; only those 61 were scored
 or printed. This does not affect those predictions, but was broader access than
 intended. The worker now filters IDs before parsing label JSON. Treat the
 remaining test labels as not manually inspected, not as technically unread.
+
+### Read-only catalog overlap: why research data is not yet product data
+
+An explicit read-only `cinegraph` database audit compared 1,219 distinct
+SemEval story summaries against existing `films.wikidata_id`, without writing
+database records. Eight summaries had a single exact-QID film candidate; 219
+had conflicting/multiple or invalid IDs; 992 had no exact match in the current
+film table. The data includes novels and other works, so the last count is not
+the number of missing movies. Some synopsis text may already exist from the
+same underlying Wikipedia article, so an exact identity match does not prove
+it adds useful new evidence.
+
+Candidate IDs and provenance remain local in
+`data/evaluation/external-prepared/semeval-catalog-candidates-v1.json`, all
+marked `review_required` and not operationally eligible. The audit does not
+resolve identity, assess source rights, deduplicate against existing passages,
+or insert evidence. Before any product import, independently verify identity,
+original article attribution/licence and duplicate-content impact; keep
+benchmark-held-out records isolated from model/evaluation tuning.
+
+The audit can be repeated with `scripts/audit_external_catalog_overlap.py`;
+it requires an explicit local `CINEGRAPH_AUDIT_DSN` and starts a database
+read-only transaction. Its results are a snapshot of the catalog at run time.
+Future corpus expansion needs more suitable cleared sources, not a claim that
+this benchmark alone supplies 1,219 additional film records.
