@@ -686,3 +686,21 @@ were evaluated, no retrieval settings changed, and no model or dataset was
 promoted into the product. This compares whole-story similarity, not the
 question-conditioned film-pair or writer-usefulness objective. The worker
 checked the six-GiB disk reserve between batches and refused truncation.
+
+The same 200 development comparisons were subsequently run with the locally
+cached BGE-M3 dense CLS representation, float32, CPU, pinned revision
+`5617a9f61b028005a4858fdac845db406aefb181`: **118/200** matches, no ties,
+approximately 105 seconds of embedding/scoring. Compared with Qwen 0.6B,
+both matched on 89 cases, both missed 50, Qwen alone matched on 32, and BGE
+alone matched on 29. This is not evidence that either generalizes better; it
+is the same small development set and does not test BGE's sparse or multi-vector
+retrieval. The two runtimes, devices and batching differ, so timings are not an
+isolated hardware or model-size comparison.
+
+The initial MPS attempt failed because the Conda PyTorch has no MPS support;
+the Conda CPU attempt rejected the PyTorch checkpoint because its installed
+torch version is below the security threshold. No security check was bypassed.
+The successful CPU run used the already-existing project-local `rag-encoders`
+environment with torch 2.8. The output and vectors remain local under
+`data/evaluation/external-prepared/semeval-bgem3-dev-run3/`; no held-out cases
+were evaluated and no product configuration was changed.

@@ -3,19 +3,18 @@ import argparse
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import sys
 from time import perf_counter
 
-import httpx
-
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
-from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.pair_reranker_trial import require_disk_headroom
 
 MODEL = "qwen3-embedding:0.6b"
 DIGEST = "ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d"
+BGE_REVISION = "5617a9f61b028005a4858fdac845db406aefb181"
 
 
 def cosine(a, b):
@@ -31,6 +30,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("prepared", type=Path)
     p.add_argument("--output", required=True, type=Path)
+    p.add_argument("--provider", choices=("qwen", "bge"), default="qwen")
+    p.add_argument("--device", choices=("cpu", "mps"), default="cpu")
     args = p.parse_args()
     local = (ROOT / "data/evaluation").resolve()
     if not local.is_relative_to(ROOT.resolve()) or any(not path.resolve().is_relative_to(local) for path in (args.prepared, args.output)):
@@ -49,20 +50,49 @@ def main():
     documents = {d["document_id"]: d for d in read("evidence-documents") if d["document_id"] in ids}
     if len(questions) != 200 or set(documents) != ids:
         raise ValueError("Development scope or source coverage changed.")
-    if not any(m["name"] == MODEL and m["digest"] == DIGEST for m in httpx.get("http://127.0.0.1:11435/api/tags", timeout=5).json()["models"]):
-        raise ValueError("Local model digest mismatch.")
+    if args.provider == "qwen":
+        import httpx
+        if not any(m["name"] == MODEL and m["digest"] == DIGEST for m in httpx.get("http://127.0.0.1:11435/api/tags", timeout=5).json()["models"]):
+            raise ValueError("Local model digest mismatch.")
+    require_disk_headroom(args.output)
     args.output.mkdir(parents=True, exist_ok=False)
-    profile = OllamaEmbeddingProfile(model=MODEL, dimensions=1024)
-    client = OllamaEmbeddingClient(base_url="http://127.0.0.1:11435", timeout_seconds=180)
+    if args.provider == "qwen":
+        from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
+        profile = OllamaEmbeddingProfile(model=MODEL, dimensions=1024)
+        client = OllamaEmbeddingClient(base_url="http://127.0.0.1:11435", timeout_seconds=180)
+        def embed(texts):
+            return client.embed(texts, profile=profile)
+        batch_size = 4
+    else:
+        os.environ["HF_HOME"] = str(ROOT / "data/evaluation/rag-v2/encoders/hf-home")
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+        if args.device == "mps" and not torch.backends.mps.is_available():
+            raise ValueError("Requested MPS device is unavailable.")
+        torch.set_num_threads(4)
+        opts = {"revision": BGE_REVISION, "cache_dir": str(ROOT / "data/evaluation/rag-v2/encoders/weights"),
+                "local_files_only": True, "trust_remote_code": False}
+        tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3", **opts)
+        model = AutoModel.from_pretrained("BAAI/bge-m3", weights_only=True, use_safetensors=False, **opts).to(args.device).eval()
+        def embed(texts):
+            batch = tokenizer(texts, padding=True, truncation=False, return_tensors="pt")
+            if batch["input_ids"].shape[1] > 8192:
+                raise ValueError("Story exceeds BGE's context; truncation is not permitted.")
+            with torch.inference_mode():
+                out = model(**{key: val.to(args.device) for key, val in batch.items()}).last_hidden_state[:, 0]
+                return torch.nn.functional.normalize(out, p=2, dim=1).cpu().tolist()
+        batch_size = 1
     vectors = {}
     started = perf_counter()
     cache = args.output / "vectors.jsonl"
     with cache.open("x") as f:
         ordered = sorted(ids)
-        for offset in range(0, len(ordered), 4):
+        for offset in range(0, len(ordered), batch_size):
             require_disk_headroom(args.output)
-            batch = ordered[offset:offset + 4]
-            result = client.embed([documents[key]["content"] for key in batch], profile=profile)
+            batch = ordered[offset:offset + batch_size]
+            result = embed([documents[key]["content"] for key in batch])
             for key, vector in zip(batch, result, strict=True):
                 if not all(math.isfinite(v) for v in vector):
                     raise ValueError("Non-finite embedding.")
@@ -81,8 +111,11 @@ def main():
     if set(gold) != {r["case_id"] for r in predictions}:
         raise ValueError("Development labels and predictions disagree.")
     correct = sum(r["a_is_closer"] == gold[r["case_id"]]["a_is_closer"] for r in predictions)
-    result = {"version": "semeval-qwen-0.6b-dev-v1", "model": MODEL, "digest": DIGEST,
-              "quantization": "Q8_0", "representation": "whole-story symmetric cosine; no query instruction",
+    result = {"version": "semeval-whole-story-dev-v1", "model": MODEL if args.provider == "qwen" else "BAAI/bge-m3",
+              "digest": DIGEST if args.provider == "qwen" else BGE_REVISION,
+              "quantization": "Q8_0" if args.provider == "qwen" else "float32",
+              "device": "ollama-managed" if args.provider == "qwen" else args.device,
+              "representation": "whole-story symmetric cosine; no query instruction",
               "development_cases": len(predictions), "stories": len(ids), "correct": correct,
               "ties": sum(r["a_is_closer"] is None for r in predictions), "seconds": perf_counter() - started,
               "heldout_evaluated": False,
