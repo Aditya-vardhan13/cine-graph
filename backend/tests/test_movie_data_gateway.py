@@ -326,8 +326,62 @@ def test_collection_audit_flags_missing_character_credit() -> None:
         db.commit()
         report = audit_collection(db, "fixture")
         assert report["coverage"].get("with_any_character_credit", 0) == 0
+        assert report["coverage"].get("with_default_display_character_credit", 0) == 0
         assert "no_character_credit" in report["gaps"][0]["issues"]
+        assert "no_default_display_character_credit" in report["gaps"][0]["issues"]
         assert "placeholder_entity_label" in report["gaps"][0]["issues"]
+
+
+@pytest.mark.integration
+def test_collection_audit_separates_present_and_displayable_character_credits() -> None:
+    engine = isolated_postgres_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(LanguageEdition(code="en", display_name="English", script="Latin",
+                               enabled=True, status="active"))
+        open_source = DataSource(name="Open cast fixture", url="https://example.org/open",
+                                 source_type="film_metadata", license="CC0 1.0",
+                                 rights_status="open")
+        restricted_source = DataSource(name="Restricted cast fixture", url="https://example.org/restricted",
+                                       source_type="film_metadata", license="Local research only",
+                                       rights_status="local_noncommercial_only")
+        first = CanonicalEntity(entity_kind="film", canonical_label="Film One", wikidata_id="Q101")
+        second = CanonicalEntity(entity_kind="film", canonical_label="Film Two", wikidata_id="Q102")
+        db.add_all([open_source, restricted_source, first, second])
+        db.flush()
+        db.add_all([
+            Film(entity_id=first.id, canonical_title="Film One", original_language_code="en"),
+            Film(entity_id=second.id, canonical_title="Film Two", original_language_code="en"),
+            ReferenceCollection(code="rights-fixture", title="Rights fixture",
+                                description="Character source-rights audit", language_code="en",
+                                selection_method="fixture", selection_version="v1"),
+            ReferenceCollectionMembership(collection_code="rights-fixture", entity_id=first.id,
+                                          source_reference="https://example.org/film-one"),
+            ReferenceCollectionMembership(collection_code="rights-fixture", entity_id=second.id,
+                                          source_reference="https://example.org/film-two"),
+            Assertion(subject_entity_id=first.id, predicate="cast",
+                      value_json={"name": "Actor One", "character": "Character One"},
+                      qualifiers={}, assertion_kind="source_fact", source_id=open_source.id,
+                      source_reference="https://example.org/open/film-one", review_status="resolved"),
+            Assertion(subject_entity_id=first.id, predicate="cast",
+                      value_json={"name": "Actor One", "characters": ["Character One"]},
+                      qualifiers={}, assertion_kind="source_fact", source_id=restricted_source.id,
+                      source_reference="https://example.org/restricted/film-one", review_status="resolved"),
+            Assertion(subject_entity_id=second.id, predicate="cast",
+                      value_json={"name": "Actor Two", "character": "Character Two"},
+                      qualifiers={}, assertion_kind="source_fact", source_id=restricted_source.id,
+                      source_reference="https://example.org/restricted/film-two", review_status="resolved"),
+        ])
+        db.commit()
+
+        report = audit_collection(db, "rights-fixture")
+
+        assert report["coverage"]["with_any_character_credit"] == 2
+        assert report["coverage"]["with_default_display_character_credit"] == 1
+        assert report["coverage"]["with_local_noncommercial_character_credit"] == 2
+        issues_by_title = {film["title"]: film["issues"] for film in report["gaps"]}
+        assert "no_default_display_character_credit" not in issues_by_title["Film One"]
+        assert "no_default_display_character_credit" in issues_by_title["Film Two"]
 
 
 @pytest.mark.integration

@@ -1,8 +1,10 @@
 # CineGraph catalog and narrative data plan
 
-Status: implementation in progress. Phase A read-only baseline and pilot
-selection are underway; no new source material has been published to the working
-catalog. See the implementation log at the end of this document.
+Status: implementation in progress. Phase A baseline/pilot artifacts are
+available; Phase B source-to-catalog quality work continues. No new source
+material has been published to the working catalog. See the implementation log
+at the end of this document. The [catalog preparation and expansion plan](catalog-preparation-and-expansion-plan-v1.md)
+spells out the source policy, record contract and 10 → 100 → 1,000 gates.
 
 ## 1. The goal
 
@@ -561,7 +563,43 @@ readiness is asserted until the baseline and source constraints are measured.
   browser flows including the release-event list; Next.js production build
   passed. Working-catalog inspection was read-only.
 - This is one resolved presentation case, not a complete release-event audit.
-  Next in Phase 1 is a reproducible per-film review for all 100 legacy profile
-  dates, explicit dispositions for 23 identity candidates, and a separate
-  source-eligible actor-to-character audit. The product is not yet ready for
-  batch enrichment or a writer-quality claim.
+  The 100-film legacy profile date/runtime audit and the 23 identity decisions
+  remain open; the separate source-eligible actor-to-character audit is
+  recorded below. The product is not yet ready for batch enrichment or a
+  writer-quality claim.
+
+### Follow-up — character-credit coverage is rights-qualified
+
+- A read-only query joined the frozen top-100 manifest to source-backed cast
+  assertions. All 100 films have at least one character-bearing assertion in
+  the local corpus, but every one of those matches is from a source marked
+  `local_noncommercial_only` (IMDb); four films also have TMDb character
+  assertions under the same local-only state. The query found 1,038 IMDb and
+  81 TMDb character-bearing assertions. It found no default-display-eligible
+  character assertion for this 100-film set. This is the concrete reason a
+  page can show cast names without a use-eligible actor-to-character mapping;
+  presence in the local database is not permission to display it by default.
+- A separate read-only aggregate found 26 default-display-eligible
+  (`attributed_reuse`, CC BY-SA 4.0) English-Wikipedia cast assertions
+  elsewhere in the working catalog, 25 of which contain a character label;
+  these records are Telugu films, not a substitute for resolving the English
+  pilot's gap.
+- Updated `audit_movie_collection` to report separately (a) character-credit
+  presence from any recorded source-rights state, (b) character-credit
+  coverage eligible under the default display policy and with a citeable
+  HTTPS source URL, and (c) local-non-commercial-only character coverage. The
+  old `with_any_character_credit` now clearly means any recorded source, not
+  product-eligible coverage. Missing default-display coverage is called out
+  separately in per-film gap output.
+- Added a real PostgreSQL integration case with two films: one has both open
+  and local-only character evidence; one has only local-only evidence. It
+  verifies 2 films with any mapping, only 1 default-display-eligible, and 2
+  local-only. Verification: isolated integration suite 70 passed; non-
+  integration backend suite 229 passed. Both used the Conda `cine-graph`
+  environment; tests ran only against `cinegraph_test`. No working-catalog
+  rows were changed.
+- Next: obtain a reusable, default-display-eligible source for character
+  mappings or intentionally label the field unavailable for the pilot. Do not
+  expose the existing IMDb/TMDb-only rows by toggling a product setting until
+  intended-use rights are established. Continue the remaining pilot identity
+  and release-date/runtime audit before batch enrichment.

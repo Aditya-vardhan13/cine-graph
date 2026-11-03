@@ -16,6 +16,28 @@ from app.models import (
     ReferenceCollectionMembership, SourceObject, SourceSnapshot,
 )
 from app.services.current_narrative_passages import current_passage_rows
+from app.services.source_rights_policy import (
+    LOCAL_NONCOMMERCIAL_STATUS, can_display_source,
+)
+
+
+def has_character_credit(value: dict | None) -> bool:
+    """Recognize only explicitly sourced character labels, never cast co-occurrence."""
+    if not isinstance(value, dict):
+        return False
+    character = value.get("character")
+    if isinstance(character, str) and character.strip():
+        return True
+    characters = value.get("characters")
+    return (isinstance(characters, list)
+            and any(isinstance(item, str) and item.strip() for item in characters))
+
+
+def default_displayable_character(assertion: Assertion, source: DataSource | None) -> bool:
+    """Mirror the sourced-credit display gate: rights state and citeable URL."""
+    source_url = assertion.source_reference or (source.url if source else "")
+    return bool(source and can_display_source(rights_status=source.rights_status)
+                and source_url.startswith("https://"))
 
 
 def section_coverage(sections: set[str]) -> dict[str, bool]:
@@ -68,7 +90,7 @@ def audit_collection(db: Session, code: str) -> dict:
     profiles = {row.entity_id: row for row in db.scalars(select(Film).where(
         Film.entity_id.in_(ids),
     ))}
-    sources = {row.id: row.name for row in db.scalars(select(DataSource))}
+    sources = {row.id: row for row in db.scalars(select(DataSource))}
     facts: dict[UUID, list[Assertion]] = defaultdict(list)
     for row in db.scalars(select(Assertion).where(
         Assertion.subject_entity_id.in_(ids),
@@ -114,32 +136,35 @@ def audit_collection(db: Session, code: str) -> dict:
         active = facts[entity_id]
         imdb_ids = {(row.value_json or {}).get("value") for row in active
                     if row.predicate == "imdb_identifier" and
-                    sources.get(row.source_id) == "IMDb Non-Commercial Datasets"}
+                    sources.get(row.source_id) and
+                    sources[row.source_id].name == "IMDb Non-Commercial Datasets"}
         imdb_ids.discard(None)
         imdb_id = next(iter(imdb_ids)) if len(imdb_ids) == 1 else None
         wikidata_imdb_ids = {(row.value_json or {}).get("value") for row in active
                               if row.predicate == "imdb_identifier" and
-                              sources.get(row.source_id) == "Wikidata"}
+                              sources.get(row.source_id) and sources[row.source_id].name == "Wikidata"}
         wikidata_imdb_ids.discard(None)
         tmdb_imdb_ids = {(row.value_json or {}).get("value") for row in active
                            if row.predicate == "imdb_identifier" and
-                           sources.get(row.source_id) == "TMDb Developer API"}
+                           sources.get(row.source_id) and sources[row.source_id].name == "TMDb Developer API"}
         tmdb_imdb_ids.discard(None)
         source_cast = [row for row in active if row.predicate == "cast" and
-                       sources.get(row.source_id) == "IMDb Non-Commercial Datasets"]
+                       sources.get(row.source_id) and
+                       sources[row.source_id].name == "IMDb Non-Commercial Datasets"]
         tmdb_cast = [row for row in active if row.predicate == "cast" and
-                     sources.get(row.source_id) == "TMDb Developer API"]
+                     sources.get(row.source_id) and
+                     sources[row.source_id].name == "TMDb Developer API"]
         imdb_years = {(row.value_json or {}).get("year") for row in active
                       if row.predicate == "release_event" and
-                      sources.get(row.source_id) == "IMDb Non-Commercial Datasets" and
+                      sources.get(row.source_id) and sources[row.source_id].name == "IMDb Non-Commercial Datasets" and
                       (row.value_json or {}).get("precision") == "year"}
         tmdb_primary_years = {str((row.value_json or {}).get("date", ""))[:4]
                               for row in active if row.predicate == "release_event" and
-                              sources.get(row.source_id) == "TMDb Developer API" and
+                              sources.get(row.source_id) and sources[row.source_id].name == "TMDb Developer API" and
                               (row.value_json or {}).get("basis") == "tmdb_primary"}
         tmdb_languages = {(row.value_json or {}).get("code") for row in active
                           if row.predicate == "original_language" and
-                          sources.get(row.source_id) == "TMDb Developer API"}
+                          sources.get(row.source_id) and sources[row.source_id].name == "TMDb Developer API"}
         metadata_disagreements.extend(compare_source_metadata(
             entity.canonical_label, entity.wikidata_id,
             profile.original_language_code if profile else None,
@@ -147,6 +172,13 @@ def audit_collection(db: Session, code: str) -> dict:
         ))
         character_count = sum(bool((row.value_json or {}).get("characters")) for row in source_cast)
         tmdb_character_count = sum(bool((row.value_json or {}).get("character")) for row in tmdb_cast)
+        character_assertions = [row for row in active
+                                if row.predicate == "cast" and has_character_credit(row.value_json)]
+        default_display_character_assertions = [row for row in character_assertions
+            if default_displayable_character(row, sources.get(row.source_id))]
+        local_character_assertions = [row for row in character_assertions
+            if sources.get(row.source_id)
+            and sources[row.source_id].rights_status == LOCAL_NONCOMMERCIAL_STATUS]
         wiki_sections = {row.section_locator.replace(" / ", "/").casefold()
                          for row in passages[entity_id]}
         axes = section_coverage(wiki_sections)
@@ -198,10 +230,16 @@ def audit_collection(db: Session, code: str) -> dict:
             counts["with_imdb_character"] += 1
         else:
             issues.append("no_imdb_character")
-        if character_count or tmdb_character_count:
+        if character_assertions:
             counts["with_any_character_credit"] += 1
         else:
             issues.append("no_character_credit")
+        if default_display_character_assertions:
+            counts["with_default_display_character_credit"] += 1
+        else:
+            issues.append("no_default_display_character_credit")
+        if local_character_assertions:
+            counts["with_local_noncommercial_character_credit"] += 1
         if passages[entity_id]:
             counts["with_narrative_passages"] += 1
         else:
@@ -217,12 +255,12 @@ def audit_collection(db: Session, code: str) -> dict:
         if axes["legacy"]:
             counts["with_legacy_or_impact_passage"] += 1
         if any(row.predicate == "release_event" and
-               sources.get(row.source_id) == "Wikidata" and
+               sources.get(row.source_id) and sources[row.source_id].name == "Wikidata" and
                (row.value_json or {}).get("precision", 0) >= 11
                for row in active):
             counts["with_wikidata_day_release"] += 1
         if any(row.predicate == "release_event" and
-               sources.get(row.source_id) == "TMDb Developer API" and
+               sources.get(row.source_id) and sources[row.source_id].name == "TMDb Developer API" and
                (row.value_json or {}).get("precision") == "day"
                for row in active):
             counts["with_tmdb_day_release"] += 1
@@ -235,7 +273,10 @@ def audit_collection(db: Session, code: str) -> dict:
                             "sections": sorted(wiki_sections)[:12],
                             "passages": len(passages[entity_id]),
                             "imdb_cast": len(source_cast),
-                            "imdb_character_credits": character_count})
+                            "imdb_character_credits": character_count,
+                            "any_character_credit": len(character_assertions),
+                            "default_display_character_credit": len(default_display_character_assertions),
+                            "local_noncommercial_character_credit": len(local_character_assertions)})
     return {"collection": code, "films": len(ids), "coverage": dict(sorted(counts.items())),
             "profile_languages": dict(sorted(languages.items())),
             "gap_films": len(gaps), "gaps": gaps,
@@ -243,7 +284,7 @@ def audit_collection(db: Session, code: str) -> dict:
             "identity_failures": identity_failures, "sample": sampled,
             "metadata_disagreement_count": len(metadata_disagreements),
             "metadata_disagreements": metadata_disagreements,
-            "interpretation": "Counts measure source-backed coverage, not independent correctness or artistic quality."}
+            "interpretation": "Counts measure source-backed presence, not independent correctness or artistic quality. with_any_character_credit includes all recorded source-rights states; with_default_display_character_credit applies the default display policy; with_local_noncommercial_character_credit requires an explicit local non-commercial mode."}
 
 
 def main() -> None:
