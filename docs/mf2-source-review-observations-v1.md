@@ -54,3 +54,10 @@ upward and relevant ones downward; it is not an accuracy improvement and must
 not be promoted to product retrieval without source-aware relevance review.
 The reproducible local report and rankings are under
 `data/evaluation/external-prepared/mf2-source-diversity-dev-run1/`.
+
+For the two explicitly inspected supporting spans above, an exact source-offset
+diagnostic puts `mf2:7:1:b` at rank 6 before and rank 2 after interleaving;
+`mf2:4:2:b` remains at rank 2. This is **two selected examples**, not a recall
+estimate. These spans were reviewed after seeing baseline rankings and are not
+independent or exhaustive. Exact visibility is not evidence of entailment for
+other claims, and does not determine the truth of a film-level statement.
