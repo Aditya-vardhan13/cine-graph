@@ -764,3 +764,27 @@ it requires an explicit local `CINEGRAPH_AUDIT_DSN` and starts a database
 read-only transaction. Its results are a snapshot of the catalog at run time.
 Future corpus expansion needs more suitable cleared sources, not a claim that
 this benchmark alone supplies 1,219 additional film records.
+
+### Existing passage check for the eight identity candidates
+
+`scripts/audit_external_passage_overlap.py` subsequently compared the eight
+exact-QID candidates with the current `narrative_passages` projection in a
+read-only catalog transaction. Six had no records in that projection; this
+does **not** prove that they have no older `narrative_documents` or other
+catalog information. Two had existing plot passages:
+
+- `3 Deewarein`: 11 existing narrative passages;
+  one plot-snapshot comparison shared 92.9% of unique five-word candidate
+  shingles with the existing plot text.
+- `The Music Room` / `Jalsaghar`: 16 existing narrative passages; one plot
+  comparison shared 0% of unique five-word candidate shingles. This is a
+  candidate for source review, not proof that the synopsis is novel or correct.
+
+The script groups plot passages by retained snapshot and reports source URL,
+revision and licence; detailed indicators remain local under
+`data/evaluation/external-prepared/semeval-passage-overlap-v1.json`. Five-word
+overlap is a lexical screening heuristic: it cannot establish semantic
+equivalence, authorship, licence compliance or suitability for users. The
+benchmark snapshot does not itself establish a specific Wikipedia revision for
+each summary; source attribution and identity review remain prerequisites to
+any product-facing use. No database records were inserted or updated.
