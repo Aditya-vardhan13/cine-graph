@@ -842,3 +842,20 @@ These examples support broader review; they do not establish v3 correctness,
 authorize live promotion, or prove better question answering. Review chunk
 boundaries and attribution as well as restored words before building a new
 index, and test retrieval with writer questions independently.
+
+The follow-up `wikipedia-parser-delta-v2` audit checks section text independently
+of chunk boundaries. It strips whitespace and asks whether v2 characters occur
+in order in v3; this is a conservative diagnostic, not a proof of completeness.
+It processed 1,000 films without errors and flagged six lead sections. Inspection
+of those six showed stray apostrophes in the older extraction replaced by
+restored film titles, rather than an apparent loss of narrative prose. The local
+report SHA-256 is
+`036bde0e3be7e19486dd7711efcea34f68cf3fe628ce3c35a74a7790786de294`.
+
+Another promotion gate is necessary: `current_passage_rows` filters to the
+newest source snapshot but does not select an extraction version within that
+snapshot. Adding v3 beside existing passages could therefore return multiple
+parser versions on that read path. Define and test an explicit per-source
+version-selection policy before writing v3 into the working corpus; do not
+automatically make the numerically newest parser authoritative. The audit above
+has not written or published any passages.

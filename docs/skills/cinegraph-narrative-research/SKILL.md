@@ -25,6 +25,10 @@ dataset audit and experiment plan. Paths are relative to the CineGraph root.
 - Preserve captures unchanged, hash every derivative, retain exact source
   locators/offsets, and fail rather than silently discard malformed content.
   Untimed subtitle blocks stay untimed; never invent character speakers.
+- Rechunking can move text even when section/ordinal keys still match. Compare
+  section-level text and inspect flagged changes before parser promotion.
+  Existing `current_passage_rows` does not select between parser versions on
+  one snapshot; resolve and test that policy before adding another live set.
 - Report split overlap at both text and source-work identity levels. Official
   split names and multiple task tracks do not establish independent examples.
   Do not tune on heldout labels, reuse known test questions as training, or
