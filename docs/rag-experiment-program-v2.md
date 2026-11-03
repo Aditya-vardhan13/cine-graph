@@ -823,3 +823,22 @@ collection comparison should be reviewed for diverse changed examples,
 including languages, section types and unusual templates, before choosing a
 version for any product-facing extraction. Continue to preserve the benchmark
 holdout and source identity boundaries described above.
+
+The full read-only run completed on 1,000 films: 928 had identical locator-key
+content, 72 had differences, and no snapshots failed processing. Across those
+72 films there were 154 changed shared keys, no old-only keys and two new-only
+keys. These counts describe v2-versus-v3 outputs, not comparisons with the
+live v1 parser. The local report is
+`data/evaluation/external-prepared/parser-delta-all-v1.json` (SHA-256
+`277bc0931a31cb2ab45aeae804dde8677e4c6b76264e1fc5642069eb8cba51d7`).
+
+Direct inspection of four changed films found useful restorations: a missing
+film title in *Taare Zameen Par*, a rank and a production term in *Come and
+See*, character and original-language terms in *M*, and the bunker name in
+*Downfall*. But an *M* production passage also shifted a substantial paragraph
+to the next chunk after restored text changed the chunk boundary. Consequently,
+even a shared locator and ordinal does not guarantee the same passage span.
+These examples support broader review; they do not establish v3 correctness,
+authorize live promotion, or prove better question answering. Review chunk
+boundaries and attribution as well as restored words before building a new
+index, and test retrieval with writer questions independently.
