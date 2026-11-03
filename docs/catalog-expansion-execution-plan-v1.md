@@ -43,15 +43,17 @@ Two distinctions govern the work:
 
 The local readiness report covers 2,586 records. In the frozen first-100
 selection from `imdb_top_1000.csv`, 77 rows match catalog title and year
-exactly; 23 are unique IMDb-ID crosslinks still marked `review_required` (not
-approved identity merges). All 100 have resolved director, cast, writer and
+exactly; 23 are unique IMDb-ID crosslinks. A later SHA-256-bound decision
+artifact accepts their same-work mapping for **pilot-list membership only**;
+the frozen manifest and operational identity records remain `review_required`
+and are not merged. All 100 have resolved director, cast, writer and
 release-event-year assertions and nonzero stored embedding vectors; 99 have a
 plot passage. Field-level coverage is uneven:
 
 | Pilot coverage indicator | Films / 100 | Meaning |
 | --- | ---: | --- |
 | Exact title + year match | 77 | Candidate match, not full identity review |
-| Unique IMDb-ID crosslink needing review | 23 | Provenance audited; still not approved |
+| Unique IMDb-ID crosslink | 23 | Accepted for pilot membership only; not merged and not content approval |
 | Resolved director / cast / writer assertion | 100 / 100 / 100 | Presence only; not complete-credit accuracy |
 | Release-event year / legacy profile release date | 100 / 19 | Event year exists; old profile date mostly empty |
 | Runtime in legacy profile field | 19 | High-priority projection/presentation gap |
@@ -136,8 +138,9 @@ Search the current catalog before creating anything. Rank identity candidates
 using external-ID agreement, title/alias, release event, language, work type,
 region and corroboration. Show reasons to a reviewer; candidate scores are not
 proof. Conflicting IDs, same-title ambiguity, one-to-many results and year
-mismatches require review. The 23 existing IMDb crosslinks are evidence to
-inspect, not automatic merges.
+mismatches require review. The 23 existing IMDb crosslinks have a recorded
+pilot-membership disposition, but remain review-required for any operational
+identity merge or field use.
 
 ### 5.2 Policy-gated capture
 
@@ -221,12 +224,13 @@ has not been mutated.
 
 ### Phase 1 — settle identity and response contract
 
-Record an explicit disposition for each of the 23 crosslinks; unresolved ones
-stay flagged. Trace empty legacy release-date/runtime fields to their sourced
-assertions/events and define an evidence-backed projection. Inspect character
-assertions and API serialization; distinguish source-missing from presentation
-failure. Specify batch API, source policy, review state and report fields
-additively, reusing existing schema where possible.
+Pilot-membership dispositions for all 23 crosslinks are recorded separately
+from the immutable candidate manifest; any unresolved or non-pilot identity
+use stays flagged. Trace empty legacy release-date/runtime fields to their
+sourced assertions/events and define an evidence-backed projection. Inspect
+character assertions and API serialization; distinguish source-missing from
+presentation failure. Specify batch API, source policy, review state and
+report fields additively, reusing existing schema where possible.
 
 **Exit:** all pilot identities have explicit states; release and credit UI
 fields either show sourced values with attribution or exact missing status;
@@ -384,10 +388,10 @@ quality, deploy, or provision for 100,000 films.
   pinned `mwparserfromhell` package; the project-local vendor fallback was
   used for offline unit collection. No working-corpus records were changed by
   tests.
-- Still pending: record dispositions for all 23 identities; audit which
-  metadata conflicts are genuinely alternate release events versus bad old
-  projections; source eligible character credits; complete a full source-
-  policy-aware intake review; and run the frozen writer-question evaluation
+- At this checkpoint, still pending: record dispositions for all 23 identities;
+  audit which metadata conflicts are genuinely alternate release events
+  versus bad old projections; source-eligible character credits; complete a
+  source-policy-aware intake review; and run the frozen writer-question evaluation
   after enrichment. This checkpoint is not Phase 1 or Phase 3 completion.
 
 ### Follow-up implementation — preserve release-event scope
@@ -414,8 +418,31 @@ quality, deploy, or provision for 100,000 films.
   passed using the installed Chrome, and the Next.js production build passed.
   The local working-catalog inspection used a read-only transaction; no
   working corpus rows were modified.
-- Still pending for Phase 1: produce explicit dispositions for the 23 pilot
-  identity candidates; review all pilot release-date/event mappings rather
-  than extrapolating from this example; determine whether eligible
+- Still pending for Phase 1: review all pilot release-date/event mappings
+  rather than extrapolating from this example; determine whether eligible
   actor-to-character evidence is absent or only missing from the main profile;
   and audit source/parser selection before any batch ingestion.
+
+### Follow-up — pilot crosslinks receive a selection-only disposition
+
+- A deterministic, local adjudication command now binds the frozen top-100
+  manifest, its IMDb title/year review, and the separately captured Wikidata
+  P345 evidence by content hash. It fails closed unless each crosslink maps to
+  exactly one catalog film/QID, has a unique title/year resolver candidate
+  scoring at least 0.80, and has a resolved, attributed matching P345
+  assertion.
+- All 23 candidates meet that bar for **pilot list membership**. The weakest
+  is `Sunset Blvd.` / `Sunset Boulevard` at 0.8148; the normalized abbreviation
+  is recorded rather than represented as literal title equality. The other 22
+  score at least 0.9.
+- The frozen manifest is not edited. Each underlying `review_required`
+  identity state remains so for any operational merge or field reuse. The
+  local ignored report `catalog-pilot-identity-decisions-v1.json` records the
+  limited scope and hashes; IMDb dataset fields remain non-commercial and are
+  not authorized for product display.
+- Three pure-policy tests cover positive, missing-P345 and weak/mismatched
+  title-year evidence. Targeted suite: 11 passed. The command produced 23/23
+  decisions without database reads or writes.
+- Phase 1 remains incomplete: the 100-film release-date/runtime and
+  source-eligible credit audits, plus the intake vertical slice, are still
+  required before enrichment.

@@ -316,8 +316,11 @@ character mapping, plot, production/craft, reception/theme/legacy, rights,
 passage eligibility and indexing. Stratify human review across source types,
 languages, title-match types, sparse/rich pages and parser warnings.
 
-**Pass:** all 100 have a documented identity disposition; no source is
-published outside its allowed use; source/field coverage is reproducible;
+**Pass:** all 100 have a documented selection-to-catalog mapping and explicit
+identity state. The 23 crosslink decisions are pilot-membership-only; any
+operational identity merge or product field reuse requires its own evidence and
+review. No source is published outside its allowed use; source/field coverage
+is reproducible;
 sampled facts and passages match the retained source; missing values are
 honestly shown. Track eligible, blocked and review-needed counts separately.
 
@@ -415,9 +418,11 @@ before it is scaled.
 
 1. Keep the newly prepared SemEval/MF² artifacts isolated; use them to validate
    benchmark preparation and future retrieval/generation diagnostics only.
-2. Complete the already-started Phase 1 audit: disposition the 100-film
-   identity candidates, reconcile legacy dates/runtime, and audit eligible
-   actor-to-character assertions against what the API/UI actually displays.
+2. Complete the already-started Phase 1 audit: verify all 100 frozen
+   selection-to-catalog mappings (the 23 crosslinks now have a
+   pilot-membership-only disposition), reconcile legacy dates/runtime, and
+   audit eligible actor-to-character assertions against what the API/UI
+   actually displays.
 3. Produce a read-only gap list for the frozen ten-film slice and 100-film
    pilot, including explicit source/rights policy and missing fields.
 4. Exercise the admin intake vertical slice in the isolated test stack; fix

@@ -3,7 +3,9 @@ import json
 
 import pytest
 
-from app.services.catalog_pilot_manifest import validate_pilot_manifest
+from app.services.catalog_pilot_manifest import (
+    adjudicate_pilot_crosslinks, validate_pilot_manifest,
+)
 
 
 def make_artifacts():
@@ -81,3 +83,77 @@ def test_manifest_rejects_count_or_title_drift():
     pilot, csv_bytes, readiness_bytes, review_bytes = make_artifacts()
     with pytest.raises(ValueError, match="exactly 100 rows"):
         validate_pilot_manifest(pilot, csv_bytes, readiness_bytes, review_bytes, expected_count=100)
+
+
+def crosslink_adjudication_artifacts():
+    pilot = {"version": "catalog-pilot-top100-v5", "imdb_review_sha256": "",
+             "films": [{"selection_rank": 1, "input_title": "Example (original title)",
+                        "input_year": 2001, "match_status": "review_required_unique_imdb_crosslink",
+                        "catalog_candidates": [{"film_id": "film-1", "title": "Example",
+                                                "wikidata_id": "Q123", "imdb_id": "tt0000001",
+                                                "review_required": True}]}]}
+    pilot_bytes = json.dumps(pilot, separators=(",", ":")).encode()
+    review = {"candidates": [{"selection_rank": 1, "imdb_candidates": [{
+        "tconst": "tt0000001", "title": "Example (original title)", "year": 2001,
+        "score": 1.0, "title_year_match": True,
+        "catalog_identity_candidates": [{"film_id": "film-1", "title": "Example", "wikidata_id": "Q123"}],
+    }]}]}
+    review_bytes = json.dumps(review, separators=(",", ":")).encode()
+    pilot["imdb_review_sha256"] = hashlib.sha256(review_bytes).hexdigest()
+    pilot_bytes = json.dumps(pilot, separators=(",", ":")).encode()
+    evidence = {"pilot_sha256": hashlib.sha256(pilot_bytes).hexdigest(), "crosslinks": 1,
+                "candidates": [{"selection_rank": 1, "input_title": "Example (original title)",
+                    "input_year": 2001, "film_id": "film-1", "catalog_title": "Example",
+                    "wikidata_id": "Q123", "imdb_id": "tt0000001",
+                    "evidence_status": "resolved_wikidata_p345", "evidence": [{
+                        "assertion_id": "assertion-1", "source_assertion_id": "source-assertion-1",
+                        "source_revision": "12345", "source": "Wikidata",
+                        "source_property": "P345", "raw_value_matches": True,
+                        "review_status": "resolved", "license": "CC0 1.0",
+                        "attributed": True, "source_url": "https://www.wikidata.org/wiki/Q123",
+                    }]}]}
+    evidence_bytes = json.dumps(evidence, separators=(",", ":")).encode()
+    return pilot, pilot_bytes, review, review_bytes, evidence, evidence_bytes
+
+
+def test_crosslink_decisions_are_explicitly_limited_to_pilot_membership():
+    artifacts = crosslink_adjudication_artifacts()
+    result = adjudicate_pilot_crosslinks(*artifacts)
+    decision = result["decisions"][0]
+    assert result["decision_count"] == 1
+    assert decision["decision"] == "accepted_same_work_for_pilot_membership_only"
+    assert decision["operational_identity_merged"] is False
+    assert decision["source_fields_authorized_for_product"] is False
+    assert "no catalog identity merge" in result["scope"]
+
+
+def test_crosslink_adjudication_fails_closed_without_matching_p345_evidence():
+    artifacts = list(crosslink_adjudication_artifacts())
+    artifacts[4]["candidates"][0]["evidence"] = []
+    artifacts[5] = json.dumps(artifacts[4], separators=(",", ":")).encode()
+    with pytest.raises(ValueError, match="no eligible, matching P345"):
+        adjudicate_pilot_crosslinks(*artifacts)
+
+
+def test_crosslink_adjudication_requires_matching_title_and_year():
+    artifacts = list(crosslink_adjudication_artifacts())
+    artifacts[2]["candidates"][0]["imdb_candidates"][0]["year"] = 2002
+    artifacts[3] = json.dumps(artifacts[2], separators=(",", ":")).encode()
+    artifacts[0]["imdb_review_sha256"] = hashlib.sha256(artifacts[3]).hexdigest()
+    artifacts[1] = json.dumps(artifacts[0], separators=(",", ":")).encode()
+    artifacts[4]["pilot_sha256"] = hashlib.sha256(artifacts[1]).hexdigest()
+    artifacts[5] = json.dumps(artifacts[4], separators=(",", ":")).encode()
+    with pytest.raises(ValueError, match="title/year IMDb candidate"):
+        adjudicate_pilot_crosslinks(*artifacts)
+
+
+def test_crosslink_adjudication_rejects_weak_title_match_even_with_id_link():
+    artifacts = list(crosslink_adjudication_artifacts())
+    artifacts[2]["candidates"][0]["imdb_candidates"][0]["score"] = 0.79
+    artifacts[3] = json.dumps(artifacts[2], separators=(",", ":")).encode()
+    artifacts[0]["imdb_review_sha256"] = hashlib.sha256(artifacts[3]).hexdigest()
+    artifacts[1] = json.dumps(artifacts[0], separators=(",", ":")).encode()
+    artifacts[4]["pilot_sha256"] = hashlib.sha256(artifacts[1]).hexdigest()
+    artifacts[5] = json.dumps(artifacts[4], separators=(",", ":")).encode()
+    with pytest.raises(ValueError, match="sufficiently strong"):
+        adjudicate_pilot_crosslinks(*artifacts)

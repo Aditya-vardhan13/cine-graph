@@ -504,9 +504,37 @@ readiness is asserted until the baseline and source constraints are measured.
 - No working-corpus rows or files outside the project were changed. The
   operational roadmap is in
   [catalog-expansion-execution-plan-v1.md](catalog-expansion-execution-plan-v1.md).
-- Next implementation step: reconcile the pilot's legacy profile date/runtime
-  fields with research assertions and exercise the existing local intake
-  pipeline on isolated test data before any batch enrichment.
+- At that checkpoint, next steps were to reconcile the pilot's legacy
+  profile date/runtime fields with research assertions, record crosslink
+  dispositions and exercise the local intake pipeline before batch enrichment.
+
+### Follow-up — explicit pilot crosslink dispositions
+
+- Added a pure, fail-closed adjudication policy and local CLI that bind the
+  frozen pilot, IMDb candidate-review artifact and Wikidata identity-evidence
+  artifact by SHA-256 before producing decisions. It requires one unique
+  catalog film/QID, one matching title/year candidate at score ≥ 0.80, and at
+  least one resolved, attributed Wikidata P345 assertion whose value matches
+  the candidate IMDb ID.
+- All 23 crosslinks pass and are accepted as the same work **for pilot-list
+  membership only**. The lowest resolver score is 0.8148 for `Sunset Blvd.` →
+  `Sunset Boulevard`; this is retained explicitly rather than described as an
+  exact title match. The other 22 score at least 0.9. The frozen candidate
+  manifest remains unchanged and still marks these links `review_required`;
+  this sidecar does not merge catalog entities or authorize IMDb field reuse.
+- The ignored local decision artifact is
+  `data/evaluation/catalog-pilot-identity-decisions-v1.json`; its input hashes,
+  evidence assertion IDs, decision scope and non-merge/non-reuse flags are
+  recorded. It is not committed because it contains local dataset-selection
+  identifiers and is reproducible from the pinned local artifacts.
+- Added three policy tests for valid narrow decisions, missing P345 evidence
+  and weak/mismatched title candidates. The targeted policy suite passes
+  11/11; the full non-integration backend suite passes 233/233; the end-to-end
+  command produced 23 decisions. No database rows or existing source
+  assertions were changed.
+- Remaining Phase 1 work: finish the pilot release-date/runtime review,
+  characterize the zero default-display actor-to-character coverage, and
+  verify the local intake process before any film data is published.
 
 ### Follow-up implementation — source-eligible research metadata
 
@@ -563,10 +591,10 @@ readiness is asserted until the baseline and source constraints are measured.
   browser flows including the release-event list; Next.js production build
   passed. Working-catalog inspection was read-only.
 - This is one resolved presentation case, not a complete release-event audit.
-  The 100-film legacy profile date/runtime audit and the 23 identity decisions
-  remain open; the separate source-eligible actor-to-character audit is
-  recorded below. The product is not yet ready for batch enrichment or a
-  writer-quality claim.
+  The 100-film legacy profile date/runtime audit and any operational identity
+  merges remain open; the selection-only dispositions for 23 crosslinks and
+  source-eligible actor-to-character audit are recorded below. The product is
+  not yet ready for batch enrichment or a writer-quality claim.
 
 ### Follow-up — character-credit coverage is rights-qualified
 
