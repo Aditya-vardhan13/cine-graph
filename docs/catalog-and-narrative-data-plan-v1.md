@@ -454,6 +454,16 @@ readiness is asserted until the baseline and source constraints are measured.
   title/year candidates and 23 that need identity review. No exact catalog
   alias/year matches were found for the remaining 23. The input CSV's order is
   retained; it is not represented as a current or authoritative ranking.
+- Follow-up identity review used the local IMDb title index, not the IMDb
+  website. All 23 romanized/alternate-title exceptions had an IMDb title/year
+  candidate whose `tconst` also appears on exactly one catalog film's resolved
+  IMDb identifier. The final local `catalog-pilot-top100-v5.json` therefore has
+  one candidate catalog record for each of 100 rows: 77 canonical exact
+  title/year matches and 23 **review-required** ID crosslinks. Examples include
+  `Gisaengchung` → `Parasite` and `Sen to Chihiro no kamikakushi` → `Spirited
+  Away`. The crosslinks are not merges or approval; inspect the linked source
+  assertions and movie identity before accepting them. The IMDb dataset is
+  non-commercial and these local artifacts remain ignored/uncommitted.
 - Updated `current_passage_rows` to choose only the approved extraction version
   for known source-parser adapters and to fail closed if an unknown adapter has
   multiple extraction versions. Added an integration fixture proving that an

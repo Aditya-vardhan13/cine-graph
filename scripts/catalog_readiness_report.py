@@ -56,6 +56,11 @@ def main():
                 release_years = sorted({match.group(1) for event in release_events
                     if isinstance(event, dict) and isinstance(event.get("time"), str)
                     for match in [re.match(r"^[+-]?(\d{4})", event["time"])] if match})
+                imdb_ids = sorted({value.get("value") for value in db.scalars(select(Assertion.value_json).where(
+                    Assertion.subject_entity_id == entity.id,
+                    Assertion.predicate == "imdb_identifier",
+                    Assertion.review_status == "resolved",
+                )) if isinstance(value, dict) and isinstance(value.get("value"), str)})
                 credits = list(db.execute(select(FilmCredit.role, func.count(),
                     func.count(FilmCredit.character_name)).where(
                     FilmCredit.film_id == film.id,
@@ -94,6 +99,7 @@ def main():
                     "title": film.canonical_title, "wikidata_id": film.wikidata_id,
                     "aliases": [{"value": alias.value, "language": alias.language_code}
                                 for alias in db.scalars(select(FilmAlias).where(FilmAlias.film_id == film.id))],
+                    "resolved_imdb_ids": imdb_ids,
                     "language": film.original_language_code, "country_codes": film.country_codes,
                     "release_date": film.release_date.isoformat() if film.release_date else None,
                     "release_years_from_resolved_events": release_years,
