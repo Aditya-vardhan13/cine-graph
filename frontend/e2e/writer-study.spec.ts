@@ -96,6 +96,7 @@ test("film profile opens the writer desk with that film selected", async ({ page
   await expect(page.getByText(/catalog date 2022-10-06 is a separately recorded release event/)).toBeVisible();
   await expect(page.locator(".film-hero .metadata")).toContainText("2008-07-18");
   await page.getByText("Recorded release events (2)").click();
+  await expect(page.getByText("2008-07-18 · day precision")).toBeVisible();
   await expect(page.getByRole("link", { name: "Place Q851" })).toHaveAttribute("href", "https://www.wikidata.org/wiki/Q851");
   await page.getByRole("link", { name: "Study this film as a writer" }).click();
   await expect(page).toHaveURL(/\/research\//);

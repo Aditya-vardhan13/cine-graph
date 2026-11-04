@@ -7,6 +7,12 @@ function sourceHost(url: string): string {
   catch { return "Source"; }
 }
 
+function releasePrecisionLabel(precision: number): string {
+  if (precision === 11) return "day precision";
+  if (precision === 10) return "month precision";
+  return "year precision";
+}
+
 export default async function FilmPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let film: FilmDetail;
@@ -40,7 +46,24 @@ export default async function FilmPage({ params }: { params: Promise<{ id: strin
     <Link href="/catalog" className="back">← Back to catalog</Link>
     <section className="film-hero">
       <div className="detail-poster"><span>{displayYear}</span><b>{film.title.slice(0, 1)}</b></div>
-      <div><p className="eyebrow">Film profile</p><h1>{film.title}</h1><p className="metadata">{research?.release_date || displayYear} <i>·</i> {displayRuntime ? `${displayRuntime} minutes` : research?.metadata_issues.includes("runtime_requires_version_or_value_resolution") ? "Runtime disputed by sources" : "Runtime unavailable"} <i>·</i> Original language: {displayLanguage.toUpperCase()}</p><div className="pills large">{displayGenres.map((genre) => <span key={genre}>{genre}</span>)}</div><p className="detail-intro">{research ? "Source-linked research metadata is shown where available; older catalog fields fill remaining gaps." : "This profile uses older catalog metadata; check provenance before relying on a field."} {releaseSource && <a href={releaseSource} target="_blank" rel="noopener noreferrer">Inspect release source ↗</a>}</p>{film.release_date_matches_recorded_event && research?.release_date && year(film.release_date) !== String(research.release_year) && <p className="release-event-note">The catalog date {film.release_date} is a separately recorded release event; the earliest recorded release is {research.release_date}. See the sourced events below.</p>}{film.release_year_conflict && <p className="release-conflict">The catalog date {year(film.release_date)} does not match a dated event in the eligible research sources. The earliest recorded release is {film.research_release_year}; inspect both sources before relying on either value.</p>}{!film.research_release_year && film.release_date && <p className="release-caveat">Release year shown from the legacy profile; not yet cross-checked in the writer collection.</p>}{releaseEvents.length > 0 && <details className="release-events"><summary>Recorded release events ({releaseEvents.length})</summary><ul>{releaseEvents.map((event) => <li key={event.assertion_id}><span>{event.date || event.year}{event.place_ids.length > 0 && <> · {event.place_ids.map((placeId, index) => <span key={placeId}>{index > 0 ? ", " : ""}<a href={`https://www.wikidata.org/wiki/${placeId}`} target="_blank" rel="noopener noreferrer">Place {placeId}</a></span>)}</>}</span><small>{event.source_name || sourceHost(event.source_url)} · {event.source_license || "License not recorded"} · {event.source_rights_status || "rights not classified"} · <a href={event.source_url} target="_blank" rel="noopener noreferrer">source ↗</a></small></li>)}</ul></details>}{film.research_available && film.entity_id ? <Link className="detail-study-link" href={`/research/${film.entity_id}`}>Study this film as a writer ↗</Link> : <p className="detail-research-unavailable">Writer comparison is not yet available for this catalog title.</p>}</div>
+      <div>
+        <p className="eyebrow">Film profile</p>
+        <h1>{film.title}</h1>
+        <p className="metadata">{research?.release_date || displayYear} <i>·</i> {displayRuntime ? `${displayRuntime} minutes` : research?.metadata_issues.includes("runtime_requires_version_or_value_resolution") ? "Runtime disputed by sources" : "Runtime unavailable"} <i>·</i> Original language: {displayLanguage.toUpperCase()}</p>
+        <div className="pills large">{displayGenres.map((genre) => <span key={genre}>{genre}</span>)}</div>
+        <p className="detail-intro">{research ? "Source-linked research metadata is shown where available; older catalog fields fill remaining gaps." : "This profile uses older catalog metadata; check provenance before relying on a field."} {releaseSource && <a href={releaseSource} target="_blank" rel="noopener noreferrer">Inspect release source ↗</a>}</p>
+        {film.release_date_matches_recorded_event && research?.release_date && year(film.release_date) !== String(research.release_year) && <p className="release-event-note">The catalog date {film.release_date} is a separately recorded release event; the earliest recorded release is {research.release_date}. See the sourced events below.</p>}
+        {film.release_year_conflict && <p className="release-conflict">The catalog date {year(film.release_date)} does not match a dated event in the eligible research sources. The earliest recorded release is {film.research_release_year}; inspect both sources before relying on either value.</p>}
+        {!film.research_release_year && film.release_date && <p className="release-caveat">Release year shown from the legacy profile; not yet cross-checked in the writer collection.</p>}
+        {releaseEvents.length > 0 && <details className="release-events">
+          <summary>Recorded release events ({releaseEvents.length})</summary>
+          <ul>{releaseEvents.map((event) => <li key={event.assertion_id}>
+            <span>{event.date || event.year} · {releasePrecisionLabel(event.precision)}{event.place_ids.length > 0 && <> · {event.place_ids.map((placeId, index) => <span key={placeId}>{index > 0 ? ", " : ""}<a href={`https://www.wikidata.org/wiki/${placeId}`} target="_blank" rel="noopener noreferrer">Place {placeId}</a></span>)}</>}</span>
+            <small>{event.source_name || sourceHost(event.source_url)} · {event.source_license || "License not recorded"} · {event.source_rights_status || "rights not classified"} · <a href={event.source_url} target="_blank" rel="noopener noreferrer">source ↗</a></small>
+          </li>)}</ul>
+        </details>}
+        {film.research_available && film.entity_id ? <Link className="detail-study-link" href={`/research/${film.entity_id}`}>Study this film as a writer ↗</Link> : <p className="detail-research-unavailable">Writer comparison is not yet available for this catalog title.</p>}
+      </div>
     </section>
 
     <section className="detail-grid">

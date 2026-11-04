@@ -631,3 +631,35 @@ readiness is asserted until the baseline and source constraints are measured.
   expose the existing IMDb/TMDb-only rows by toggling a product setting until
   intended-use rights are established. Continue the remaining pilot identity
   and release-date/runtime audit before batch enrichment.
+
+### Follow-up — release-date precision remains visible
+
+- The research release-event projection now carries the original Wikidata
+  time precision through the API, and the film profile labels events as
+  year-, month-, or day-precision instead of making a year-only assertion
+  look like a complete date.
+- The projection accepts only calendar year/month/day precision. Sub-day
+  precision is excluded rather than silently truncated into a date; the
+  original source assertion remains untouched for future policy changes.
+- Added pure tests for year/day precision, response-model preservation and
+  rejection of sub-day values. Focused backend tests pass (8/8), and the
+  frontend production build passes. API/PostgreSQL and browser integration
+  verification is still pending because Docker is unavailable in this session.
+- No working-corpus records, source snapshots, passages or vectors changed.
+  The full 100-film release-event/runtime review remains open; this change
+  improves precision fidelity but does not certify the underlying dates.
+
+### Follow-up — pilot date/runtime audit tooling
+
+- Added a write-once, read-only report command for the frozen 100-film
+  manifest. For every candidate film it compares legacy profile date/runtime
+  with the same rights-filtered research projection used by the API and
+  includes underlying release/runtime assertions with source, rights,
+  revision, qualifiers and review state. Distinct statuses explain matches,
+  territory-qualified later events, year-only evidence, conflicts, restricted
+  sources and missing evidence.
+- Pure tests cover the classifier cases (5), and combined with research
+  metadata tests the focused run passes 13/13. The report was not run because
+  the local API and PostgreSQL stack are not listening and Docker access is
+  denied in this session. No database rows or source data were modified; the
+  pilot-wide audit is still pending.

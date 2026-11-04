@@ -111,6 +111,7 @@ class ResearchReleaseEventOut(BaseModel):
     assertion_id: str
     year: int
     date: date | None
+    precision: Literal[9, 10, 11]
     place_ids: list[str]
     source_url: str
     source_revision: str | None

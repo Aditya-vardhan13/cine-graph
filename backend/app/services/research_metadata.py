@@ -53,7 +53,7 @@ def display_metadata(
         raw = str(value.get("time", ""))
         match = re.fullmatch(r"\+?(\d{4})-(\d{2})-(\d{2})T00:00:00Z", raw)
         precision = value.get("precision")
-        if (not match or not isinstance(precision, int) or precision < 9
+        if (not match or not isinstance(precision, int) or precision not in {9, 10, 11}
                 or value.get("calendar_model") != "Q1985727"
                 or value.get("before") or value.get("after")):
             issues.add("release_value_not_displayable")
@@ -62,7 +62,7 @@ def display_metadata(
         if not 1 <= year <= 9999:
             continue
         try:
-            exact = date(year, month, day) if precision >= 11 else None
+            exact = date(year, month, day) if precision == 11 else None
         except ValueError:
             issues.add("release_value_not_displayable")
             continue
@@ -79,6 +79,7 @@ def display_metadata(
             "assertion_id": item.assertion_id,
             "year": year,
             "date": exact.isoformat() if exact else None,
+            "precision": precision,
             "place_ids": place_ids,
             "source_url": item.source_url,
             "source_revision": item.source_revision,

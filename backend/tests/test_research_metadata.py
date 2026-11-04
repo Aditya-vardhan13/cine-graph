@@ -1,5 +1,6 @@
 from dataclasses import replace
 
+from app.schemas import ResearchReleaseEventOut
 from app.services.research_metadata import MetadataAssertion, display_metadata
 
 
@@ -36,12 +37,29 @@ def test_all_release_events_keep_their_place_and_source_context():
     ]
     assert result["release_events"][1]["place_ids"] == ["Q851"]
     assert result["release_events"][1]["assertion_id"] == "later-release"
+    assert result["release_events"][0]["precision"] == 11
 
 
 def test_year_precision_does_not_invent_a_day():
     result = display_metadata([release("+2005-00-00T00:00:00Z", 9), release("+2005-11-18T00:00:00Z")], genre_labels={})
     assert result["release_year"] == 2005
     assert result["release_date"] is None
+    assert [event["precision"] for event in result["release_events"]] == [9, 11]
+
+
+def test_unsupported_subday_precision_is_not_truncated_to_a_date():
+    result = display_metadata([release("+2005-11-18T00:00:00Z", 12)], genre_labels={})
+    assert result["release_events"] == ()
+    assert "release_value_not_displayable" in result["metadata_issues"]
+
+
+def test_release_event_response_preserves_year_precision_and_provenance():
+    event = display_metadata([release("+2005-00-00T00:00:00Z", 9)], genre_labels={})["release_events"][0]
+    response = ResearchReleaseEventOut(**event)
+    assert response.year == 2005
+    assert response.date is None
+    assert response.precision == 9
+    assert response.source_revision == "123"
 
 
 def test_unreviewed_deprecated_and_unsourced_values_are_not_displayed():

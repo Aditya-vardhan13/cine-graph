@@ -112,7 +112,7 @@ export type ResearchFilm = {
     source_name: string | null; source_rights_status: string | null; source_license: string | null;
   }>>;
   release_events: Array<{
-    assertion_id: string; year: number; date: string | null; place_ids: string[]; source_url: string;
+    assertion_id: string; year: number; date: string | null; precision: 9 | 10 | 11; place_ids: string[]; source_url: string;
     source_revision: string | null; review_status: string; source_name: string | null;
     source_rights_status: string | null; source_license: string | null;
   }>;

@@ -120,6 +120,7 @@ def test_search_detail_comparison_and_lineage_return_evidence_backed_contracts()
     assert research_profile.json()["film_id"] == knight_id
     release_events = research_profile.json()["release_events"]
     assert [event["date"] for event in release_events] == ["2008-07-18", "2022-10-06"]
+    assert [event["precision"] for event in release_events] == [11, 11]
     assert release_events[1]["place_ids"] == ["Q851"]
     assert api_get(f"/api/v1/research/films/{uuid4()}").status_code == 404
 

@@ -328,8 +328,9 @@ scores alone do not prove creative value or willingness to pay.
 2. Add compact, per-film output for character mapping and source-use
    eligibility; current aggregate counts are insufficient for review.
 3. Trace why only 19/100 legacy profile dates and runtimes are populated while
-   all 100 have release-event years; define the sourced projection before
-   backfill.
+   all 100 have release-event years; run
+   `scripts/audit_pilot_metadata_projection.py` to compare each legacy value
+   against eligible release events/runtime assertions before any backfill.
 4. Audit the actor-character evidence and UI path to separate absent source
    data from API/display defects.
 5. Complete one policy-approved, resumable ingestion vertical slice, then test
@@ -446,3 +447,33 @@ quality, deploy, or provision for 100,000 films.
 - Phase 1 remains incomplete: the 100-film release-date/runtime and
   source-eligible credit audits, plus the intake vertical slice, are still
   required before enrichment.
+
+### Follow-up — release precision contract
+
+- Research release events now retain source precision in the API. The film
+  profile distinguishes year-, month- and day-precision values; unsupported
+  sub-day values are not collapsed into a date by the display projection.
+- Verification: 8 focused backend policy/response tests and the Next.js
+  production build pass. API integration and browser assertions were added,
+  but could not be executed because this session cannot connect to Docker.
+  No working-corpus data was changed. This does not close the pilot-wide
+  release-event audit.
+
+### Follow-up — reproducible pilot metadata projection audit
+
+- Added `scripts/audit_pilot_metadata_projection.py` and pure classifications
+  for each legacy release date/runtime against the rights-filtered research
+  read model. The report preserves event territory, exact source assertion
+  values, source rights/license, and review state; it distinguishes a valid
+  later-territory event from an earliest-event match, a year-only match, and a
+  true year disagreement. Runtime outcomes separate projection omissions,
+  conflicting/ambiguous eligible evidence, local-only evidence and no source
+  value.
+- The command enforces a 100-film/unique-ID manifest, local `cinegraph` DB,
+  read-only transaction, local-only `data/evaluation` input/output and
+  write-once report. It writes no corpus data and does not promote assertions.
+- Verification: five focused pure audit tests and eight research-metadata
+  tests pass (13 total); Python compilation and `git diff --check` pass.
+  The report itself has not yet been generated: Docker/PostgreSQL is not
+  reachable in this session. Therefore the 100-film statuses remain unknown,
+  not inferred from aggregate counts.
