@@ -484,5 +484,19 @@ quality, deploy, or provision for 100,000 films.
   qualified values and 1 restricted-only source value.
 - This is not an independent fact-check. Keep date/event scope and runtime
   edition ambiguity explicit; do not mass-backfill `Film` fields from counts.
-  Next gate is API/browser verification against isolated `cinegraph_test`, then
-  per-film resolution of the 17 runtime ambiguities and the date exception.
+  API/browser verification against isolated `cinegraph_test` now passes; next
+  gate is per-film resolution of the 17 runtime ambiguities and the date exception.
+
+### Follow-up — isolated writer-flow fixture and browser verification
+
+- Playwright initially exposed that the test seeder created narrative passages
+  but had not prepared their versioned evidence chunks; the API correctly
+  returned 422/503 without an active preprocessing run. The seeder now invokes
+  the real local chunker and verifies its four eligible passages. It creates
+  no vectors and calls no outside source.
+- Added API coverage for the frontend's default hybrid request without an
+  explicit method override and its lexical fallback. Verification: 71
+  PostgreSQL/API integration tests passed against `cinegraph_test`; all 7
+  Playwright flows passed, including release precision and territory evidence.
+- This closes the local browser-contract gate only. It does not resolve the
+  per-film date/runtime ambiguities or certify source facts.

@@ -305,6 +305,33 @@ def test_story_comparison_returns_two_sided_attributable_evidence() -> None:
     assert all(lens["writer_prompt"] for lens in payload["lenses"])
 
 
+def test_default_story_comparison_contract_works_without_embedding_index() -> None:
+    begins = api_get("/api/v1/research/films?q=batman%20begins&limit=1").json()[0]
+    knight = api_get("/api/v1/research/films?q=dark%20knight&limit=1").json()[0]
+    response = httpx.post(
+        f"{API_URL}/api/v1/comparisons/story",
+        json={
+            "first_entity_id": begins["entity_id"],
+            "second_entity_id": knight["entity_id"],
+            "question": "How does becoming a public symbol change Batman's moral choices?",
+        },
+        timeout=15.0,
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["requested_method"] == "hybrid"
+    assert payload["answerability_status"] == "candidate_evidence"
+    assert payload["lenses"]
+    paired = [lens for lens in payload["lenses"] if lens["first_evidence"] and lens["second_evidence"]]
+    assert paired
+    assert paired[0]["first_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/Batman_Begins"
+    assert paired[0]["second_evidence"]["source_url"] == "https://en.wikipedia.org/wiki/The_Dark_Knight"
+    if payload["degraded"]:
+        assert payload["retrieval_method"] == "lexical"
+        assert payload["fallback_reason"]
+
+
 def test_story_brief_rejects_cross_film_chunks_before_model_io() -> None:
     with Session(create_engine(DATABASE_URL)) as db:
         build_evidence_chunks(db, collection_code="integration-narrative-v1")

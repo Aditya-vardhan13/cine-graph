@@ -29,6 +29,7 @@ from app.models import (
     SourceObject,
     SourceSnapshot,
 )
+from app.services.evidence_preprocessing import build_evidence_chunks
 
 
 def require_test_database() -> None:
@@ -253,6 +254,14 @@ def seed() -> None:
             ),
         ])
         db.commit()
+
+    # The browser/API fixture should exercise the usable evidence path, not
+    # merely source passages. Keep this preprocessing local and deterministic;
+    # it creates no model vectors and calls no external service.
+    with SessionLocal() as db:
+        report = build_evidence_chunks(db, collection_code="integration-narrative-v1")
+    if report["passages_requested"] != 4 or report["passages_eligible"] != 4:
+        raise RuntimeError(f"Integration narrative fixture failed preprocessing: {report}")
 
 
 if __name__ == "__main__":

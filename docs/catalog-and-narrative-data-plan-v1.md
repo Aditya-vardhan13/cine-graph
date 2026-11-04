@@ -690,24 +690,20 @@ retain source revision, rights/license, qualifiers and review status.
 
 Next steps are ordered to avoid scaling bad records:
 
-1. Add/run browser assertions for release precision, alternate territory
-   events and missing/conflicted runtime states; API/PostgreSQL integration
-   already passes in the isolated `cinegraph_test` stack. Keep browser checks
-   pointed at the isolated stack and never mutate the working corpus.
-2. Resolve the 17 runtime-ambiguous films and one date exception by inspecting
+1. Resolve the 17 runtime-ambiguous films and one date exception by inspecting
    source assertions and version/territory qualifiers. If evidence does not
    establish one display value, keep the field explicitly unresolved.
-3. Add source-specific intake adapters only after recording terms, license,
+2. Add source-specific intake adapters only after recording terms, license,
    rate/access policy, attribution and fields supplied. Dataset admission is
    field-level: useful structured metadata may enter its own provenance lane,
    but does not grant rights to unrelated plot/review text bundled with it.
-4. Exercise one full title-to-evidence vertical slice on a small stratified
+3. Exercise one full title-to-evidence vertical slice on a small stratified
    batch: disambiguate identity; snapshot authorized sources; extract typed
    assertions and sectioned passages; validate identity, rights, checksum and
    coverage; review; index eligible passages; retrieve cited evidence. Keep
    every stage resumable and idempotent, and publish gaps rather than silently
    filling them.
-5. Only then enrich the 100-film pilot, compare per-film coverage against the
+4. Only then enrich the 100-film pilot, compare per-film coverage against the
    frozen baseline, and expand to 1,000 in checkpointed batches. Do not claim
    a 1,000-film-ready corpus from the size of a source dataset alone.
 
@@ -716,3 +712,23 @@ dataset must pass identity-link, field-definition, license/attribution,
 provenance, duplicate, conflict, coverage and sample-quality checks before it
 is eligible for batch ingestion; raw payloads, snapshots and derived vectors
 remain local and out of Git.
+
+### Follow-up — browser contract exposed and fixed an incomplete test fixture
+
+- The first Playwright run passed the film-profile release-date event but
+  failed 4/7 flows: comparison returned 422 and single-film passages returned
+  503. The isolated seeder had created source passages but no completed
+  `EvidenceChunkRun`; both API routes correctly refused to serve an unprepared
+  collection. This was a test-fixture/preparation defect, not a reason to
+  weaken route behaviour or browser assertions.
+- The isolated seeder now runs the real versioned evidence chunker after
+  creating its retained passages, checks the expected four eligible fixture
+  passages, and still creates no embeddings or external requests. Added a real
+  PostgreSQL/API contract for the UI's default hybrid comparison request with
+  no retrieval-method override, including source-attributed two-sided evidence
+  and lexical fallback when semantic retrieval is unavailable.
+- Verification: 71 API/PostgreSQL integration tests passed in
+  `cinegraph_test`; all 7 Playwright flows passed against that same seeded
+  stack. No working-catalog rows, snapshots, passages or vectors were changed.
+  The projection audit's unresolved release/runtime source review remains the
+  next catalog-data gate.
