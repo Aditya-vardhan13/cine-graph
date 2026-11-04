@@ -329,8 +329,8 @@ scores alone do not prove creative value or willingness to pay.
    eligibility; current aggregate counts are insufficient for review.
 3. Trace why only 19/100 legacy profile dates and runtimes are populated while
    all 100 have release-event years; run
-   `scripts/audit_pilot_metadata_projection.py` to compare each legacy value
-   against eligible release events/runtime assertions before any backfill.
+   `backend/scripts/audit_pilot_metadata_projection.py` to compare each legacy
+   value against eligible release events/runtime assertions before any backfill.
 4. Audit the actor-character evidence and UI path to separate absent source
    data from API/display defects.
 5. Complete one policy-approved, resumable ingestion vertical slice, then test
@@ -444,8 +444,9 @@ quality, deploy, or provision for 100,000 films.
 - Three pure-policy tests cover positive, missing-P345 and weak/mismatched
   title-year evidence. Targeted suite: 11 passed. The command produced 23/23
   decisions without database reads or writes.
-- Phase 1 remains incomplete: the 100-film release-date/runtime and
-  source-eligible credit audits, plus the intake vertical slice, are still
+- Phase 1 remains incomplete: the read-only profile-to-source projection
+  audit now exists, but per-film release/runtime exceptions still need source
+  review; source-eligible credit review and the intake vertical slice are also
   required before enrichment.
 
 ### Follow-up — release precision contract
@@ -453,15 +454,14 @@ quality, deploy, or provision for 100,000 films.
 - Research release events now retain source precision in the API. The film
   profile distinguishes year-, month- and day-precision values; unsupported
   sub-day values are not collapsed into a date by the display projection.
-- Verification: 8 focused backend policy/response tests and the Next.js
-  production build pass. API integration and browser assertions were added,
-  but could not be executed because this session cannot connect to Docker.
-  No working-corpus data was changed. This does not close the pilot-wide
-  release-event audit.
+- Verification: 8 focused backend policy/response tests, 70 isolated API
+  integration tests against `cinegraph_test`, and the Next.js production build
+  pass. Browser assertions remain to be exercised. No working-corpus data was
+  changed. This does not close the pilot-wide release-event audit.
 
 ### Follow-up — reproducible pilot metadata projection audit
 
-- Added `scripts/audit_pilot_metadata_projection.py` and pure classifications
+- Added `backend/scripts/audit_pilot_metadata_projection.py` and pure classifications
   for each legacy release date/runtime against the rights-filtered research
   read model. The report preserves event territory, exact source assertion
   values, source rights/license, and review state; it distinguishes a valid
@@ -473,7 +473,16 @@ quality, deploy, or provision for 100,000 films.
   read-only transaction, local-only `data/evaluation` input/output and
   write-once report. It writes no corpus data and does not promote assertions.
 - Verification: five focused pure audit tests and eight research-metadata
-  tests pass (13 total); Python compilation and `git diff --check` pass.
-  The report itself has not yet been generated: Docker/PostgreSQL is not
-  reachable in this session. Therefore the 100-film statuses remain unknown,
-  not inferred from aggregate counts.
+  tests pass (13 total); Python compilation and `git diff --check` pass. The
+  report ran read-only against local `cinegraph`; its ignored JSON output is
+  `data/evaluation/catalog-pilot-metadata-audit-v1.json`.
+- Audit results: 81/100 legacy release dates are missing; the 19 populated
+  values map to 3 earliest exact events, 2 events at the earliest year with
+  ordering unknown, 13 other recorded territory events and 1 same-year value
+  without an exact event match. Runtime status is 17 exact legacy matches, 65
+  eligible values omitted from the legacy profile, 17 unresolved competing or
+  qualified values and 1 restricted-only source value.
+- This is not an independent fact-check. Keep date/event scope and runtime
+  edition ambiguity explicit; do not mass-backfill `Film` fields from counts.
+  Next gate is API/browser verification against isolated `cinegraph_test`, then
+  per-film resolution of the 17 runtime ambiguities and the date exception.

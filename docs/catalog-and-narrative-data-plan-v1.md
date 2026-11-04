@@ -642,16 +642,18 @@ readiness is asserted until the baseline and source constraints are measured.
   precision is excluded rather than silently truncated into a date; the
   original source assertion remains untouched for future policy changes.
 - Added pure tests for year/day precision, response-model preservation and
-  rejection of sub-day values. Focused backend tests pass (8/8), and the
-  frontend production build passes. API/PostgreSQL and browser integration
-  verification is still pending because Docker is unavailable in this session.
+  rejection of sub-day values. Focused backend tests pass (8/8), the frontend
+  production build passes, and the isolated API/PostgreSQL suite passes (70
+  tests against `cinegraph_test`). Browser verification remains a separate
+  gate.
 - No working-corpus records, source snapshots, passages or vectors changed.
   The full 100-film release-event/runtime review remains open; this change
   improves precision fidelity but does not certify the underlying dates.
 
 ### Follow-up — pilot date/runtime audit tooling
 
-- Added a write-once, read-only report command for the frozen 100-film
+- Added `backend/scripts/audit_pilot_metadata_projection.py`, a write-once,
+  read-only report command for the frozen 100-film
   manifest. For every candidate film it compares legacy profile date/runtime
   with the same rights-filtered research projection used by the API and
   includes underlying release/runtime assertions with source, rights,
@@ -659,7 +661,58 @@ readiness is asserted until the baseline and source constraints are measured.
   territory-qualified later events, year-only evidence, conflicts, restricted
   sources and missing evidence.
 - Pure tests cover the classifier cases (5), and combined with research
-  metadata tests the focused run passes 13/13. The report was not run because
-  the local API and PostgreSQL stack are not listening and Docker access is
-  denied in this session. No database rows or source data were modified; the
-  pilot-wide audit is still pending.
+  metadata tests the focused run passes 13/13. The report was run read-only
+  against the local `cinegraph` database and the frozen 100-film manifest; its
+  JSON output stays under ignored `data/evaluation/`. No database rows or
+  source data were modified.
+
+### Follow-up — 100-film metadata audit results and next catalog gates
+
+The per-film report shows why the old profile fields looked empty or wrong:
+the API's rights-filtered research projection has evidence that the legacy
+`Film` columns do not consistently carry, while the same source data also has
+real ambiguity that should not be flattened into one unqualified value.
+
+| Field | Pilot audit result | Meaning / action |
+| --- | ---: | --- |
+| Legacy release date | 19/100 populated; 81 missing | Do not treat an empty profile date as absence of release evidence. |
+| Existing release date maps to earliest recorded event | 3 exact; 2 match the earliest year but event order is unknown | Preserve precision and territory; avoid calling a year-only event an exact date. |
+| Existing release date maps to another recorded event | 13 | These are supported territory-specific dates, not automatically wrong; label event scope and do not present as the first release. |
+| Same-year release date without exact event match | 1 | Route for review; Psycho's legacy Jan 1 date is not an exact match to its dated release events. |
+| Runtime | 17 exact matches; 65 eligible research runtimes missing from legacy profile | The research profile can fill these at read time; any operational backfill must be separately reviewed and provenance-preserving. |
+| Runtime conflicts / edition ambiguity | 17 require resolution | Keep runtime unset in the default view until edition, cut, territory or source precedence is resolved. |
+| Restricted-only runtime evidence | 1 | Do not display by default; Soorarai Pottru currently has only a local non-commercial IMDb runtime assertion. |
+
+The audit is a projection and provenance audit, not an independent truth
+review. It establishes neither universal factual accuracy nor commercial reuse
+rights. Its report is local-only and ignored by Git. The audited assertions
+retain source revision, rights/license, qualifiers and review status.
+
+Next steps are ordered to avoid scaling bad records:
+
+1. Add/run browser assertions for release precision, alternate territory
+   events and missing/conflicted runtime states; API/PostgreSQL integration
+   already passes in the isolated `cinegraph_test` stack. Keep browser checks
+   pointed at the isolated stack and never mutate the working corpus.
+2. Resolve the 17 runtime-ambiguous films and one date exception by inspecting
+   source assertions and version/territory qualifiers. If evidence does not
+   establish one display value, keep the field explicitly unresolved.
+3. Add source-specific intake adapters only after recording terms, license,
+   rate/access policy, attribution and fields supplied. Dataset admission is
+   field-level: useful structured metadata may enter its own provenance lane,
+   but does not grant rights to unrelated plot/review text bundled with it.
+4. Exercise one full title-to-evidence vertical slice on a small stratified
+   batch: disambiguate identity; snapshot authorized sources; extract typed
+   assertions and sectioned passages; validate identity, rights, checksum and
+   coverage; review; index eligible passages; retrieve cited evidence. Keep
+   every stage resumable and idempotent, and publish gaps rather than silently
+   filling them.
+5. Only then enrich the 100-film pilot, compare per-film coverage against the
+   frozen baseline, and expand to 1,000 in checkpointed batches. Do not claim
+   a 1,000-film-ready corpus from the size of a source dataset alone.
+
+The broader catalog remains additive and language-neutral. Each incoming
+dataset must pass identity-link, field-definition, license/attribution,
+provenance, duplicate, conflict, coverage and sample-quality checks before it
+is eligible for batch ingestion; raw payloads, snapshots and derived vectors
+remain local and out of Git.
