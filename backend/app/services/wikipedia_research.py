@@ -22,16 +22,25 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     CanonicalEntity,
+    DataSource,
     NarrativePassage,
     ResearchAnswer,
     ResearchAnswerEvidence,
     SourceAssertion,
+    SourceObject,
     SourceSnapshot,
     RawIngestionRun,
     RawIngestionRunSnapshot,
 )
 from app.services.snapshot_integrity import verify_snapshot_file
 from app.services.wikipedia_revision_recovery import ADAPTER_VERSION as RECOVERY_ADAPTER_VERSION
+from app.services.wikipedia_article_html import parse_article_html
+
+
+# The passage derivative schema now stores exact marker coordinates. Keep its
+# identity separate from the pure parser version so a replay can materialize
+# those coordinates without pretending the source parser itself changed.
+ARTICLE_HTML_EXTRACTION_VERSION = "enwiki-article-html-extraction-v7"
 
 
 EXTRACTION_VERSION = "enwiki-section-passages-v1"
@@ -130,6 +139,14 @@ def _snapshot_payload(snapshot: SourceSnapshot) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _snapshot_bytes(snapshot: SourceSnapshot) -> bytes:
+    if not snapshot.storage_uri:
+        raise ValueError("The source snapshot has no retained payload URI.")
+    if verify_snapshot_file(snapshot.storage_uri, snapshot.content_hash, snapshot.byte_size) != "verified":
+        raise ValueError(f"The retained HTML snapshot is missing or fails its checksum: {snapshot.id}")
+    return Path(urlparse(snapshot.storage_uri).path).read_bytes()
+
+
 def snapshot_wikitext(payload: dict) -> tuple[str, str, str]:
     """Read either source adapter shape without conflating their versions."""
     page = payload.get("page")
@@ -151,7 +168,11 @@ def _snapshot_for_qid(db: Session, qid: str) -> SourceSnapshot:
     snapshot = db.scalar(
         select(SourceSnapshot)
         .join(SourceAssertion, SourceAssertion.source_snapshot_id == SourceSnapshot.id)
+        .join(SourceObject, SourceObject.id == SourceSnapshot.source_object_id)
+        .join(DataSource, DataSource.id == SourceObject.source_id)
         .where(
+            DataSource.name == "English Wikipedia",
+            SourceSnapshot.fetch_status == "success",
             SourceAssertion.source_property == "wikidata_item",
             SourceAssertion.raw_value["wikidata_id"].as_string() == qid,
         )
@@ -198,6 +219,65 @@ def extract_passages(db: Session, qid: str, *, recovered_snapshot_id: UUID | Non
         snapshot = candidate
     if snapshot.license != "CC BY-SA 4.0" or not snapshot.attribution_url:
         raise ValueError("Narrative extraction requires an attributable CC BY-SA Wikipedia snapshot.")
+    if snapshot.media_type in {"text/html", "application/xhtml+xml"}:
+        document = parse_article_html(
+            _snapshot_bytes(snapshot), canonical_url=snapshot.canonical_url, expected_qid=qid,
+        )
+        entity = _entity_for_snapshot(db, qid, {"page": {"title": document.metadata.title}})
+        existing_passages = list(db.scalars(select(NarrativePassage).where(
+            NarrativePassage.source_snapshot_id == snapshot.id,
+            NarrativePassage.extraction_version == ARTICLE_HTML_EXTRACTION_VERSION,
+        )))
+        existing = {
+            (item.section_locator, item.ordinal, item.content_hash): item
+            for item in existing_passages
+        }
+        expected = {
+            (item.section_locator, item.ordinal, item.content_hash): item
+            for item in document.passages
+        }
+        if len(expected) != len(document.passages) or len(existing) != len(existing_passages):
+            raise ValueError("Article HTML parser produced duplicate passage identities.")
+        if any(
+            key not in expected
+            or item.subject_entity_id != entity.id
+            or item.citation_markers != list(expected[key].citation_markers)
+            or item.citation_positions != [
+                {"marker_id": marker, "paragraph_index": paragraph_index, "char_offset": char_offset}
+                for marker, paragraph_index, char_offset in expected[key].citation_positions
+            ]
+            for key, item in existing.items()
+        ):
+            raise ValueError("Pinned article HTML revision disagrees with existing extracted passages.")
+        to_store = [NarrativePassage(
+            subject_entity_id=entity.id,
+            source_snapshot_id=snapshot.id,
+            section_locator=item.section_locator,
+            section_title=item.section_title,
+            ordinal=item.ordinal,
+            content=item.content,
+            content_hash=item.content_hash,
+            citation_markers=list(item.citation_markers),
+            citation_positions=[
+                {"marker_id": marker, "paragraph_index": paragraph_index, "char_offset": char_offset}
+                for marker, paragraph_index, char_offset in item.citation_positions
+            ],
+            extraction_version=ARTICLE_HTML_EXTRACTION_VERSION,
+        ) for key, item in expected.items() if key not in existing]
+        db.add_all(to_store)
+        db.commit()
+        passages_by_locator: dict[str, list[NarrativePassage]] = {}
+        for item in db.scalars(select(NarrativePassage).where(
+            NarrativePassage.source_snapshot_id == snapshot.id,
+            NarrativePassage.extraction_version == ARTICLE_HTML_EXTRACTION_VERSION,
+        ).order_by(NarrativePassage.section_locator, NarrativePassage.ordinal)):
+            passages_by_locator.setdefault(item.section_locator, []).append(item)
+        return {
+            "qid": qid, "entity_id": str(entity.id),
+            "source_revision": snapshot.source_revision,
+            "passages_created": len(to_store), "passages": passages_by_locator,
+            "extraction_version": ARTICLE_HTML_EXTRACTION_VERSION,
+        }
     payload = _snapshot_payload(snapshot)
     wikitext, _, extraction_version = snapshot_wikitext(payload)
     entity = _entity_for_snapshot(db, qid, payload)
@@ -246,7 +326,7 @@ def selected_qids_from_ingestion_manifests(db: Session, manifest_uris: list[str]
     membership from title search or from every Wikipedia page in the database.
     """
     runs = list(db.scalars(select(RawIngestionRun).where(
-        RawIngestionRun.adapter_name == "wikipedia_api_revision_snapshot",
+        RawIngestionRun.adapter_name.in_(("wikipedia_article_html_snapshot", "wikipedia_api_revision_snapshot")),
         RawIngestionRun.status == "complete",
         RawIngestionRun.manifest_uri.in_(manifest_uris),
     )))

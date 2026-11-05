@@ -13,12 +13,98 @@ from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
-from app.models import Assertion, CanonicalEntity, DataSource, Film
+from app.models import (
+    Assertion,
+    AssertionEvidence,
+    CanonicalEntity,
+    DataSource,
+    Film,
+    SourceAssertion,
+    SourceSnapshot,
+)
 from app.services.pilot_metadata_audit import (
     classify_release_profile_date,
     classify_runtime_profile,
 )
 from app.services.research_catalog import research_films_from_entities
+from app.services.snapshot_integrity import verify_snapshot_file
+
+
+def source_evidence_by_assertion(db: Session, entity_ids: list[UUID]) -> dict[UUID, list[dict]]:
+    """Return retained raw assertion and snapshot lineage for selected facts."""
+    rows = db.execute(
+        select(
+            AssertionEvidence.assertion_id,
+            AssertionEvidence.id,
+            AssertionEvidence.source_assertion_id,
+            AssertionEvidence.evidence_type,
+            AssertionEvidence.reference,
+            AssertionEvidence.note,
+            SourceAssertion.statement_locator,
+            SourceAssertion.source_property,
+            SourceAssertion.raw_value,
+            SourceAssertion.raw_qualifiers,
+            SourceAssertion.extractor_version,
+            SourceSnapshot.id,
+            SourceSnapshot.canonical_url,
+            SourceSnapshot.source_revision,
+            SourceSnapshot.retrieved_at,
+            SourceSnapshot.fetch_status,
+            SourceSnapshot.attribution_url,
+            SourceSnapshot.content_hash,
+            SourceSnapshot.byte_size,
+            SourceSnapshot.storage_uri,
+            SourceSnapshot.license,
+        )
+        .join(Assertion, Assertion.id == AssertionEvidence.assertion_id)
+        .outerjoin(SourceAssertion, SourceAssertion.id == AssertionEvidence.source_assertion_id)
+        .outerjoin(SourceSnapshot, SourceSnapshot.id == SourceAssertion.source_snapshot_id)
+        .where(
+            Assertion.subject_entity_id.in_(entity_ids),
+            Assertion.predicate.in_(("release_event", "runtime")),
+            Assertion.assertion_kind == "source_fact",
+        )
+        .order_by(AssertionEvidence.assertion_id, AssertionEvidence.id)
+    ).all()
+    grouped: dict[UUID, list[dict]] = defaultdict(list)
+    snapshot_integrity: dict[UUID, str] = {}
+    for row in rows:
+        (assertion_id, evidence_id, source_assertion_id, evidence_type, reference, note,
+         statement_locator, source_property, raw_value, raw_qualifiers, extractor_version,
+         snapshot_id, snapshot_url, snapshot_revision, snapshot_retrieved_at, snapshot_fetch_status,
+         snapshot_attribution_url, snapshot_hash, snapshot_byte_size, snapshot_storage_uri,
+         snapshot_license) = row
+        integrity_status = "snapshot_not_linked"
+        if snapshot_id and snapshot_hash:
+            if snapshot_id not in snapshot_integrity:
+                snapshot_integrity[snapshot_id] = verify_snapshot_file(
+                    snapshot_storage_uri, snapshot_hash, snapshot_byte_size,
+                )
+            integrity_status = snapshot_integrity[snapshot_id]
+        grouped[assertion_id].append({
+            "evidence_id": str(evidence_id),
+            "source_assertion_id": str(source_assertion_id) if source_assertion_id else None,
+            "evidence_type": evidence_type,
+            "reference": reference,
+            "note": note,
+            "statement_locator": statement_locator,
+            "source_property": source_property,
+            "raw_value": raw_value,
+            "raw_qualifiers": raw_qualifiers,
+            "extractor_version": extractor_version,
+            "snapshot_id": str(snapshot_id) if snapshot_id else None,
+            "snapshot_url": snapshot_url,
+            "snapshot_revision": snapshot_revision,
+            "snapshot_retrieved_at": snapshot_retrieved_at.isoformat() if snapshot_retrieved_at else None,
+            "snapshot_fetch_status": snapshot_fetch_status,
+            "snapshot_attribution_url": snapshot_attribution_url,
+            "snapshot_hash": snapshot_hash,
+            "snapshot_byte_size": snapshot_byte_size,
+            "snapshot_storage_uri": snapshot_storage_uri,
+            "snapshot_integrity_status": integrity_status,
+            "snapshot_license": snapshot_license,
+        })
+    return grouped
 
 
 def main() -> None:
@@ -92,6 +178,7 @@ def main() -> None:
                 )
                 .order_by(Assertion.subject_entity_id, Assertion.predicate, Assertion.id)
             ).all()
+            source_evidence_rows = source_evidence_by_assertion(db, [entity.id for entity in entities])
     finally:
         engine.dispose()
 
@@ -112,6 +199,7 @@ def main() -> None:
             "source_url": source_url,
             "source_rights_status": rights_status,
             "source_license": license_name,
+            "source_evidence": source_evidence_rows.get(assertion_id, []),
         })
 
     results = []
@@ -164,7 +252,7 @@ def main() -> None:
         })
 
     report = {
-        "version": "pilot-metadata-projection-audit-v1",
+        "version": "pilot-metadata-projection-audit-v2",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "database_read_only": True,
         "pilot_sha256": hashlib.sha256(pilot_bytes).hexdigest(),
@@ -173,6 +261,13 @@ def main() -> None:
             item["release_profile_status"] for item in results).items())),
         "runtime_profile_status_counts": dict(sorted(Counter(
             item["runtime_profile_status"] for item in results).items())),
+        "snapshot_integrity_status_counts": dict(sorted(Counter(
+            evidence["snapshot_integrity_status"]
+            for item in results
+            for predicate in ("release_events", "runtimes")
+            for assertion in item["source_assertions"][predicate]
+            for evidence in assertion["source_evidence"]
+        ).items())),
         "films": results,
         "caution": "This compares local projections and recorded assertions; it does not establish factual accuracy, human review, or commercial reuse rights.",
     }

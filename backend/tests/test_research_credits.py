@@ -1,5 +1,5 @@
 """Source-credit extraction policy; no mocks or network."""
-from app.services.research_credits import credit_from_statement
+from app.services.research_credits import SourcedCredit, character_qid, credit_display_sort_key, credit_from_statement
 
 
 def test_imdb_cast_character_stays_attached_to_source() -> None:
@@ -20,3 +20,19 @@ def test_tmdb_character_is_not_invented_when_absent() -> None:
 def test_unattributed_or_non_credit_statement_is_not_displayed() -> None:
     assert credit_from_statement("cast", {"name": "Someone"}, "local") is None
     assert credit_from_statement("genre", {"name": "Someone"}, "https://example.org") is None
+
+
+def test_character_qualifier_requires_one_unambiguous_entity() -> None:
+    def snak(qid: str) -> dict:
+        return {"datavalue": {"value": {"id": qid}}}
+    assert character_qid({"P453": [snak("Q10"), snak("Q10")]}) == "Q10"
+    assert character_qid({"P453": [snak("Q10"), snak("Q11")]}) is None
+    assert character_qid({"P453": None}) is None
+
+
+def test_character_named_cast_credits_rank_ahead_inside_the_display_cap() -> None:
+    named = SourcedCredit("Zed Actor", "cast", "Character", None, "https://www.wikidata.org/wiki/Q1")
+    unnamed = SourcedCredit("Alice Actor", "cast", None, None, "https://www.wikidata.org/wiki/Q2")
+    director = SourcedCredit("Director", "director", None, None, "https://www.wikidata.org/wiki/Q3")
+
+    assert sorted((unnamed, named, director), key=credit_display_sort_key) == [director, named, unnamed]

@@ -9,13 +9,19 @@ from sqlalchemy.orm import Session
 from app.models import NarrativePassage, SourceSnapshot
 
 
-# A source parser version determines the approved passage extraction for that
-# capture adapter. Adding an experimental extraction requires an explicit
-# policy change here; it must not become current merely because it was added.
-_PREFERRED_EXTRACTION_BY_SOURCE_PARSER = {
-    "enwiki-revision-snapshot-v1": "enwiki-section-passages-v1",
-    "enwiki-pinned-revision-recovery-v1": "enwiki-section-passages-recovered-v1",
-    "tmdb-v3-local-v1": "tmdb-v3-local-v1",
+# A source parser version determines the explicitly approved extraction order
+# for that capture adapter. Adding an experimental extraction requires an
+# explicit policy change here; it must not become current merely because it
+# was added.
+_PREFERRED_EXTRACTIONS_BY_SOURCE_PARSER = {
+    "enwiki-revision-snapshot-v1": ("enwiki-section-passages-v1",),
+    "enwiki-pinned-revision-recovery-v1": ("enwiki-section-passages-recovered-v1",),
+    "enwiki-article-html-capture-v1": (
+        "enwiki-article-html-extraction-v7",
+        "enwiki-article-html-extraction-v6",
+        "enwiki-article-html-extraction-v1",
+    ),
+    "tmdb-v3-local-v1": ("tmdb-v3-local-v1",),
 }
 
 
@@ -23,9 +29,10 @@ def select_current_extraction_versions(source_parser_version: str | None, versio
     """Choose one approved extraction, or fail closed on ambiguous history."""
     if not versions:
         return set()
-    preferred = _PREFERRED_EXTRACTION_BY_SOURCE_PARSER.get(source_parser_version or "")
+    preferred = _PREFERRED_EXTRACTIONS_BY_SOURCE_PARSER.get(source_parser_version or "")
     if preferred is not None:
-        return {preferred} if preferred in versions else set()
+        selected = next((version for version in preferred if version in versions), None)
+        return {selected} if selected else set()
     if len(versions) == 1:
         return versions
     raise ValueError(

@@ -21,7 +21,7 @@ from app.services.indian_film_selection import (
 from app.services.indian_wikipedia_manifest import build_manifests
 from app.services.indian_narrative_jobs import listed_chunk_paths
 from app.services.raw_snapshots import snapshot, source_object
-from app.services.wikidata_raw import wikidata_api_policy
+from app.services.wikidata_raw import wikidata_entitydata_policy
 from app.services.movie_data_gateway import (
     IMDB_SOURCE, TMDB_SOURCE, cached_tmdb_id, persist_movie_bundle, resolve_seed,
     retract_replaced_identifier, source_registration,
@@ -442,11 +442,18 @@ def test_intake_batch_validates_all_movies_and_deduplicates(tmp_path) -> None:
         with pytest.raises(ValueError, match="not a local IMDb movie"):
             enqueue_films(db, dataset, ["tt0000001", "tt9999999"])
         assert db.scalar(select(MovieIntakeJob.id)) is None
-        first = enqueue_films(db, dataset, ["tt0000001", "https://www.imdb.com/title/tt0000001/"])
+        with pytest.raises(ValueError, match="one selected film at a time"):
+            enqueue_films(db, dataset, ["tt0000001", "tt0000002"],
+                          wikipedia_url="https://en.wikipedia.org/wiki/A_Film")
+        with pytest.raises(ValueError, match="English Wikipedia article URL"):
+            enqueue_films(db, dataset, ["tt0000001"], wikipedia_url="https://en.wikipedia.org/w/index.php?title=A_Film")
+        first = enqueue_films(db, dataset, ["tt0000001", "https://www.imdb.com/title/tt0000001/"],
+                              wikipedia_url="https://en.wikipedia.org/wiki/A_Film")
         second = enqueue_films(db, dataset, ["tt0000001"])
         assert len(first) == len(second) == 1
         assert first[0].id == second[0].id
         assert first[0].title == "A Film"
+        assert first[0].submitted_url == "https://en.wikipedia.org/wiki/A_Film"
 
 
 @pytest.mark.integration
@@ -459,7 +466,7 @@ def test_enwiki_manifest_uses_retained_wikidata_sitelink_only(tmp_path) -> None:
                             rights_status="attributed_reuse")
         db.add(source)
         db.flush()
-        policy = wikidata_api_policy(db, source)
+        policy = wikidata_entitydata_policy(db, source)
         run = start_run(db, source, policy, adapter="fixture", requested=1, manifest="fixture")
         item = source_object(db, source=source, external_id="Q123",
                              object_kind="wikibase_item", canonical_url="https://www.wikidata.org/wiki/Q123")
@@ -498,7 +505,7 @@ def test_language_reconciliation_requires_reviewed_raw_linked_values(tmp_path) -
                             rights_status="attributed_reuse")
         db.add(source)
         db.flush()
-        policy = wikidata_api_policy(db, source)
+        policy = wikidata_entitydata_policy(db, source)
         run = start_run(db, source, policy, adapter="fixture", requested=1, manifest="fixture")
         item = source_object(db, source=source, external_id="Q123",
                              object_kind="wikibase_item", canonical_url="https://www.wikidata.org/wiki/Q123")

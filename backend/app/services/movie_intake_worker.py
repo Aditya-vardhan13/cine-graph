@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 from uuid import UUID
 
 from sqlalchemy import select
@@ -12,21 +14,24 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db import SessionLocal
-from app.models import CanonicalEntity, Film, MovieIntakeJob
+from app.models import CanonicalEntity, DataSource, Film, MovieIntakeJob, SourceObject, SourceSnapshot
 from app.services.current_narrative_passages import current_passage_rows
 from app.services.imdb_dataset import ImdbDataset
 from app.services.indian_wikipedia_manifest import _entity_from_snapshot
+from app.services.movie_intake_identity import identity_issue
 from app.services.movie_data_gateway import MovieSeed, run_ingestion
 from app.services.reconcile_manifest_identities import (
     imdb_film_for_identifier, prepare_qid_subject, reconcile_one,
 )
 from app.services.reconcile_manifest_languages import reconcile_one as reconcile_language
 from app.services.review_wikidata_imdb_ids import review_one as review_imdb_ids
+from app.services.credit_target_manifest import select_credit_target_qids
 from app.services.source_assertion_projection import project_source_assertions
 from app.services.tmdb_client import bearer_token
-from app.services.wikidata_imdb_resolver import acquire, imdb_qid_query, qids_by_imdb
-from app.services.wikidata_raw import ingest_selected_qids
-from app.services.wikipedia_raw import ingest_title_year_entries
+from app.services.wikidata_raw import entity_from_entitydata, ingest_selected_qids, ingest_selected_credit_labels
+from app.services.wikipedia_article_capture import WikipediaArticleFetcher
+from app.services.wikipedia_article_html import article_url, parse_article_html, validate_article_url
+from app.services.wikipedia_raw import ingest_captured_article
 from app.services.wikipedia_research import extract_passages
 
 
@@ -66,23 +71,74 @@ def has_plot(db: Session, entity_id) -> bool:
                for passage, _ in current_passage_rows(db, {entity_id}))
 
 
+def retained_wikidata_entity(db: Session, qid: str) -> dict:
+    """Read the exact retained EntityData bytes; never refetch or reserialize."""
+    source = db.scalar(select(DataSource).where(DataSource.name == "Wikidata"))
+    item = db.scalar(select(SourceObject).where(
+        SourceObject.source_id == source.id if source else False,
+        SourceObject.external_id == qid,
+    ))
+    snapshot = db.scalar(select(SourceSnapshot).where(
+        SourceSnapshot.source_object_id == item.id if item else False,
+        SourceSnapshot.fetch_status == "success",
+    ).order_by(SourceSnapshot.retrieved_at.desc(), SourceSnapshot.id.desc()))
+    if snapshot is None or not snapshot.storage_uri:
+        raise ValueError(f"No exact retained EntityData bytes are available for {qid}.")
+    storage_path = Path(unquote(urlsplit(snapshot.storage_uri).path))
+    return entity_from_entitydata(json.loads(storage_path.read_bytes()), qid)
+
+
 def process_one(db: Session, job: MovieIntakeJob, *, dataset: ImdbDataset,
                 tmdb_token: str | None, cache_dir: Path) -> None:
-    progress(db, job, "wikidata_identity")
-    qids = qids_by_imdb(acquire(imdb_qid_query([job.imdb_id]), cache_dir)).get(job.imdb_id, [])
-    if len(qids) != 1:
-        finish(db, job, "needs_review", f"Wikidata IMDb P345 resolved to {len(qids)} items; manual identity review required")
+    del cache_dir  # Legacy argument retained for CLI compatibility; no WDQS cache is read.
+    if job.year is None:
+        finish(db, job, "needs_review", "A release year is required for identity verification")
         return
-    qid = qids[0]
+    progress(db, job, "wikipedia_identity")
+    settings = get_settings()
+    requested_article_url = (
+        validate_article_url(job.submitted_url)
+        if job.submitted_url and job.submitted_url.startswith("https://en.wikipedia.org/")
+        else article_url(job.title)
+    )
+    try:
+        with WikipediaArticleFetcher(
+            user_agent=settings.wikidata_user_agent,
+            interval_seconds=max(1.0, settings.source_request_interval_seconds),
+        ) as fetcher:
+            article_payload, article_url_resolved, _, media_type = fetcher.fetch(requested_article_url)
+            robots_sha256 = fetcher.robots_sha256 or ""
+        article = parse_article_html(article_payload, canonical_url=article_url_resolved)
+    except FileNotFoundError as exc:
+        finish(db, job, "needs_review", f"No matching Wikipedia article page: {exc}")
+        return
+    qid = article.metadata.wikidata_id
     seed = MovieSeed(job.title, job.year, imdb_id=job.imdb_id, wikidata_id=qid,
                      selection_source_url=job.submitted_url or
                      f"https://www.imdb.com/title/{job.imdb_id}/")
     progress(db, job, "wikidata_snapshot")
     ingest_selected_qids(db, [qid], manifest_uri=f"movie_intake_job:{job.id}")
-    prepare_qid_subject(db, seed, apply=True)
+    try:
+        entity_data = retained_wikidata_entity(db, qid)
+        issue = identity_issue(article_qid=qid, entity=entity_data, title=job.title,
+                               year=job.year, imdb_id=job.imdb_id)
+        if issue:
+            finish(db, job, "needs_review", issue)
+            return
+        prepare_qid_subject(db, seed, apply=True)
+    except ValueError as exc:
+        db.rollback()
+        finish(db, job, "needs_review", str(exc))
+        return
     db.commit()
     project_source_assertions(db, qids={qid})
     db.commit()
+    progress(db, job, "wikidata_credit_labels")
+    credit_targets = select_credit_target_qids(entity_data)
+    if credit_targets:
+        ingest_selected_credit_labels(
+            db, credit_targets, manifest_uri=f"movie_intake_job:{job.id}:credit_labels",
+        )
     review = review_imdb_ids(db, dataset, seed, apply=True)
     if review["status"] not in {"unambiguous", "quarantined"}:
         finish(db, job, "needs_review", review.get("reason", "Wikidata IMDb identifiers conflict"))
@@ -122,16 +178,16 @@ def process_one(db: Session, job: MovieIntakeJob, *, dataset: ImdbDataset,
     progress(db, job, "wikipedia_narrative")
     source = _entity_from_snapshot(db, qid)
     wiki_title = (source or {}).get("sitelinks", {}).get("enwiki", {}).get("title")
-    if wiki_title:
-        raw = ingest_title_year_entries(db, [{"title": job.title, "year": job.year,
-                                               "wikidata_id": qid, "wikipedia_title": wiki_title,
-                                               "verified_wikidata_sitelink": True}],
-                                            manifest_uri=f"movie_intake_job:{job.id}")
-        if raw["resolved"]:
-            extract_passages(db, qid)
-            db.commit()
-        else:
-            gaps.append("Wikipedia revision/QID verification failed")
+    if wiki_title and wiki_title == article.metadata.title:
+        ingest_captured_article(
+            db, payload=article_payload, canonical_url=article_url_resolved,
+            media_type=media_type, expected_qid=qid, robots_sha256=robots_sha256,
+            manifest_uri=f"movie_intake_job:{job.id}",
+        )
+        extract_passages(db, qid)
+        db.commit()
+    elif wiki_title:
+        gaps.append("captured Wikipedia article title differs from the verified English sitelink")
     else:
         gaps.append("no verified English Wikipedia sitelink")
     if not has_plot(db, entity.id):

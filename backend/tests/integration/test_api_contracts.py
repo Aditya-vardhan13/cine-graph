@@ -41,6 +41,15 @@ def api_get(path: str) -> httpx.Response:
     return httpx.get(f"{API_URL}{path}", timeout=5.0)
 
 
+def test_email_only_admin_gate_is_disabled_outside_local_development() -> None:
+    response = httpx.get(
+        f"{API_URL}/api/v1/admin/intake/jobs",
+        headers={"x-operator-email": "adityavk1310@gmail.com"}, timeout=5.0,
+    )
+    assert response.status_code == 503
+    assert "disabled outside local development" in response.json()["detail"]
+
+
 def test_preprocessing_rerun_preserves_excluded_count_in_real_postgresql() -> None:
     from sqlalchemy.engine.url import make_url
     assert make_url(DATABASE_URL).database == "cinegraph_test"

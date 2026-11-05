@@ -21,6 +21,7 @@ from app.models import (
 )
 from app.services.movie_data_gateway import MovieSeed, manifest_seeds
 from app.services.source_assertion_policy import project_wikidata_statement
+from app.services.wikidata_selection_resolution import FILM_TYPE_QIDS
 
 
 MOVABLE = {
@@ -75,7 +76,7 @@ def prepare_qid_subject(db: Session, seed: MovieSeed, *, apply: bool) -> dict:
                  ))]
     is_film = any(decision.outcome == "project" and
                   decision.predicate == "instance_of" and
-                  (decision.value_json or {}).get("wikidata_id") == "Q11424"
+                  (decision.value_json or {}).get("wikidata_id") in FILM_TYPE_QIDS
                   for decision in decisions)
     id_matches = any(decision.outcome == "project" and
                      decision.predicate == "imdb_identifier" and

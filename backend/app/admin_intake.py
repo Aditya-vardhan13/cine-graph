@@ -19,6 +19,7 @@ from app.models import CanonicalEntity, MovieIntakeJob
 from app.services.current_narrative_passages import current_passage_rows
 from app.services.imdb_dataset import IMDB_ID, ImdbDataset
 from app.services.research_catalog import research_films_from_entities
+from app.services.wikipedia_article_html import ArticlePageUrlError, validate_article_url
 
 
 router = APIRouter(prefix="/api/v1/admin/intake", tags=["local-admin-intake"])
@@ -37,13 +38,23 @@ def imdb_id_from_input(value: str) -> str | None:
     return match.group(1) if match else None
 
 
-def require_operator(authorization: str | None = Header(default=None)) -> None:
-    secret = get_settings().admin_intake_token
-    if not secret or len(secret) < 24:
+def local_operator_email_allowed(email: str | None, *, expected: str | None,
+                                 environment: str) -> bool:
+    """Temporary local-pilot gate; an email string is not production authentication."""
+    if environment not in {"development", "local"} or not expected or not email:
+        return False
+    return hmac.compare_digest(email.strip().casefold(), expected.strip().casefold())
+
+
+def require_operator(x_operator_email: str | None = Header(default=None, alias="x-operator-email")) -> None:
+    settings = get_settings()
+    if settings.environment not in {"development", "local"}:
+        raise HTTPException(status_code=503, detail="Email-only admin access is disabled outside local development")
+    if not settings.admin_intake_email:
         raise HTTPException(status_code=503, detail="Local admin intake is not configured")
-    supplied = authorization.removeprefix("Bearer ") if authorization else ""
-    if not authorization or not authorization.startswith("Bearer ") or not hmac.compare_digest(supplied, secret):
-        raise HTTPException(status_code=401, detail="Operator key required")
+    if not local_operator_email_allowed(x_operator_email, expected=settings.admin_intake_email,
+                                       environment=settings.environment):
+        raise HTTPException(status_code=401, detail="Authorized local operator email required")
 
 
 def dataset() -> ImdbDataset:
@@ -61,9 +72,11 @@ def job_out(job: MovieIntakeJob) -> dict:
 
 class IntakeSelection(BaseModel):
     films: list[str] = Field(min_length=1, max_length=20)
+    wikipedia_url: str | None = Field(default=None, max_length=1000)
 
 
-def enqueue_films(db: Session, lookup: ImdbDataset, values: list[str]) -> list[MovieIntakeJob]:
+def enqueue_films(db: Session, lookup: ImdbDataset, values: list[str], *,
+                  wikipedia_url: str | None = None) -> list[MovieIntakeJob]:
     """Resolve every selection from the local dump before atomically queuing any."""
     chosen: dict[str, str | None] = {}
     for raw in values:
@@ -71,6 +84,13 @@ def enqueue_films(db: Session, lookup: ImdbDataset, values: list[str]) -> list[M
         if imdb_id is None:
             raise ValueError(f"Use an IMDb title ID or HTTPS IMDb title URL: {raw[:100]}")
         chosen[imdb_id] = f"https://www.imdb.com/title/{imdb_id}/"
+    if wikipedia_url:
+        if len(chosen) != 1:
+            raise ValueError("A Wikipedia article URL override can be applied to one selected film at a time")
+        try:
+            wikipedia_url = validate_article_url(wikipedia_url)
+        except ArticlePageUrlError as exc:
+            raise ValueError("Use an HTTPS English Wikipedia article URL under /wiki/{title}") from exc
     rows = []
     for imdb_id, url in chosen.items():
         basics = lookup.rows("basics", imdb_id)
@@ -78,7 +98,8 @@ def enqueue_films(db: Session, lookup: ImdbDataset, values: list[str]) -> list[M
             raise ValueError(f"{imdb_id} is not a local IMDb movie")
         row = basics[0]
         year = row.get("startYear", "")
-        rows.append((imdb_id, row["primaryTitle"], int(year) if year.isdigit() else None, url))
+        rows.append((imdb_id, row["primaryTitle"], int(year) if year.isdigit() else None,
+                     wikipedia_url or url))
     for imdb_id, title, year, url in rows:
         db.execute(insert(MovieIntakeJob).values(imdb_id=imdb_id, title=title, year=year,
                                              submitted_url=url, status="queued", stage="queued",
@@ -100,7 +121,8 @@ def suggest(q: str = Query(min_length=2, max_length=120)) -> dict:
 @router.post("/jobs", dependencies=[Depends(require_operator)])
 def submit(selection: IntakeSelection, db: Session = Depends(get_db)) -> dict:
     try:
-        jobs = enqueue_films(db, dataset(), selection.films)
+        jobs = enqueue_films(db, dataset(), selection.films,
+                             wikipedia_url=selection.wikipedia_url)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=503, detail="Local IMDb index is unavailable or stale") from exc
     except ValueError as exc:

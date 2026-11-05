@@ -732,3 +732,529 @@ remain local and out of Git.
   stack. No working-catalog rows, snapshots, passages or vectors were changed.
   The projection audit's unresolved release/runtime source review remains the
   next catalog-data gate.
+
+### Follow-up — robots-compliant source routes and current gate (4 November 2026)
+
+- Verified current Wikimedia route policy before capture: Wikidata's
+  `Special:EntityData/{QID}.json` suffix route is allowed and supports a pinned
+  `revision=` parameter; generic Wikidata `/w/api.php` and Wikidata Query
+  Service `/sparql` are disallowed. English Wikipedia ordinary `/wiki/{title}`
+  article pages are allowed; generic `/w/api.php` is disallowed. One permitted
+  but obsolete `mobileview` request returned `badvalue`; no alternate API route
+  was attempted.
+- Updated the Wikidata adapter to known-QID, sequential EntityData JSON
+  capture (one request/second, concurrency one) and disabled blocked title
+  search. Wikipedia API lookup and revision recovery now fail closed. This is
+  route compliance, not an HTML ingestion implementation: the next source
+  adapter must capture normal article HTML immutably and extract versioned,
+  section-located passages with revision, attribution and parser diagnostics.
+- A pinned Wikidata response for one missing historical snapshot did not match
+  the stored historical hash. It was not linked to or substituted for the old
+  snapshot; all six old snapshot gaps remain explicit. Captures stay local.
+- Latest isolated API/PostgreSQL integration run: **73 passed, 242 deselected**
+  with two third-party warnings in `cinegraph_test`; the browser flow remains
+  **7/7 passed**. No working-catalog rows, passages, assertions or vectors were
+  published by this route-policy work.
+- Detailed source-route findings and the updated execution sequence are in
+  [the catalog preparation and expansion plan](catalog-preparation-and-expansion-plan-v1.md).
+
+### Follow-up — ordinary Wikipedia article capture implemented (5 November 2026)
+
+- Added a robots-checked, sequential capture adapter for ordinary English
+  Wikipedia `/wiki/{title}` pages. It retains response bytes and records page,
+  revision, QID and section metadata as source assertions; extracted prose is
+  versioned `NarrativePassage` evidence and never promoted into typed facts.
+  Capture requires an already-known QID/sitelink. Generic Action API lookup
+  remains disabled.
+- The parser accepts only ordinary HTTPS enwiki article URLs, checks the
+  robots policy again after redirects, waits at least one second between
+  requests, bounds redirects and payload size, and stops on access/rate-limit
+  errors without retry. A live one-page contract request returned 200 and
+  1,969,765 HTML bytes. It was retained locally, not added to the working
+  corpus.
+- Against that retained full *The Dark Knight* response, the parser found 71
+  prose passages across 24 section paths (revision `1383150687`, QID
+  `Q163872`). This validates extraction mechanics, not completeness or
+  narrative accuracy. The compact attributed fixture and ten pure parser
+  tests are in Git; the large capture is not.
+- Verification: **10 parser unit tests passed**; the isolated Docker/API/
+  PostgreSQL suite passed **74 tests, 252 deselected** in `cinegraph_test`,
+  with two third-party warnings. No working-corpus rows or vectors were
+  changed. The historical six missing Wikidata snapshot files remain missing.
+- Next: test revision-selection/source-use policy, resolve the named metadata
+  gaps, then run the approved ten-film intake in isolation and audit every
+  identity → snapshot → assertion/passage → rights/review → evidence/index
+  outcome before touching the working corpus or expanding to 100/1,000.
+
+### Follow-up — parser selection and exact structured-source capture (5 November 2026)
+
+- The HTML capture adapter now has an explicit current-extraction mapping, and
+  the isolated PostgreSQL test covers coexisting approved and experimental
+  extraction versions.
+- The Wikidata EntityData client now reads and hashes current robots.txt,
+  applies RFC 9309 Allow/Disallow specificity, checks redirects, and retains
+  exact upstream JSON bytes. A manual check fetched robots plus one Q163872
+  response (revision `2564648138`, 290,568 bytes) at one-second pacing. The
+  bytes stayed in memory; this did not change the corpus.
+- The focused robots/URL tests and passage-selection tests pass; the subsequent
+  full isolated Docker/API/PostgreSQL suite passed **79 tests, 252 deselected**
+  in `cinegraph_test`.
+- A direct import check exposed and fixed the resolver's missing
+  EntityData-backed `fetch_entities` symbol. Ingestion now requires exact
+  retained upstream bytes and commits each item before the next network fetch;
+  it no longer reserializes parsed entities as though they were source
+  responses. The old missing historical snapshots remain unresolved; current
+  captures are not substitutes for those historical bytes.
+- No title batch was captured or added to the working catalog. Next gate is
+  verify the frozen ten-title QID and English sitelink evidence, then run the
+  ten-film isolated intake and per-film source/evidence audit before any
+  working-corpus expansion.
+
+### Follow-up — ten-title source audit and compliant admin identity path (5 November 2026)
+
+- The frozen first ten now have verified QID/title/year/type/sitelink mappings
+  and exact English Wikipedia article snapshots in the ignored local pilot
+  area. The integrity audit passed 10/10 and replayed all extraction output
+  from retained source bytes. It produced 496 sectioned passages; 426 (85.9%)
+  contain citation markers, with no exact duplicate passage text. Marker
+  presence is not yet a resolved citation target or quality judgment.
+- Captured passages cover plot and production/casting for all ten titles. This
+  is still a capture/extraction result only: no operational catalog ingestion,
+  passage-level source-link normalization, rights eligibility review, chunk or
+  embedding build, paired retrieval evaluation, or 100-title expansion has
+  been completed.
+- The legacy admin worker was still making IMDb-to-QID requests through WDQS
+  `/sparql`. All live query clients now fail closed on that disallowed route;
+  the Indian candidate selector may read an already retained local cache but
+  cannot make a new query request. Admin intake now captures a robots-checked
+  ordinary English Wikipedia article page from the selected local title (or
+  a validated, single-film `/wiki/{title}` override supplied by the operator),
+  extracts its QID, fetches only that known QID through the exact-byte
+  EntityData adapter, and requires article-QID, film type, selected year,
+  title/alias, and IMDb P345 agreement before profile creation. The same
+  captured article bytes are persisted after identity verification rather
+  than fetched a second time.
+- The local intake UI sends `x-operator-email`, while the API previously
+  required an unrelated bearer token. These now agree on the configured
+  operator email in `development`/`local` only. This is a local pilot gate,
+  **not authentication**; the API returns unavailable for email-only access
+  outside local development. Do not expose this mode publicly; production
+  login/authorization remains a prerequisite.
+- Verification: **29 focused pure tests passed**, **265 non-integration tests
+  passed**, and the isolated Docker/API/PostgreSQL suite passed **81 tests,
+  265 deselected** against `cinegraph_test` (two third-party warnings). The
+  new persistence integration test confirmed exact HTML bytes, revision and
+  source assertions. A fresh live admin-path probe could not run from the host
+  because DNS resolution to Wikimedia failed; the previously captured local
+  ten-title artifacts remain available, but the new title-derived flow still
+  needs a manual live contract run before production use.
+- The next gate is review of ten-film evidence and rights/attribution state,
+  followed by versioned chunking, isolated embeddings and frozen paired
+  retrieval evaluation. The 100-film run remains gated on those results.
+
+### Follow-up — passage citation targets resolved offline (5 November 2026)
+
+- Added an offline audit that maps retained citation markers to in-article
+  reference-list entries and records external reference URLs without copying
+  bibliography text. The first run exposed that the v1 parser mistook 28
+  page-number superscripts on *Inception* for citations. The parser now accepts
+  only reference superscripts whose IDs use the article citation-marker form;
+  this is extraction v2. The original v1 derivatives remain untouched, and the
+  new content-addressed v2 derivatives have their own manifest and audit.
+- The corrected v2 run still yields 496 passages, with 426 containing one or
+  more citation markers. All 2,610 marker occurrences map to an in-article
+  reference-list entry. Of those, 1,655 (63.4%) have at least one external
+  reference URL; 955 do not have an external URL through this method, which
+  includes valid print/bibliographic references. Only 155 cited passages have
+  every marker linked to an external URL. These are locator-coverage counts,
+  not a broken-reference rate, source-quality score, or entailment judgment.
+  The per-passage map and title breakdown remain in the ignored local
+  `citation-target-audit.json` and `.md` outputs.
+- These links are locators, not support verification, source-quality review,
+  or reuse permission. Wikipedia prose remains CC BY-SA 4.0; each linked source
+  has its own terms. Do not index or display external-source text until its
+  asset-specific rights and attribution are established.
+- CC BY-SA 4.0 itself is not a non-commercial license: it permits commercial
+  sharing and adaptations provided attribution, change-notice, ShareAlike and
+  no-additional-restrictions terms are met ([license deed](https://creativecommons.org/licenses/by-sa/4.0/deed.en)).
+  Whether CineGraph's particular chunking, embedding and generated comparison
+  outputs are adaptations, and how ShareAlike applies to the paid product, is
+  not settled by this data audit; get legal review before public monetized use.
+- Verification: 23 focused source-capture/parser/citation tests passed; the
+  full non-integration suite passed **270 tests**, and the isolated Docker/API/
+  PostgreSQL suite passed **81 tests, 270 deselected** against `cinegraph_test`
+  (two third-party warnings). Re-extraction and both audits replay only
+  retained source bytes; they used no network and wrote no raw prose to Git.
+  No retrieval, chunking, or embeddings have been produced for this pilot.
+- Next: review a stratified sample of passage-to-reference mappings for
+  correctness, classify source/use rights and attribution, then build only an
+  isolated eligible-evidence chunk/retrieval experiment. Keep the 100-film
+  expansion gated on measured paired-question results.
+
+### Follow-up — citation-position extraction and current ten-film baseline (5 November 2026)
+
+- A stricter audit found bibliography-derived text leaking from a `Sources`
+  section and citation markers captured from image captions and standalone
+  quote attributions. The parser now excludes bibliography/source headings
+  and thumbnail/gallery captions, and derives the passage marker set from the
+  retained marker positions. Every marker position records a passage-local
+  paragraph index and character offset. The failed v3-v5 derivatives remain
+  immutable local artifacts; current output is separately versioned as parser
+  v6 under `snapshots/wikipedia-passages-v6/`.
+- The v6 extraction/integrity audit passes 10/10 captured articles and replays
+  **484 passages** from the retained source bytes. The citation audit reports
+  **2,612/2,612** marker occurrences linked to an in-article reference-list
+  entry; **1,656/2,612 (63.4%)** have an external URL. **956** have no external
+  URL through this method, and 155 cited passages have all markers URL-linked.
+  Removing 12 bibliography/source passages is why the total is lower than the
+  historical 496-passage v2 result. The counts measure linkage only—not whether
+  a source supports the passage, source quality, legal eligibility, or reuse
+  permission. The full passage-to-reference map remains local and ignored.
+- Verification after this parser change: **15 focused parser/re-extraction/
+  citation tests passed**, **284 non-integration tests passed** (50 skipped),
+  and the isolated PostgreSQL/API suite passed **81 tests, 270 deselected** in
+  `cinegraph_test`. No model download, corpus write, or embedding run occurred.
+- The detailed execution baseline is maintained in
+  [`catalog-data-roadmap-v2.md`](catalog-data-roadmap-v2.md): source roles and
+  rights gates, target record/evidence model, resumable ingestion pipeline,
+  phased 10 → 100 → 1,000 expansion gates, retrieval evaluation, and
+  decisions for additional datasets. This ten-title audit does **not** satisfy
+  those gates: citation support/rights review, eligible chunking, embeddings,
+  and paired retrieval evaluation remain pending.
+- Next: manually review a stratified ten-film sample using each citation's
+  paragraph/offset and target; separately inspect passage boundaries and
+  attribution/rights. Only after that should eligible text enter an isolated,
+  versioned retrieval experiment. Keep raw captures and derivatives local.
+
+### Follow-up — first citation-support spot check (5 November 2026)
+
+- Reviewed one deterministic citation-bearing paragraph per title against its
+  retained local reference entry and the exact target where accessible. Two
+  sampled narrow statements were directly supported, one was partial, one
+  exposed a current link/edition mismatch, and six remain unverified. This is
+  a convenience smoke sample, not an accuracy estimate; inaccessible targets
+  are unknown, not false. The per-title labels stay in the ignored local file
+  `data/evaluation/catalog-intake/first10-v1/citation-support-review-v1.md`.
+- The spot check confirms we cannot use a Wikipedia citation marker or URL as
+  an automatic support signal. Keep external-reference prose out of the local
+  product evidence unless its separate rights/access terms are cleared. The
+  current Wikipedia passages retain their own snapshot/revision and CC BY-SA
+  provenance; public monetized use still needs the attribution/ShareAlike
+  implementation and legal review already noted above.
+- This partially advances, but does not complete, the Phase 2 review gate.
+  Next: a passage-boundary and narrative-coverage sample; then an isolated
+  local retrieval evaluation over the eligible, revision-pinned Wikipedia
+  evidence. Keep supportability labels and source snapshots local, and do not
+  expand to 100 until retrieval quality is measured on the frozen questions.
+
+### Follow-up — ten-film structured-field coverage and dataset-admission plan (5 November 2026)
+
+- Extended the offline capture audit to report structured Wikidata field
+  presence, statement counts, release-date precision/references, and cast
+  character qualifiers. The retained pilot snapshots contain 10/10 titles
+  with at least one release date, runtime, country, original language, genre,
+  director, cast, screenwriter, producer, cinematographer, and editor value;
+  music is present for 9/10, production company for 9/10. This describes the
+  captured EntityData only—it is not a correctness, completeness, rights, or
+  app/API projection result.
+- Across ten captured works there are 51 release-date statements: 48 day-, 2
+  month-, and 1 year-precision; 49 have a territory qualifier and 38 have a
+  Wikidata statement reference. There are 13 runtime statements, 12 with
+  references. These are multiple source-scoped events/values; do not collapse
+  them into a single date/runtime without a selection policy and edition or
+  territory context.
+- The 328 cast statements include a character entity (P453) on 136, a
+  character-name string (P4633) on 169, and one of those qualifiers on 214
+  (65.2%); 114 have neither. Coverage varies by film, so “cast present” does
+  not mean actor-to-character coverage is adequate. The local capture is not
+  ingested into the working catalog. The raw Wikidata capture adapter retains
+  property statements and qualifiers, but this pilot does not yet verify a
+  reviewed operational projector or the exact film-profile display for these
+  fields. That projection is a required gate, not something to infer from
+  source presence.
+- Passage audit: 484 v6 passages, 426 with citation markers, no exact duplicate
+  text, and 2 passages longer than 2,500 characters. Do not simply truncate
+  long passages: the next chunker must preserve section, citation marker
+  offsets, source revision, rights state and sentence boundaries; oversized
+  indivisible spans should be excluded/reported rather than silently clipped.
+- Dataset onboarding decision: keep each dataset/source in its own field-level
+  provenance lane. First produce a local manifest of candidate dataset version,
+  license/terms, permitted storage and commercial display/embedding scope,
+  attribution, stable identifiers, fields, language/territory semantics, and
+  update cadence. Then map fields to the existing work/release-event/person/
+  credit/assertion/passage model. Do not bulk import solely because a dataset
+  is large or publicly downloadable. IMDb files stay local and restricted to
+  the use allowed by their terms; Wikidata CC0 structured values and Wikipedia
+  CC BY-SA prose remain separate assets with distinct attribution/use rules.
+- Planned sequence for incoming data is now explicit: (1) retain the exact
+  source/version and rights decision; (2) resolve work identity to the frozen
+  pilot without auto-merging; (3) compare field definitions and retain raw
+  values/qualifiers; (4) run a 10-record adapter fixture with duplicate,
+  conflict, missing-field and role/date-precision cases; (5) project only
+  eligible reviewed facts, with provenance visible through API and UI; (6)
+  compare per-field coverage and sampled correctness against the Phase 0
+  baseline; (7) run the isolated eligible-passage retrieval benchmark; only
+  then permit checkpointed expansion to 100 and 1,000. Each stage produces a
+  versioned manifest and human-readable coverage report.
+- Verification for this audit change: 9 focused capture-audit tests pass; the
+  full non-integration suite passes **285 tests** (50 skipped, two third-party
+  warnings); the local v6 audit replays 10/10 films and 484 passages. The
+  updated numbers are written to the ignored local `capture-audit.md`; no
+  corpus rows, snapshots, or vectors were modified. The separate isolated
+  PostgreSQL/API suite was not rerun because this change only alters the
+  offline capture report and pure audit tests.
+
+### Follow-up — extraction version gate corrected and citation positions persisted (5 November 2026)
+
+- Found a concrete mismatch: the live HTML intake was extracting parser v6,
+  while the current-passage read rule still preferred a historical v1
+  extraction. Newly ingested passages could therefore be treated as missing
+  by reads and the intake worker's plot-evidence check. The selector now uses
+  explicit version precedence and the production extraction is v7, which
+  changes the stored derivative contract without changing parser v6 output.
+- Added an additive migration for `citation_positions` on narrative passages
+  and evidence chunks. HTML extraction stores marker ID, passage paragraph
+  index, and source-relative character offset. The versioned chunker v5 maps
+  positions to the sentence spans carried by each chunk, includes position
+  data in run identity, and writes those locators alongside the chunk. It does
+  not alter immutable passage text or turn citation locators into support
+  labels.
+- Real `cinegraph_test` integration now exercises capture snapshot → v7 passage
+  → current-passage selector → citation-preserving chunk. It also verifies
+  legacy-v1 fallback and that unrelated experimental extractions remain hidden.
+  The migration and full isolated API/PostgreSQL suite passed: **81 passed,
+  272 deselected**. The full non-integration suite passed **286 tests** (50
+  skipped, two third-party warnings); focused pure tests passed **26**,
+  including deterministic chunk citation attribution. No working-corpus rows
+  or vectors were changed.
+- Remaining Phase 2 gates: broader stratified passage/support review, rights
+  and attribution assessment, and paired question-led retrieval evaluation.
+  The ten-film capture remains isolated; no expansion to 100 follows from
+  these integrity tests alone.
+
+### Follow-up — rerun citation audit and isolate integration-test failure (5 November 2026)
+
+- Replayed the local capture-bundle audit without network access: **10/10**
+  selected films pass identity/capture integrity with **484** extracted
+  passages. Replayed citation-target resolution: all **2,612/2,612** citation
+  marker occurrences resolve to a retained reference-list entry; **1,656**
+  (63.4%) have an external URL, and only **155/426** cited passages have URLs
+  for every marker. These are locator-resolution results, not proof that the
+  cited source supports the text. The earlier manual check remains only 2
+  narrowly supported samples, 1 partial, 1 edition mismatch, and 6
+  unverified; it is not a general accuracy estimate.
+- Re-extracted all ten retained HTML snapshots using the deterministic parser
+  and verified the versioned derivative against the source hashes and pinned
+  revisions: **10/10**, **484 passages**, **2,612 citation positions**, zero
+  exact duplicate passages. This offline derivative audit reports parser v6;
+  it does not replace the database integration check for the operational v7
+  stored-passage selection and read path.
+- An additional offline structural check on the ten v6 derivatives found
+  **0 invalid positions among 2,612**: each marker belonged to its passage's
+  marker list and its offset lay within the indicated paragraph. This checks
+  coordinate bounds only; it does not establish sentence-level attribution or
+  support from the referenced source. The check is now part of the replayable
+  pilot audit; two focused tests pass, including a misplaced-offset rejection.
+- Focused deterministic tests for passage-version selection, citation-aware
+  chunking, HTML extraction and pilot re-extraction pass: **18 passed, 1
+  skipped**. The broader non-integration suite passes **272 tests**, with 81
+  integration tests deselected and two third-party warnings. `git diff
+  --check` also passes.
+- The first isolated PostgreSQL/API rerun exhausted host disk: pytest could
+  not create temporary/cache files and the test DB connection was refused,
+  producing cascading failures. After removing only the ignored,
+  regenerable `frontend/.next` build cache (190 MB; no local web server was
+  listening), available host space rose from 116 MB to 417 MB, but a second
+  Docker test-runner invocation remained stalled during `docker compose up`
+  before reaching its health check and had to be stopped. The latest
+  `has_plot` integration assertion is therefore **not verified**. Do not
+  treat the earlier 81-test run as verification of
+  that newest assertion.
+- No working-corpus rows, raw snapshots, model weights or embeddings were
+  changed. The capture and citation audits write only ignored local reports.
+  Next: restore a healthy dedicated Docker test stack with adequate disk
+  headroom, verify the new integration assertion, then continue the
+  stratified passage/support and rights review before any 100-film expansion.
+
+### Follow-up — isolated database gate restored (5 November 2026)
+
+- Docker became responsive after the earlier interruption. The existing
+  `cinegraph_test` PostgreSQL volume completed crash recovery without deletion
+  or recreation; migrations and the isolated API then started successfully.
+- The current integration suite passed **81 tests**, with **272 deselected**
+  and two third-party warnings. This run includes the new `has_plot` assertion
+  for the v7 article passage path and supersedes the failed disk-pressure run
+  described above. The broader non-integration suite previously passed 272.
+- This verifies the test-stack path, not a ten-film working-corpus ingestion,
+  rights clearance, or retrieval quality. Continue the ten-film review and
+  question-conditioned evaluation before expanding the selected collection.
+
+### Follow-up — ten retained articles replayed into the isolated database
+
+- An explicitly opt-in integration test replays all ten retained article
+  snapshots, verifies their hashes, QIDs and revisions, and stores them in a
+  fresh schema inside `cinegraph_test`. All ten replayed successfully:
+  **484 current v7 passages**, plot present for each film, and zero new
+  passages on a second extraction. The test passed without external requests.
+- This validates the retained Wikipedia snapshot-to-passage read path; it
+  does not verify structured Wikidata projection, chunking for the entire
+  pilot, rights approval, writer-question relevance, or working-catalog
+  publication. Those gates remain open.
+
+### Follow-up — ten-film chunk replay
+
+- Extended the opt-in isolated replay through the versioned chunker. All 484
+  passages were selected; it produced **500 chunks**, of which **496** passed
+  the configured minimum-word check and four were excluded as too short.
+  Each of the ten films had eligible chunks. A second run reused the existing
+  chunks without creating new rows. Every stored chunk was checked against its
+  source passage and its citation positions were a subset of that passage's.
+- **440 chunks** carry citation positions; the stored total is 2,648 because
+  overlapping chunks may repeat positions. This is not 2,648 independent
+  citations and does not prove citation support or retrieval relevance. The
+  integration test passed with two third-party warnings (including a local
+  PyTorch/NumPy compatibility warning). It remains isolated from the working
+  catalog; structured projection and question-led evaluation are still open.
+
+### Follow-up — ten-film Wikidata projection replay
+
+- Replayed all ten retained Wikidata EntityData responses alongside the
+  article replay in a fresh `cinegraph_test` schema. The projector scanned
+  **3,276** source statements, created **1,303** evidence-linked operational
+  assertions, and left **1,973** unsupported properties unprojected. Raw
+  source statements remain retained; unsupported does not mean false.
+- A second projection created no new assertions. The test checked that every
+  created assertion had a source-assertion evidence link and retained the
+  source qualifiers. It passed with two third-party warnings. These figures do
+  not measure field correctness, actor-to-character UI display, review status
+  quality, or readiness for publication. The working catalog was not changed.
+
+### Follow-up — user-facing structured metadata audit
+
+- In the isolated ten-film replay with only the retained Wikidata and
+  Wikipedia inputs, the film read model returned a release year for **10/10**
+  films, but the sourced-credit reader returned credits and character names
+  for **0/10**. This is a read-model/source representation gap, not a claim
+  that the working catalog lacks other sources.
+- Wikidata's projected cast assertions point to person entities and retain
+  character qualifiers; the sourced-credit reader expects a named credit in
+  `value_json`. The pilot has not captured person/character labels, so QID
+  placeholders cannot safely be shown as names. Do not infer roles or treat
+  qualifier presence as display-ready coverage. Resolve explicitly sourced
+  labels or use eligible attributed credits, then verify the API and film
+  page. Release-year presence does not validate territory or exact date.
+
+### Follow-up — local-only named-credit path
+
+- Tested the retained Wikidata IMDb identifiers against the local IMDb index
+  for the ten pilot films, checking the selected year and replaying each bundle
+  into a fresh `cinegraph_test` schema. The existing credit projector and
+  reader returned at least one actor-to-character credit for **10/10** when
+  `include_noncommercial=True`; the default reader excluded these credits for
+  all ten. The integration test passed with two third-party warnings.
+- This establishes an attributable local-research path, not independent
+  verification of every credit or a commercially cleared solution. It does
+  not change the working catalog or automatically expose restricted content.
+  Film-page/API verification, eligible public-source credits, and a safe
+  production rights policy remain necessary.
+
+### Follow-up — source-backed Wikidata labels
+
+- EntityData extraction now retains a present English label as a distinct
+  `labels.en` source assertion linked to the exact snapshot; it never turns a
+  QID fallback into a name. Replaying a retained snapshot can append this new
+  source field without overwriting original bytes or earlier statements.
+- The focused raw-data and ten-film isolated integration tests pass: **12
+  passed**, with two third-party warnings. This adds a provenance primitive,
+  not actor-name coverage: person/character EntityData still must be captured
+  under policy and resolved before the credit reader can safely use it.
+
+### Follow-up — source-linked credit-label canary
+
+- From the retained *The Dark Knight* cast statement, selected actor Q45772
+  and its P453 character Q78607187. Two sequential EntityData requests passed
+  the robots check; the captured English labels are Christian Bale and Bruce
+  Wayne. Exact responses, hashes, revisions and capture times remain in an
+  ignored local canary bundle. No working-catalog data was changed.
+- An opt-in `cinegraph_test` replay verified the film's cast statement and
+  character qualifier point to those QIDs and that each retained entity label
+  is a source assertion. The test passed with two third-party warnings. This
+  is one provenance canary, not a field-accuracy estimate or a working film
+  page: the credit read model still does not consume these label assertions.
+
+### Follow-up — source-backed Wikidata credit read model
+
+- The credit reader now batches Wikidata target-label lookups and uses only
+  English label assertions from the latest retained successful CC0 snapshot.
+  A cast character is displayed only for an unambiguous P453 QID with its own
+  retained label; missing or conflicting labels are not guessed. API credit
+  responses now carry separate actor and character label source URLs and
+  revisions as well as the film-credit source.
+- In the isolated canary, the reader returns Christian Bale as Bruce Wayne;
+  before the actor capture it returns no such named credit, and with only the
+  actor capture it leaves the character empty. Five focused tests pass with
+  two third-party warnings. This does not populate the working catalog or
+  validate the film page; broader person-label acquisition, per-field review,
+  UI provenance display, and API/browser testing remain open.
+
+### Follow-up — reproducible credit-label candidate manifest
+
+- Added an offline, immutable manifest builder that validates each retained
+  film snapshot's hash, revision and identity state, then records deduplicated
+  person and explicit P453 character QIDs with their source statement and
+  qualifier locators. It reports malformed targets and skips deprecated
+  statements; it makes no requests and publishes no facts.
+- The ten-film bundle yields **445 unique targets**: 308 appear as cast,
+  119 as characters, 17 as writers and 8 as directors (roles can overlap).
+  There are **zero reported malformed target links** in this sample. Two
+  focused tests pass, including snapshot-hash rejection, and replay produces
+  the same immutable manifest. Counts describe candidates—not captured
+  labels, reviewed identities, or display-ready credits. The local manifest
+  remains ignored; acquisition and policy/quality gates are still required.
+
+### Follow-up — non-commercial display boundary
+
+- Configuration now rejects `serve_noncommercial_sources=true` unless the
+  environment is explicitly `local` or `development`; six configuration
+  cases and three source-credit policy tests pass. This prevents a declared
+  production or staging configuration from silently enabling the local IMDb
+  display path.
+- This is not an authentication or deployment boundary: the current default
+  environment is `development`, and a publicly exposed development instance
+  could still serve restricted data. Deployment must explicitly set a
+  non-development environment, disable the flag, bind appropriately, and
+  review source rights before release.
+
+### Follow-up — full ten-film Wikidata credit-label capture and replay
+
+- The resumable, sequential, robots-checked EntityData job completed all **445
+  of 445** targets from the retained ten-film manifest. Its offline audit
+  verified every snapshot hash, QID, source revision and source URL; all
+  captures record the same robots.txt digest. The local raw snapshot bundle is
+  **27,449,229 bytes** and is ignored by Git. The audit reports 440 English
+  labels and 5 entities without an English label; those five stay unresolved.
+- Added an offline bundle audit command and a label-only source persistence
+  path. It stores the exact EntityData snapshot and only the `labels.en`
+  `SourceAssertion`, avoiding accidental ingestion of unrelated person claims.
+  The admin intake worker now selects explicit people and P453 character QIDs,
+  reuses retained snapshots, backfills a missing label assertion from exact
+  bytes, and fetches only targets without a retained snapshot. New requests
+  remain sequential, robots-checked and committed before the next request.
+  The isolated replay imported all captures into a fresh schema inside
+  `cinegraph_test`; two labels were already present from the canary, so replay
+  added 438 new label assertions and found 440 total. Replaying one capture
+  again created no new snapshot or label assertion; the worker's all-retained
+  path reused 445 snapshots without making another request.
+- The ten-film read model now has named cast for **10/10** and at least one
+  sourced actor-to-character credit for **10/10**. A bounded display-order
+  correction prioritizes credits with a sourced character name, so the 20-item
+  per-source cap no longer hides those useful pairs. The retained pilot still
+  projects 1,303 operational assertions from 3,283 statements; it creates 500
+  evidence chunks from 484 eligible passages, covering all ten films. These
+  are coverage and pipeline results, not full correctness or rights approval.
+- Verification: the explicit local PostgreSQL pilot replay passed; the focused
+  offline manifest/checkpoint/audit/credit policy suite passed **12 tests**;
+  the full non-integration regression suite passed **288 tests** (82
+  integration tests deselected).
+  The working corpus was not changed. UI provenance display, film-page/API
+  browser checks and independent per-credit review remain open.

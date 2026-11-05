@@ -1,4 +1,11 @@
-from app.services.wikipedia_revision_recovery import recovery_target_is_valid, should_retry_response
+import pytest
+
+from app.services.wikipedia_revision_recovery import (
+    RevisionRecoveryError,
+    fetch_pinned_revision,
+    recovery_target_is_valid,
+    should_retry_response,
+)
 
 
 def test_recovery_requires_exact_revision_page_and_nonempty_text() -> None:
@@ -17,3 +24,8 @@ def test_recovery_retries_only_explicit_throttling_or_lag() -> None:
     assert not should_retry_response(503, {}, None)
     assert not should_retry_response(502, {}, None)
     assert not should_retry_response(403, {}, None)
+
+
+def test_pinned_api_recovery_fails_closed_under_current_robots_policy() -> None:
+    with pytest.raises(RevisionRecoveryError, match="disallowed by current robots.txt"):
+        fetch_pinned_revision(None, "123", "enwiki:456")

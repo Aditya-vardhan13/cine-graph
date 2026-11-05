@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 class Settings(BaseSettings):
@@ -21,11 +21,17 @@ class Settings(BaseSettings):
     story_synthesis_timeout_seconds: float = Field(default=55.0, ge=5, le=90)
     serve_noncommercial_sources: bool = False
     research_collection_code: str = "english-1000-retained-narrative-v1"
-    admin_intake_token: str | None = None
+    admin_intake_email: str = "adityavk1310@gmail.com"
     imdb_data_dir: str = "/imports/imdb"
     imdb_index_dir: str = "data/imdb_index"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def enforce_noncommercial_scope(self) -> "Settings":
+        if self.serve_noncommercial_sources and self.environment not in {"development", "local"}:
+            raise ValueError("Non-commercial source display is restricted to local development")
+        return self
 
     @property
     def cors_origins(self) -> list[str]:

@@ -655,6 +655,8 @@ class NarrativePassage(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     citation_markers: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # Source-relative citation locators: marker ID, paragraph index, character offset.
+    citation_positions: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
     extraction_version: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -728,6 +730,8 @@ class EvidenceChunk(Base):
     word_count: Mapped[int] = mapped_column(Integer, nullable=False)
     token_count_estimate: Mapped[int] = mapped_column(Integer, nullable=False)
     sentence_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Positions refer to the parent passage, not the normalized chunk string.
+    citation_positions: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
     quality_status: Mapped[str] = mapped_column(String(30), nullable=False, default="eligible", index=True)
     quality_flags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     duplicate_of_chunk_id: Mapped[UUID | None] = mapped_column(ForeignKey("evidence_chunks.id"), index=True)

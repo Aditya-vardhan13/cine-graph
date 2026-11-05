@@ -22,6 +22,19 @@ def test_known_source_parser_keeps_only_its_approved_extraction_version() -> Non
         {"enwiki-section-passages-v1", "enwiki-readable-prose-mwparser-v3-lang"},
     ) == {"enwiki-section-passages-v1"}
 
+    assert select_current_extraction_versions(
+        "enwiki-article-html-capture-v1",
+        {
+            "enwiki-article-html-extraction-v1",
+            "enwiki-article-html-extraction-v6",
+            "enwiki-article-html-extraction-v7",
+            "experimental-html-extraction-v8",
+        },
+    ) == {"enwiki-article-html-extraction-v7"}
+    assert select_current_extraction_versions(
+        "enwiki-article-html-capture-v1", {"enwiki-article-html-extraction-v1"},
+    ) == {"enwiki-article-html-extraction-v1"}
+
 
 def test_unknown_source_parser_fails_closed_if_multiple_extractions_exist() -> None:
     with pytest.raises(ValueError, match="Multiple passage extraction versions"):
@@ -41,7 +54,9 @@ def test_current_passages_exclude_old_revision_and_keep_other_source() -> None:
                             canonical_url="https://fixture.test/wiki-film")
         overview = SourceObject(source_id=source.id, external_id="overview-film", object_kind="overview",
                                 canonical_url="https://fixture.test/overview-film")
-        db.add_all([wiki, overview])
+        html_wiki = SourceObject(source_id=source.id, external_id="html-film", object_kind="wiki_page",
+                                 canonical_url="https://en.wikipedia.org/wiki/Fixture_film")
+        db.add_all([wiki, overview, html_wiki])
         db.flush()
         old = SourceSnapshot(source_object_id=wiki.id, source_revision="1", content_hash="a" * 64,
                              canonical_url=wiki.canonical_url, license="CC BY-SA 4.0",
@@ -53,7 +68,13 @@ def test_current_passages_exclude_old_revision_and_keep_other_source() -> None:
         other = SourceSnapshot(source_object_id=overview.id, source_revision="1", content_hash="c" * 64,
                                canonical_url=overview.canonical_url, license="CC BY-SA 4.0",
                                retrieved_at=datetime(2025, 6, 1, tzinfo=timezone.utc))
-        db.add_all([old, new, other])
+        html_capture = SourceSnapshot(
+            source_object_id=html_wiki.id, source_revision="4", content_hash="g" * 64,
+            canonical_url=html_wiki.canonical_url, license="CC BY-SA 4.0",
+            parser_version="enwiki-article-html-capture-v1",
+            retrieved_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        db.add_all([old, new, other, html_capture])
         db.flush()
         db.add_all([
             NarrativePassage(subject_entity_id=entity.id, source_snapshot_id=old.id,
@@ -68,11 +89,22 @@ def test_current_passages_exclude_old_revision_and_keep_other_source() -> None:
             NarrativePassage(subject_entity_id=entity.id, source_snapshot_id=other.id,
                              section_locator="tmdb.overview", section_title="Overview", content="Short overview",
                              content_hash="f" * 64, extraction_version="fixture"),
+            NarrativePassage(subject_entity_id=entity.id, source_snapshot_id=html_capture.id,
+                             section_locator="lead", section_title="Lead", content="Approved HTML extraction",
+                             content_hash="2" * 64, extraction_version="enwiki-article-html-extraction-v7"),
+            NarrativePassage(subject_entity_id=entity.id, source_snapshot_id=html_capture.id,
+                             section_locator="lead", section_title="Lead", content="Legacy HTML extraction",
+                             content_hash="4" * 64, extraction_version="enwiki-article-html-extraction-v1"),
+            NarrativePassage(subject_entity_id=entity.id, source_snapshot_id=html_capture.id,
+                             section_locator="lead", section_title="Lead", content="Experimental HTML extraction",
+                             content_hash="3" * 64, extraction_version="experimental-html-extraction-v8"),
         ])
         db.flush()
 
         rows = current_passage_rows(db, {entity.id})
-        assert {passage.content for passage, _ in rows} == {"Current lead", "Short overview"}
+        assert {passage.content for passage, _ in rows} == {
+            "Current lead", "Short overview", "Approved HTML extraction",
+        }
         assert has_plot(db, entity.id) is False
         newer_without_passages = SourceSnapshot(
             source_object_id=wiki.id, source_revision="3", content_hash="0" * 64,
@@ -81,5 +113,7 @@ def test_current_passages_exclude_old_revision_and_keep_other_source() -> None:
         )
         db.add(newer_without_passages)
         db.flush()
-        assert [passage.content for passage, _ in current_passage_rows(db, {entity.id})] == ["Short overview"]
+        assert {passage.content for passage, _ in current_passage_rows(db, {entity.id})} == {
+            "Short overview", "Approved HTML extraction",
+        }
     engine.dispose()

@@ -33,7 +33,7 @@ from app.models import (
 )
 
 
-CHUNKER_VERSION = "spacy-sentencizer-evidence-v4"
+CHUNKER_VERSION = "spacy-sentencizer-evidence-v5-citation-positions"
 NORMALIZATION_VERSION = "unicode-nfc-whitespace-v1"
 ALLOWED_NARRATIVE_LICENSES = {"CC BY-SA 4.0"}
 WORD = re.compile(r"\b[\w'-]+\b", re.UNICODE)
@@ -81,6 +81,8 @@ class ChunkConfiguration:
 class Sentence:
     content: str
     token_count: int
+    start_char: int
+    end_char: int
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,7 @@ class PreparedChunk:
     sentence_count: int
     quality_status: str
     quality_flags: tuple[str, ...]
+    citation_positions: tuple[tuple[str, int, int], ...]
 
 
 def normalize_content(value: str) -> str:
@@ -113,11 +116,15 @@ def sentences_for(value: str, *, language_code: str = "en") -> list[Sentence]:
     """Use spaCy's model-free sentencizer so no trained NLP model is hidden here."""
     if language_code != "en":
         raise ValueError(f"No sentence segmenter is registered for language {language_code!r}.")
-    document = _ENGLISH_PIPELINE(normalize_content(value))
+    # Keep source offsets stable: Article HTML passage locators are relative to
+    # the exact extracted text, including paragraph separators and Unicode.
+    document = _ENGLISH_PIPELINE(value)
     sentences = [
         Sentence(
             content=sentence.text.strip(),
             token_count=sum(1 for token in sentence if not token.is_space),
+            start_char=sentence.start_char,
+            end_char=sentence.end_char,
         )
         for sentence in document.sents
         if sentence.text.strip()
@@ -138,7 +145,12 @@ def _overlap(sentences: list[Sentence], overlap_tokens: int) -> list[Sentence]:
     return list(reversed(selected))
 
 
-def _prepared_chunk(ordinal: int, source_sentences: list[Sentence], config: ChunkConfiguration) -> PreparedChunk:
+def _prepared_chunk(
+    ordinal: int,
+    source_sentences: list[Sentence],
+    config: ChunkConfiguration,
+    citation_positions: tuple[tuple[str, int, int], ...],
+) -> PreparedChunk:
     content = normalize_content(" ".join(sentence.content for sentence in source_sentences))
     token_count = sum(sentence.token_count for sentence in source_sentences)
     word_count = len(WORD.findall(content))
@@ -147,6 +159,11 @@ def _prepared_chunk(ordinal: int, source_sentences: list[Sentence], config: Chun
         flags.append("below_minimum_words")
     if any(sentence.token_count > config.maximum_tokens for sentence in source_sentences):
         flags.append("oversized_single_sentence")
+    sentence_spans = [(sentence.start_char, sentence.end_char) for sentence in source_sentences]
+    chunk_citations = tuple(
+        position for position in citation_positions
+        if any(start <= position[2] <= end for start, end in sentence_spans)
+    )
     # The configured maximum is an embedding-input contract, not a suggestion.
     # We preserve an oversized sentence for audit and later specialised handling,
     # but it cannot silently enter the first vector index.
@@ -160,10 +177,17 @@ def _prepared_chunk(ordinal: int, source_sentences: list[Sentence], config: Chun
         sentence_count=len(source_sentences),
         quality_status=status,
         quality_flags=tuple(flags),
+        citation_positions=chunk_citations,
     )
 
 
-def chunk_passage(value: str, *, language_code: str = "en", config: ChunkConfiguration | None = None) -> list[PreparedChunk]:
+def chunk_passage(
+    value: str,
+    *,
+    language_code: str = "en",
+    config: ChunkConfiguration | None = None,
+    citation_positions: tuple[tuple[str, int, int], ...] = (),
+) -> list[PreparedChunk]:
     """Split only at sentence boundaries with bounded overlap and explicit flags.
 
     A sentence larger than the maximum is kept intact rather than cut mid-claim;
@@ -180,11 +204,11 @@ def chunk_passage(value: str, *, language_code: str = "en", config: ChunkConfigu
     current_tokens = 0
     for sentence in source_sentences:
         if current and current_tokens >= config.target_tokens:
-            chunks.append(_prepared_chunk(len(chunks), current, config))
+            chunks.append(_prepared_chunk(len(chunks), current, config, citation_positions))
             current = _overlap(current, config.overlap_tokens)
             current_tokens = sum(item.token_count for item in current)
         if current and current_tokens + sentence.token_count > config.maximum_tokens:
-            chunks.append(_prepared_chunk(len(chunks), current, config))
+            chunks.append(_prepared_chunk(len(chunks), current, config, citation_positions))
             current = _overlap(current, config.overlap_tokens)
             current_tokens = sum(item.token_count for item in current)
             # An overlap is useful only when it still honours the input bound.
@@ -196,7 +220,7 @@ def chunk_passage(value: str, *, language_code: str = "en", config: ChunkConfigu
         current.append(sentence)
         current_tokens += sentence.token_count
     if current:
-        chunks.append(_prepared_chunk(len(chunks), current, config))
+        chunks.append(_prepared_chunk(len(chunks), current, config, citation_positions))
     return chunks
 
 
@@ -245,7 +269,8 @@ def _input_configuration(
 ) -> tuple[dict[str, int | str], str]:
     manifest = hashlib.sha256()
     for passage, snapshot in passages:
-        manifest.update(f"{passage.id}:{snapshot.id}:{passage.content_hash}\n".encode("ascii"))
+        positions = passage.citation_positions or []
+        manifest.update(f"{passage.id}:{snapshot.id}:{passage.content_hash}:{json.dumps(positions, sort_keys=True)}\n".encode("utf-8"))
     configuration = {**config.payload, "input_manifest_hash": manifest.hexdigest()}
     digest = hashlib.sha256(json.dumps(configuration, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     return configuration, digest
@@ -338,7 +363,18 @@ def build_evidence_chunks(
             if license_name not in ALLOWED_NARRATIVE_LICENSES or not attribution_url:
                 continue
             passages_eligible += 1
-            for prepared in chunk_passage(passage.content, language_code=language_code, config=config):
+            source_positions = tuple(
+                (item["marker_id"], int(item["paragraph_index"]), int(item["char_offset"]))
+                for item in (passage.citation_positions or [])
+                if isinstance(item, dict)
+                and isinstance(item.get("marker_id"), str)
+                and isinstance(item.get("paragraph_index"), int)
+                and isinstance(item.get("char_offset"), int)
+            )
+            for prepared in chunk_passage(
+                passage.content, language_code=language_code, config=config,
+                citation_positions=source_positions,
+            ):
                 key = (passage.id, prepared.ordinal)
                 if key in existing:
                     reused += 1
@@ -367,6 +403,10 @@ def build_evidence_chunks(
                     word_count=prepared.word_count,
                     token_count_estimate=prepared.token_count_estimate,
                     sentence_count=prepared.sentence_count,
+                    citation_positions=[
+                        {"marker_id": marker, "paragraph_index": paragraph_index, "char_offset": char_offset}
+                        for marker, paragraph_index, char_offset in prepared.citation_positions
+                    ],
                     quality_status=status,
                     quality_flags=flags,
                     duplicate_of_chunk_id=duplicate_of_chunk_id,
@@ -425,6 +465,9 @@ def evidence_chunk_quality_report(
     current = _current_passages_with_snapshots(db, collection_code=collection_code, language_code=language_code)
     selected = [(passage, snapshot) for passage, snapshot in current
                 if config.source_parser_version is None or snapshot.parser_version == config.source_parser_version]
+    if config.extraction_version is not None:
+        selected = [(passage, snapshot) for passage, snapshot in selected
+                    if passage.extraction_version == config.extraction_version]
     _, configuration_hash = _input_configuration(config, selected)
     run = db.scalar(select(EvidenceChunkRun).where(
         EvidenceChunkRun.collection_code == collection_code,
@@ -439,6 +482,7 @@ def evidence_chunk_quality_report(
     flags = Counter(flag for chunk in chunks for flag in chunk.quality_flags)
     chunks_per_film = Counter(chunk.subject_entity_id for chunk in chunks if chunk.quality_status == "eligible")
     token_counts = [chunk.token_count_estimate for chunk in chunks if chunk.quality_status == "eligible"]
+    chunks_with_citations = [chunk for chunk in chunks if chunk.citation_positions]
     return {
         "run_id": str(run.id),
         "status": run.status,
@@ -450,6 +494,8 @@ def evidence_chunk_quality_report(
         "chunk_count": len(chunks),
         "quality_status_counts": dict(sorted(status_counts.items())),
         "quality_flag_counts": dict(sorted(flags.items())),
+        "chunks_with_citation_positions": len(chunks_with_citations),
+        "citation_positions_persisted": sum(len(chunk.citation_positions or []) for chunk in chunks),
         "eligible_chunks_per_film": {
             "min": min(chunks_per_film.values(), default=0),
             "max": max(chunks_per_film.values(), default=0),

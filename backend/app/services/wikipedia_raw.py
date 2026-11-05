@@ -1,34 +1,25 @@
-"""Compliant, revisioned English Wikipedia enrichment for selected title/year records.
-
-``wikipedia-api`` resolves pages and their section structure. A documented
-MediaWiki API request then captures the exact wikitext revision for an
-immutable, attributable snapshot. This is deliberately a bounded-pilot
-adapter; bulk 100k work must use Wikimedia dumps.
-"""
+"""Robots-compliant English Wikipedia article snapshots and legacy API guards."""
 from __future__ import annotations
 
-import json
-import time
 import hashlib
+import json
 import argparse
-from urllib.parse import quote
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any
 
-import httpx
-import wikipediaapi
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.models import DataSource, RawIngestionRun, SourceAccessPolicy
+from app.models import DataSource, RawIngestionRun, SourceAccessPolicy, SourceSnapshot
+from app.services.wikipedia_article_capture import WikipediaArticleFetcher
+from app.services.wikipedia_article_html import ArticleDocument, article_url, parse_article_html
 from app.services.raw_snapshots import source_assertion, source_object, snapshot
 
-WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 SOURCE_URL = "https://en.wikipedia.org/"
 SOURCE_NAME = "English Wikipedia"
-ADAPTER_VERSION = "enwiki-revision-snapshot-v1"
+ADAPTER_VERSION = "enwiki-article-html-capture-v1"
 
 
 def request_interval_seconds() -> float:
@@ -55,6 +46,10 @@ def page_lookup_record(title: str, page: Any) -> dict[str, Any] | None:
 def source_for_wikipedia(db: Session) -> DataSource:
     source = db.scalar(select(DataSource).where(DataSource.name == SOURCE_NAME))
     if source:
+        source.notes = (
+            "English article pages are captured only through robots-permitted /wiki/ paths. "
+            "Generic Action API routes are disabled. Article content is attributed CC BY-SA 4.0."
+        )
         return source
     source = DataSource(
         name=SOURCE_NAME,
@@ -62,7 +57,10 @@ def source_for_wikipedia(db: Session) -> DataSource:
         source_type="revisioned_narrative_context",
         license="CC BY-SA 4.0",
         rights_status="attributed_reuse",
-        notes="English Wikipedia revisions are retained only as separately attributed CC BY-SA source snapshots. No HTML crawling.",
+        notes=(
+            "English article pages are captured only through robots-permitted /wiki/ paths. "
+            "Generic Action API routes are disabled. Article content is attributed CC BY-SA 4.0."
+        ),
     )
     db.add(source)
     db.flush()
@@ -76,138 +74,256 @@ def wikipedia_api_policy(db: Session, source: DataSource) -> SourceAccessPolicy:
     ))
     if policy:
         policy.max_requests_per_minute = get_settings().source_requests_per_minute
+        policy.robots_url = "https://en.wikipedia.org/robots.txt"
+        policy.robots_decision = "disallow_generic_api"
+        policy.allowed_paths = []
+        if policy.decision == "allowed":
+            policy.decision = "review_required"
+        policy.decision_notes = (
+            "Current robots.txt disallows /w/ except action=mobileview; a live check found "
+            "mobileview is no longer a recognized action. Generic Action API fetching is disabled "
+            "until an allowed article-page capture adapter is reviewed and tested."
+        )
         return policy
     policy = SourceAccessPolicy(
         source_id=source.id,
         access_mode="api",
         policy_url="https://www.mediawiki.org/wiki/Wikimedia_APIs/Access_policy",
         robots_url="https://en.wikipedia.org/robots.txt",
-        robots_decision="documented_api_route",
-        allowed_paths=[WIKIPEDIA_API],
+        robots_decision="disallow_generic_api",
+        allowed_paths=[],
         required_user_agent=True,
         max_requests_per_minute=get_settings().source_requests_per_minute,
         max_concurrency=1,
-        decision="allowed",
-        decision_notes="Bounded pilot through documented MediaWiki API with meaningful user agent, sequential pacing, revision attribution and stop-on-denial policy.",
+        decision="review_required",
+        decision_notes=(
+            "Current robots.txt disallows /w/ except action=mobileview; a live check found "
+            "mobileview is no longer a recognized action. Generic Action API fetching is disabled "
+            "until an allowed article-page capture adapter is reviewed and tested."
+        ),
     )
     db.add(policy)
     db.flush()
     return policy
 
 
+def wikipedia_article_html_policy(db: Session, source: DataSource, *, robots_sha256: str) -> SourceAccessPolicy:
+    """Record the explicitly checked robots permission for ordinary article paths."""
+    policy = db.scalar(select(SourceAccessPolicy).where(
+        SourceAccessPolicy.source_id == source.id,
+        SourceAccessPolicy.access_mode == "html",
+    ))
+    if policy and policy.decision == "denied":
+        raise RawWikipediaError("The registered Wikipedia HTML policy is denied; refusing to fetch.")
+    if policy is None:
+        policy = SourceAccessPolicy(
+            source_id=source.id,
+            access_mode="html",
+            policy_url="https://en.wikipedia.org/robots.txt",
+            robots_url="https://en.wikipedia.org/robots.txt",
+            robots_decision="allow_article_path",
+            allowed_paths=["https://en.wikipedia.org/wiki/*"],
+            required_user_agent=True,
+            max_requests_per_minute=min(60, get_settings().source_requests_per_minute),
+            max_concurrency=1,
+            decision="allowed",
+            decision_notes="Ordinary /wiki/{article} paths were checked against live robots.txt; "
+                           f"robots SHA-256 {robots_sha256}. Generic /w/api.php remains disabled.",
+            policy_revision=f"robots-sha256:{robots_sha256}",
+            reviewed_at=datetime.now(timezone.utc),
+        )
+        db.add(policy)
+        db.flush()
+    else:
+        policy.robots_url = "https://en.wikipedia.org/robots.txt"
+        policy.robots_decision = "allow_article_path"
+        policy.allowed_paths = ["https://en.wikipedia.org/wiki/*"]
+        policy.required_user_agent = True
+        policy.max_requests_per_minute = min(60, get_settings().source_requests_per_minute)
+        policy.max_concurrency = 1
+        policy.decision = "allowed"
+        policy.decision_notes = (
+            "Ordinary /wiki/{article} paths were checked against live robots.txt; "
+            f"robots SHA-256 {robots_sha256}. Generic /w/api.php remains disabled."
+        )
+        policy.policy_revision = f"robots-sha256:{robots_sha256}"
+        policy.reviewed_at = datetime.now(timezone.utc)
+    return policy
+
+
 def page_lookup(title: str) -> dict[str, Any] | None:
-    """Resolve a title via wikipedia-api before asking MediaWiki for its revision."""
-    wiki = wikipediaapi.Wikipedia(
-        user_agent=get_settings().wikidata_user_agent,
-        language="en",
-        extract_format=wikipediaapi.ExtractFormat.WIKI,
+    """Refuse API search; ingestion requires an already-resolved enwiki sitelink."""
+    raise RawWikipediaError(
+        "Wikipedia API title lookup is disabled by current robots.txt; resolve the film "
+        "identity and English Wikipedia sitelink before article capture."
     )
-    page = wiki.page(title)
-    return page_lookup_record(title, page)
 
 
 def revision_payload(title: str) -> dict[str, Any] | None:
-    headers = {"User-Agent": get_settings().wikidata_user_agent, "Accept-Encoding": "gzip, deflate"}
-    with httpx.Client(timeout=60, headers=headers) as client:
-        response = client.get(WIKIPEDIA_API, params={
-            "action": "query", "format": "json", "formatversion": "2", "redirects": "1",
-            "titles": title, "prop": "pageprops|revisions", "ppprop": "wikibase_item",
-            "rvprop": "ids|timestamp|content|contentmodel", "rvslots": "main", "maxlag": "5",
-        })
-    if response.status_code in {401, 403}:
-        raise RawWikipediaError(f"Wikipedia denied the request ({response.status_code}); stopping.")
-    if response.status_code == 429:
-        raise RawWikipediaError("Wikipedia rate-limited the run; stop and retry after the supplied delay.")
-    response.raise_for_status()
-    pages = response.json().get("query", {}).get("pages", [])
-    return pages[0] if pages and "missing" not in pages[0] else None
+    """Refuse the retired legacy revision lookup path instead of using /w/."""
+    raise RawWikipediaError(
+        "Wikipedia Action API revision retrieval is disabled by current robots.txt; "
+        "use the robots-compliant article-page capture adapter."
+    )
 
 
-def extract_page_assertions(db: Session, snapshot_id, page: dict[str, Any], lookup: dict[str, Any]) -> int:
+def extract_page_assertions(db: Session, snapshot_id, document: ArticleDocument) -> int:
+    metadata = document.metadata
     values = [
-        ("mediawiki:pageid", {"pageid": page.get("pageid")}),
-        ("mediawiki:title", {"title": page.get("title")}),
-        ("wikidata_item", {"wikidata_id": page.get("pageprops", {}).get("wikibase_item")}),
-        ("mediawiki:sections", {"section_titles": lookup["section_titles"]}),
+        ("mediawiki:pageid", {"pageid": metadata.page_id}),
+        ("mediawiki:title", {"title": metadata.title}),
+        ("wikidata_item", {"wikidata_id": metadata.wikidata_id}),
+        ("mediawiki:revisionid", {"revision_id": metadata.revision_id}),
+        ("mediawiki:sections", {"sections": list(dict.fromkeys(
+            (passage.section_locator, passage.section_title) for passage in document.passages
+        ))}),
     ]
     inserted = 0
     for key, value in values:
         if value and all(item is not None for item in value.values()) and source_assertion(
             db, source_snapshot_id=snapshot_id, statement_locator=key, source_property=key,
-            raw_subject={"pageid": page.get("pageid"), "title": page.get("title")}, raw_value=value,
+            raw_subject={"pageid": metadata.page_id, "title": metadata.title}, raw_value=value,
             raw_qualifiers={}, source_rank=None, extractor_version=ADAPTER_VERSION,
         ):
             inserted += 1
     return inserted
 
 
-def ingest_title_year_entries(db: Session, entries: list[dict[str, Any]], manifest_uri: str | None = None) -> dict[str, int]:
+def persist_article_snapshot(
+    db: Session, *, source: DataSource, run: RawIngestionRun,
+    payload: bytes, document: ArticleDocument, media_type: str,
+    storage_root: str | Path | None = None,
+) -> tuple[SourceSnapshot, bool, int]:
+    """Retain exact HTML bytes and append source-shaped page metadata assertions."""
+    canonical_url = document.metadata.canonical_url
+    item = source_object(
+        db, source=source, external_id=f"enwiki:{document.metadata.page_id}",
+        object_kind="wiki_page", canonical_url=canonical_url,
+    )
+    stored, created = snapshot(
+        db, item=item, run=run, payload=payload,
+        source_revision=str(document.metadata.revision_id),
+        canonical_url=canonical_url, license="CC BY-SA 4.0",
+        attribution_url=canonical_url, media_type=media_type,
+        parser_version=ADAPTER_VERSION, storage_suffix=".html", storage_root=storage_root,
+    )
+    inserted = extract_page_assertions(db, stored.id, document)
+    return stored, created, inserted
+
+
+def ingest_captured_article(
+    db: Session, *, payload: bytes, canonical_url: str, media_type: str,
+    expected_qid: str, robots_sha256: str, manifest_uri: str | None = None,
+    storage_root: str | Path | None = None,
+) -> dict[str, int]:
+    """Persist an already robots-checked exact article response without refetching it."""
     source = source_for_wikipedia(db)
-    policy = wikipedia_api_policy(db, source)
-    if policy.decision != "allowed":
-        raise RawWikipediaError("The registered Wikipedia API policy is not approved; refusing to fetch.")
+    policy = wikipedia_article_html_policy(db, source, robots_sha256=robots_sha256)
+    document = parse_article_html(payload, canonical_url=canonical_url,
+                                  expected_qid=expected_qid)
     run = RawIngestionRun(
-        source_id=source.id, access_policy_id=policy.id, adapter_name="wikipedia_api_revision_snapshot",
-        adapter_version=ADAPTER_VERSION, manifest_uri=manifest_uri, status="running",
-        records_requested=len(entries), started_at=datetime.now(timezone.utc),
+        source_id=source.id, access_policy_id=policy.id,
+        adapter_name="wikipedia_article_html_snapshot", adapter_version=ADAPTER_VERSION,
+        manifest_uri=manifest_uri, status="running", records_requested=1,
+        started_at=datetime.now(timezone.utc),
     )
     db.add(run)
-    db.flush()
     db.commit()
-    stats = {"resolved": 0, "not_found": 0, "snapshots": 0, "source_assertions": 0}
-    for index, entry in enumerate(entries):
-        title = str(entry.get("wikipedia_title") or entry["title"])
-        if entry.get("verified_wikidata_sitelink") and entry.get("wikidata_id"):
-            # A retained Wikidata enwiki sitelink is an exact page identity.
-            # The MediaWiki revision response below must independently return
-            # the expected QID before any source assertion is accepted.
-            lookup = {
-                "requested_title": title, "resolved_title": title,
-                "fullurl": "https://en.wikipedia.org/wiki/" + quote(title.replace(" ", "_")),
-                "section_titles": [],
-            }
-        else:
-            lookup = page_lookup(title)
-            time.sleep(request_interval_seconds())
-        if not lookup:
-            stats["not_found"] += 1
-            continue
-        page = revision_payload(lookup["resolved_title"])
-        if not page:
-            stats["not_found"] += 1
-            continue
-        expected_qid = entry.get("wikidata_id")
-        actual_qid = page.get("pageprops", {}).get("wikibase_item")
-        if expected_qid and actual_qid != expected_qid:
-            stats["not_found"] += 1
-            continue
-        stats["resolved"] += 1
-        revision = (page.get("revisions") or [{}])[0]
-        source_revision = str(revision.get("revid")) if revision.get("revid") else None
-        canonical_url = lookup["fullurl"]
-        item = source_object(
-            db, source=source, external_id=f"enwiki:{page['pageid']}", object_kind="wiki_page", canonical_url=canonical_url,
+    try:
+        stored, created, assertions_created = persist_article_snapshot(
+            db, source=source, run=run, payload=payload, document=document,
+            media_type=media_type, storage_root=storage_root,
         )
-        payload = json.dumps({"page": page, "lookup": lookup, "manifest_entry": entry}, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        stored, created = snapshot(
-            db, item=item, run=run, payload=payload, source_revision=source_revision,
-            canonical_url=canonical_url, license="CC BY-SA 4.0", attribution_url=canonical_url,
-            media_type="application/json", parser_version=ADAPTER_VERSION,
-        )
-        if created:
-            stats["snapshots"] += 1
-            stats["source_assertions"] += extract_page_assertions(db, stored.id, page, lookup)
-        if (index + 1) % 25 == 0:
-            run.records_snapshotted = stats["snapshots"]
-            run.records_failed = stats["not_found"]
+        run.records_snapshotted = int(created)
+        run.status = "complete"
+        run.completed_at = datetime.now(timezone.utc)
+        db.commit()
+        return {"resolved": 1, "not_found": 0, "needs_resolution": 0,
+                "snapshots": int(created), "source_assertions": assertions_created,
+                "page_id": int(stored.source_object.external_id.removeprefix("enwiki:"))}
+    except Exception as exc:
+        db.rollback()
+        failed = db.get(RawIngestionRun, run.id)
+        if failed:
+            failed.status = "failed"
+            failed.error_summary = f"{type(exc).__name__}: {exc}"[:1000]
+            failed.records_failed = 1
+            failed.completed_at = datetime.now(timezone.utc)
             db.commit()
-        if index + 1 < len(entries):
-            time.sleep(request_interval_seconds())
-    run.records_snapshotted = stats["snapshots"]
-    run.records_failed = stats["not_found"]
-    run.status = "complete"
-    run.completed_at = datetime.now(timezone.utc)
-    db.commit()
+        raise
+
+
+def ingest_title_year_entries(db: Session, entries: list[dict[str, Any]], manifest_uri: str | None = None) -> dict[str, int]:
+    source = source_for_wikipedia(db)
+    stats = {"resolved": 0, "not_found": 0, "needs_resolution": 0,
+             "snapshots": 0, "source_assertions": 0}
+    if not entries:
+        return stats
+    settings = get_settings()
+    with WikipediaArticleFetcher(
+        user_agent=settings.wikidata_user_agent,
+        interval_seconds=max(1.0, settings.source_request_interval_seconds),
+    ) as fetcher:
+        policy = wikipedia_article_html_policy(db, source, robots_sha256=fetcher.robots_sha256 or "unknown")
+        run = RawIngestionRun(
+            source_id=source.id, access_policy_id=policy.id, adapter_name="wikipedia_article_html_snapshot",
+            adapter_version=ADAPTER_VERSION, manifest_uri=manifest_uri, status="running",
+            records_requested=len(entries), started_at=datetime.now(timezone.utc),
+        )
+        db.add(run)
+        db.commit()
+        try:
+            for entry in entries:
+                qid = str(entry.get("wikidata_id") or "").strip()
+                title = str(entry.get("wikipedia_title") or "").strip()
+                if not qid or not title:
+                    stats["needs_resolution"] += 1
+                    run.records_snapshotted = stats["snapshots"]
+                    run.records_failed = stats["not_found"] + stats["needs_resolution"]
+                    db.commit()
+                    continue
+                requested_url = article_url(title)
+                try:
+                    payload, canonical_url, _, media_type = fetcher.fetch(requested_url)
+                except FileNotFoundError:
+                    stats["not_found"] += 1
+                    run.records_snapshotted = stats["snapshots"]
+                    run.records_failed = stats["not_found"] + stats["needs_resolution"]
+                    db.commit()
+                    continue
+                document = parse_article_html(
+                    payload, canonical_url=canonical_url, expected_qid=qid,
+                )
+                _, created, assertions_created = persist_article_snapshot(
+                    db, source=source, run=run, payload=payload,
+                    document=document, media_type=media_type,
+                )
+                # Commit each film atomically. A stop or restart must not lose
+                # earlier captures while the content-addressed files survive.
+                run.records_snapshotted = stats["snapshots"] + int(created)
+                run.records_failed = stats["not_found"] + stats["needs_resolution"]
+                db.flush()
+                db.commit()
+                stats["resolved"] += 1
+                if created:
+                    stats["snapshots"] += 1
+                stats["source_assertions"] += assertions_created
+            run.records_snapshotted = stats["snapshots"]
+            run.records_failed = stats["not_found"] + stats["needs_resolution"]
+            run.status = "complete"
+            run.completed_at = datetime.now(timezone.utc)
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            failed_run = db.get(RawIngestionRun, run.id)
+            if failed_run:
+                failed_run.status = "failed"
+                failed_run.error_summary = f"{type(exc).__name__}: {exc}"[:1000]
+                failed_run.records_snapshotted = stats["snapshots"]
+                failed_run.records_failed = len(entries) - stats["resolved"]
+                failed_run.completed_at = datetime.now(timezone.utc)
+                db.commit()
+            raise
     return stats
 
 
@@ -226,7 +342,7 @@ def main() -> None:
     from app.db import SessionLocal
     from app.migrations import run_migrations
 
-    parser = argparse.ArgumentParser(description="Snapshot selected English Wikipedia revisions through wikipedia-api and MediaWiki API.")
+    parser = argparse.ArgumentParser(description="Capture selected English Wikipedia article pages through robots-allowed /wiki/ routes.")
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--limit", type=int)
     args = parser.parse_args()

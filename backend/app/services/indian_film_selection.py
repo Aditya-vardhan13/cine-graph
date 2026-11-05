@@ -17,9 +17,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import httpx
-
-from app.core.config import get_settings
 from app.services.imdb_dataset import IMDB_ID, ImdbDataset
 
 
@@ -65,23 +62,10 @@ def acquire_candidates(language_code: str, cache_dir: Path, *, limit: int = 2000
         if retained.get("query") != query:
             raise ValueError(f"Cached query changed: {cache_path}")
         return retained
-    headers = {"User-Agent": get_settings().wikidata_user_agent,
-               "Accept": "application/sparql-results+json"}
-    with httpx.Client(timeout=60, headers=headers) as client:
-        response = client.get(ENDPOINT, params={"query": query, "format": "json"})
-    if response.status_code in {401, 403, 429}:
-        raise RuntimeError(f"WDQS denied or rate-limited the request ({response.status_code}); stop")
-    response.raise_for_status()
-    payload = response.json()
-    retained = {
-        "selection_version": SELECTION_VERSION,
-        "endpoint": ENDPOINT,
-        "query": query,
-        "payload_sha256": hashlib.sha256(response.content).hexdigest(),
-        "payload": payload,
-    }
-    cache_path.write_text(json.dumps(retained, ensure_ascii=False), encoding="utf-8")
-    return retained
+    raise RuntimeError(
+        "Wikidata Query Service /sparql candidate discovery is disabled by the current "
+        "source-access policy. Use a reviewed, locally retained selection manifest."
+    )
 
 
 def parse_candidates(raw: dict[str, Any], language_code: str,

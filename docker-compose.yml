@@ -25,6 +25,7 @@ services:
   api:
     build: ./backend
     environment:
+      ENVIRONMENT: ${CINEGRAPH_ENVIRONMENT:-development}
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/cinegraph
       API_CORS_ORIGINS: http://localhost:3000
       RAW_SNAPSHOT_ROOT: /var/lib/cinegraph/raw-snapshots
@@ -32,7 +33,7 @@ services:
       STORY_SYNTHESIS_MODEL: ${CINEGRAPH_STORY_MODEL:-}
       STORY_SYNTHESIS_BASE_URL: ${CINEGRAPH_STORY_URL:-http://host.docker.internal:11435}
       SERVE_NONCOMMERCIAL_SOURCES: "true"
-      ADMIN_INTAKE_TOKEN: ${CINEGRAPH_ADMIN_TOKEN:-}
+      ADMIN_INTAKE_EMAIL: ${CINEGRAPH_ADMIN_EMAIL:-adityavk1310@gmail.com}
       IMDB_DATA_DIR: /imports/imdb
       IMDB_INDEX_DIR: /app/data/imdb_index
     ports:
@@ -93,7 +94,6 @@ services:
       CINEGRAPH_LOCAL_ADMIN_MODE: "1"
       CINEGRAPH_BIND_ADDRESS: ${CINEGRAPH_BIND_ADDRESS:-127.0.0.1}
       CINEGRAPH_ADMIN_EMAIL: ${CINEGRAPH_ADMIN_EMAIL:-adityavk1310@gmail.com}
-      ADMIN_INTAKE_TOKEN: ${CINEGRAPH_ADMIN_TOKEN:-}
     ports:
       - "${CINEGRAPH_BIND_ADDRESS:-127.0.0.1}:3000:3000"
     depends_on:

@@ -75,9 +75,10 @@ def snapshot(
     attribution_url: str | None,
     media_type: str = "application/json",
     parser_version: str | None = None,
+    storage_suffix: str = ".json",
     storage_root: str | Path | None = None,
 ) -> tuple[SourceSnapshot, bool]:
-    storage_uri, content_hash = store_payload(item.source_id, payload, root=storage_root)
+    storage_uri, content_hash = store_payload(item.source_id, payload, suffix=storage_suffix, root=storage_root)
     existing = db.scalar(select(SourceSnapshot).where(
         SourceSnapshot.source_object_id == item.id,
         SourceSnapshot.source_revision == source_revision,

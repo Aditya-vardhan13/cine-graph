@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.models import RawIngestionRun, RawIngestionRunSnapshot, SourceAssertion, SourceSnapshot
 from app.services.wikipedia_raw import read_manifest
+from app.services.wikipedia_article_html import parse_article_html
 
 FILM_TYPE_QIDS = {"Q11424", "Q202866", "Q20650540"}
 
@@ -49,11 +50,22 @@ def wikipedia_release_years(payload: dict[str, Any]) -> set[int]:
     return {int(year) for year in re.findall(r"(?<!\d)(?:18|19|20)\d{2}(?!\d)", match.group(1))} if match else set()
 
 
-def snapshot_positions(snapshots: list[SourceSnapshot]) -> tuple[dict[int, str], dict[int, set[int]], list[str]]:
-    """Read only recent host-visible source snapshots to bind positions to QIDs."""
+def snapshot_positions(snapshots: list[SourceSnapshot], entries: list[dict[str, Any]] | None = None
+                       ) -> tuple[dict[int, str], dict[int, set[int]], list[str]]:
+    """Bind retained pages to manifest rows only by explicit QID or exact title."""
     qid_by_position: dict[int, str] = {}
     wikipedia_years_by_position: dict[int, set[int]] = {}
     unavailable: list[str] = []
+    entries = entries or []
+    by_qid: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for entry in entries:
+        if entry.get("wikidata_id"):
+            by_qid[str(entry["wikidata_id"])].append(entry)
+    by_title: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for entry in entries:
+        title = str(entry.get("wikipedia_title") or entry.get("title") or "").strip().casefold()
+        if title:
+            by_title[title].append(entry)
     for item in snapshots:
         if not item.storage_uri:
             unavailable.append(str(item.id))
@@ -62,14 +74,29 @@ def snapshot_positions(snapshots: list[SourceSnapshot]) -> tuple[dict[int, str],
         if not path.exists():
             unavailable.append(str(item.id))
             continue
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        entry = payload.get("manifest_entry", {})
-        page = payload.get("page", {})
-        position = entry.get("position")
-        qid = page.get("pageprops", {}).get("wikibase_item")
+        if item.media_type in {"text/html", "application/xhtml+xml"}:
+            document = parse_article_html(
+                path.read_bytes(), canonical_url=item.canonical_url,
+            )
+            qid = document.metadata.wikidata_id
+            qid_matches = by_qid.get(qid, [])
+            entry = qid_matches[0] if len(qid_matches) == 1 else None
+            if entry is None:
+                matches = by_title.get(document.metadata.title.casefold(), [])
+                entry = matches[0] if len(matches) == 1 else None
+            position = entry.get("position") if entry else None
+        else:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            entry = payload.get("manifest_entry", {})
+            page = payload.get("page", {})
+            position = entry.get("position")
+            qid = page.get("pageprops", {}).get("wikibase_item")
         if isinstance(position, int) and isinstance(qid, str):
             qid_by_position[position] = qid
-            wikipedia_years_by_position[position] = wikipedia_release_years(payload)
+            wikipedia_years_by_position[position] = (
+                wikipedia_release_years(payload) if item.media_type not in {"text/html", "application/xhtml+xml"}
+                else set()
+            )
     return qid_by_position, wikipedia_years_by_position, unavailable
 
 
@@ -82,10 +109,16 @@ def audit_selection(db: Session, entries: list[dict[str, Any]], manifest_uris: l
         run_snapshot_ids[run.adapter_name].extend(db.scalars(select(RawIngestionRunSnapshot.source_snapshot_id).where(
             RawIngestionRunSnapshot.ingestion_run_id == run.id,
         )).all())
+    wiki_snapshot_ids = [
+        *run_snapshot_ids["wikipedia_article_html_snapshot"],
+        *run_snapshot_ids["wikipedia_api_revision_snapshot"],
+    ]
     wiki_snapshots = db.scalars(select(SourceSnapshot).where(
-        SourceSnapshot.id.in_(run_snapshot_ids["wikipedia_api_revision_snapshot"])
-    )).all() if run_snapshot_ids["wikipedia_api_revision_snapshot"] else []
-    qid_by_position, wikipedia_years_by_position, unavailable_snapshot_files = snapshot_positions(wiki_snapshots)
+        SourceSnapshot.id.in_(wiki_snapshot_ids)
+    )).all() if wiki_snapshot_ids else []
+    qid_by_position, wikipedia_years_by_position, unavailable_snapshot_files = snapshot_positions(
+        wiki_snapshots, entries,
+    )
 
     qids = set(qid_by_position.values())
     facts: dict[str, dict[str, set[Any]]] = defaultdict(lambda: {"types": set(), "years": set()})

@@ -51,3 +51,19 @@ def test_overlap_never_pushes_an_eligible_chunk_past_the_hard_maximum() -> None:
     assert len(chunks) == 2
     assert all(chunk.quality_status == "eligible" for chunk in chunks)
     assert all(chunk.token_count_estimate <= configuration.maximum_tokens for chunk in chunks)
+
+
+def test_citation_positions_follow_the_sentence_into_each_chunk() -> None:
+    text = "Alpha makes a choice [cite_ref-1]. Beta sees what changes afterward."
+    marker_offset = text.index("[cite_ref-1]")
+    configuration = ChunkConfiguration(
+        target_tokens=5, maximum_tokens=8, overlap_tokens=0, minimum_words=1,
+    )
+
+    chunks = chunk_passage(
+        text, config=configuration,
+        citation_positions=(("cite_ref-1", 0, marker_offset),),
+    )
+
+    assert chunks[0].citation_positions == (("cite_ref-1", 0, marker_offset),)
+    assert all(not chunk.citation_positions for chunk in chunks[1:])

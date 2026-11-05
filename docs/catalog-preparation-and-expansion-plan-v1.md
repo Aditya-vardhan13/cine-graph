@@ -1,6 +1,6 @@
 # CineGraph catalog preparation and expansion plan v1
 
-Status: decision and execution plan, 3 November 2026. This document defines
+Status: decision and execution plan, updated 5 November 2026. This document defines
 how the newly audited datasets should and should not affect the catalog, and
 the staged path from the current local corpus to a vetted 1,000-film reference
 collection. It is not a claim that the catalog is complete, commercially
@@ -107,6 +107,102 @@ Important audit cautions:
 The current bottleneck is not just count. It is field-level evidence quality,
 coverage that is uneven between films, source-use eligibility, identity
 decisions, and the distance between ranked passages and a grounded answer.
+
+### 3.1 Latest read-only release/runtime audit (4 November 2026)
+
+A second, read-only pass traced each pilot release/runtime projection back
+through `AssertionEvidence` to its `SourceAssertion` and retained
+`SourceSnapshot`. This closes an auditability gap in the earlier report: a
+normalized assertion alone did not show the raw source value, qualifiers,
+statement locator, source revision, or API capture details. The version-2
+audit output now records raw qualifiers, snapshot revision or capture time,
+fetch status, attribution URL, content hash and licence. The enhanced audit
+script and its
+JSON report are local artifacts; the report is under ignored
+`data/evaluation/` and is not committed as corpus data. The working catalog was
+not mutated.
+
+For the frozen first 100, release-date presentation resolves as follows:
+
+| Release-date status | Films / 100 | Handling |
+| --- | ---: | --- |
+| Legacy date missing | 81 | Project an eligible sourced release event only with its event type/territory; otherwise show missing. |
+| Exact match to earliest recorded event | 3 | Display with the event's scope and citation. |
+| Year matches, exact event ordering/date does not | 2 | Keep year-level precision; do not invent an exact date. |
+| Matches a different territory-specific event | 13 | Preserve the event scope; do not call it a conflict or silently substitute a worldwide premiere. |
+| Same-year placeholder with no matching event | 1 | Quarantine the legacy value pending review (Psycho). |
+
+For runtime, 17 legacy profiles agree with the eligible source projection;
+65 have eligible sourced runtime evidence absent from the legacy profile; 17
+have multiple values or edition/qualifier scope requiring a decision; and one
+record is supported only by a non-commercial-research source and is ineligible
+for default product display. These are source/projection statuses, not a
+verdict that the underlying source is correct. The competing values must be
+reviewed with their raw qualifiers (for example theatrical versus extended
+editions) before a display policy is selected. The non-commercial-only value
+must remain excluded unless an independently eligible source supports it.
+
+The next catalog-data action is therefore a small, explicit resolution table
+for the 17 runtime exceptions and the one placeholder date: choose a source
+event/value only when evidence and scope justify it, retain competing source
+assertions, and leave unresolved fields visibly unknown. Do not bulk-copy the
+legacy projection into canonical records or use a majority vote across
+sources.
+
+The regenerated report contains **891** evidence links for release/runtime
+assertions across the 100 films. All 891 resolve to a `SourceAssertion`, a
+snapshot URL, a content hash, a capture timestamp and a successful fetch
+status. **71 TMDb API captures have no upstream revision identifier**; each
+still has a content hash and capture timestamp, so the response is
+distinguishable and replay/audit-bound by the captured bytes rather than a
+source revision number.
+
+Snapshot bytes were checked in both storage contexts because the collection is
+split between the local workspace and a Docker volume. The container-side
+read-only audit verified all **194** snapshots in the Docker volume; the
+host-side audit verified **8** workspace snapshots. Together, **202 of 208**
+distinct pilot snapshots are verified. The remaining **6 Wikidata snapshots**
+point to an old `/private/tmp` directory and are genuinely unavailable at that
+path; the other apparent host/container misses are storage-context differences,
+not missing bytes. These six records have stored source revisions and hashes,
+so the next step is a carefully policy-checked recovery attempt—not replacing
+their evidence with current responses. The route check and result are recorded
+in section 3.2; none of the six has been byte-for-byte recovered.
+
+### 3.2 Source-route compliance check (4 November 2026)
+
+The source-route check was performed before enabling capture code because
+public visibility does not imply that every endpoint is permitted. CineGraph
+follows the source's current `robots.txt` rules.
+
+| Source/route | Observed policy and live check | Pipeline decision |
+| --- | --- | --- |
+| Wikidata `Special:EntityData/{QID}.json` | [Wikidata robots.txt](https://www.wikidata.org/robots.txt) contains a specific `Allow: /wiki/Special:EntityData/*.` exception. The official [Data access guide](https://www.wikidata.org/wiki/Help:Data_access) documents revision-pinned requests. A live robots-checked GET returned Q163872 at revision 2564648138. | Enabled for known-QID sequential capture: RFC 9309 path matching, 1 request/second, concurrency 1, descriptive user-agent, same-host redirects only. Retain exact response bytes and revision metadata; no title-search route. |
+| Wikidata generic `/w/api.php` search | Disallowed by current robots policy. | Disabled. Title-only entries without QID remain unresolved until a separately permitted discovery adapter exists. |
+| Wikipedia article `/wiki/{title}` | [English Wikipedia robots.txt](https://en.wikipedia.org/robots.txt) permits ordinary article pages. A live *The Dark Knight* GET returned HTTP 200, revision ID, article ID, Wikidata QID and section headings. | Implemented as a sequential, robots-checked HTML capture and versioned parser. Live contract availability is verified; production-scale completeness and writer value are not. |
+| Wikipedia generic `/w/api.php` | Disallowed by current robots policy. One permitted legacy `mobileview` action request returned `badvalue` because that action is no longer recognized. | Legacy Action API and `wikipedia-api` ingestion fail closed. Implement ordinary article-page capture; do not try alternate API actions to work around robots. |
+| Wikidata Query Service `/sparql` | Disallowed by its current robots policy. | Not a fallback for title search or bulk discovery. |
+
+A pinned EntityData response for one missing historical snapshot was retrieved,
+but its response hash (`ce759680e6cbae4eb25d2afbf11b283faff0b5a4f90e558c0288993f83d5cb40`)
+differs from the stored historical hash
+(`09e019c7268fe992fe3d3b7bcce3a27d4d1567d20898dd912a795fa10d1e7a0d`). Several
+filtered/canonical serializations were also checked without a hash match. It is
+not byte-for-byte recovery and was not linked to the old snapshot or used to
+update the database. Keep all six missing-file states explicit. The response
+and article HTML captures remain ignored local evaluation artifacts.
+
+The Wikidata adapter now targets only the robots-allowed EntityData JSON route and
+requires known QIDs; title search through the disallowed Action API is removed.
+Wikipedia API lookup and pinned-revision recovery fail closed. The ordinary
+article-page path is now implemented: it checks robots policy for each URL
+(including redirects), paces requests by at least one second, bounds redirects
+and response size, retains the exact HTML snapshot, and derives source
+assertions and versioned section-located narrative passages. Identity must
+already be resolved to a known QID and verified English sitelink; there is no
+title-search fallback. A small attributed HTML fixture drives offline parser
+tests, while live payloads stay local. Do not re-enable generic Action API
+calls.
 
 ## 4. Source plan: what enters which layer
 
@@ -432,6 +528,91 @@ before it is scaled.
 6. Proceed to the 100-film pilot only after Gate 1; proceed to the 1,000 only
    after pilot quality and question-conditioned evaluation pass.
 
+## 12. Verified checkpoint (4 November 2026)
+
+- The isolated API/PostgreSQL integration suite passed **73 tests** after
+  adding route-policy guards and permitted EntityData adapter coverage; 242
+  tests were deselected and two third-party warnings were reported. It uses
+  only the dedicated `cinegraph_test` database. The default comparison
+  retrieval contract uses real PostgreSQL/pgvector-backed test data and lexical
+  fallback, with no external request or mock framework.
+- The local Playwright flow passed **7/7** checks against the isolated API and
+  web app after the fixture was corrected to run the real evidence-chunk
+  preparation step. The tests use the isolated test stack and do not touch the
+  working corpus database.
+- This closes the current browser/API fixture gate only. It does not close the
+  data-quality, source-policy, 100-film enrichment, writer-answer quality, or
+  1,000-film expansion gates.
+- The enhanced audit exposes raw source assertion qualifiers and snapshot
+  provenance. Cross-context verification found 202/208 distinct snapshots
+  present and hash-valid; six old `/private/tmp` Wikidata snapshot files remain
+  unavailable. The latest full test run includes the additive audit and
+  route-policy changes.
+
+### Next execution order
+
+1. Keep the six historical Wikidata snapshot gaps explicit. The permitted
+   pinned EntityData route returned the requested revision for one item, but
+   not bytes matching its stored historical hash. Do not overwrite or relink
+   the old snapshot; only a separately identified and reviewed capture may be
+   considered.
+2. Resolve the 17 runtime cases and the `Psycho` placeholder with a compact,
+   evidence-linked review artifact. Keep unresolved conflicts visible and do
+   not change operational projections until decisions are supported.
+3. Finish and test parser-version selection and source-use eligibility so a
+   new extraction cannot silently replace the selected passage version.
+4. Run the ten-film intake vertical slice end to end, including identity,
+   policy, capture, extraction, validation, human review, evidence preparation,
+   indexing status and UI provenance.
+5. Only after that slice passes, enrich the 100-film pilot and evaluate the
+   frozen question set. Expand toward 1,000 only after the 100-film gate.
+
+The new parser was also run against the retained local full *The Dark Knight*
+HTML capture: it identified revision `1383150687` / QID `Q163872` and extracted
+71 prose passages across 24 section paths. This is a parser canary only; it did
+not ingest or change the working catalog, and passage count is not a quality
+score. One live contract request through the new fetcher returned 1,969,765
+bytes of `text/html` after robots was checked; the response remains local.
+
+The latest isolated API/PostgreSQL run passed **74 tests, 252 deselected** in
+`cinegraph_test` (two third-party warnings). Ten parser unit tests pass without
+network or database. These checks establish a source-capture vertical slice,
+not yet the ten-film dataset/intake gate or a retrieval-quality improvement.
+
+At every stage, report separate counts for identity-resolved, source-captured,
+rights-eligible, field-reviewed, evidence-ready, indexed and retrieval-tested
+films. These are distinct outcomes; do not collapse them into one progress
+percentage.
+
 No completion percentage or delivery date is estimated here. Each phase has a
 verifiable artifact and an explicit go/no-go condition; the next report should
 show counts and actual test results rather than activity or token volume.
+
+### Follow-up — extraction selection and exact Wikidata capture (5 November 2026)
+
+- The HTML source adapter is `enwiki-article-html-capture-v1`. Passage
+  extraction now uses an explicit precedence: v7 (citation positions persisted)
+  > v6 > historical v1. The current-passage selector chooses one version per
+  snapshot and excludes experimental variants. The integration test verifies
+  both v7 preference and the legacy fallback when v7 is absent.
+- Tightened the Wikidata EntityData client: it now fetches and hashes live
+  `robots.txt`, applies the current Allow/Disallow path specificity, checks
+  redirects, rate-paces every HTTP request, and preserves the exact response
+  JSON bytes instead of reserializing only the parsed entity. The rules are
+  compared with the percent-encoding and longest-match semantics in [RFC
+  9309](https://www.rfc-editor.org/rfc/rfc9309.html). Current robots SHA-256
+  was `31077e60ea72809fd71fdb414951397be2f141e1e23ea2408e69d77aefa62593`;
+  a manual live contract returned Q163872 revision `2564648138` (290,568
+  bytes). The response was not persisted or ingested.
+- Three focused route/robots tests and three extraction-selection integration
+  tests passed. The subsequent full isolated Docker/API/PostgreSQL run passed
+  **79 tests, 252 deselected** in `cinegraph_test`.
+- A direct import check exposed and fixed the missing EntityData-backed
+  `fetch_entities` symbol used by title resolution. Ingestion now rejects
+  reserialized pseudo-snapshots, requires exact upstream bytes, and commits
+  each item before fetching the next; later failure therefore retains earlier
+  captures and records a failed run.
+- No title batch was captured or added to the working catalog. Next gate is
+  verify the ten frozen candidate QIDs and their English sitelinks against
+  evidence, then run the ten-film isolated intake and per-film source/evidence
+  audit; no working-corpus expansion until that gate passes.

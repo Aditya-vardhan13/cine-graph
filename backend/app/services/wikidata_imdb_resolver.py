@@ -6,18 +6,15 @@ for review; downstream raw snapshots must still verify film type and P345.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 
-import httpx
-
-from app.core.config import get_settings
 from app.services.imdb_dataset import IMDB_ID, ImdbDataset
 from app.services.movie_data_gateway import manifest_seeds, resolve_seed
 
 
-ENDPOINT = "https://query.wikidata.org/sparql"
+class WikidataImdbDiscoveryUnavailable(RuntimeError):
+    """The only implemented IMDb-to-QID query route is source-policy blocked."""
 
 
 def imdb_qid_query(imdb_ids: list[str]) -> str:
@@ -39,27 +36,12 @@ def qids_by_imdb(payload: dict) -> dict[str, list[str]]:
 
 
 def acquire(query: str, cache_dir: Path) -> dict:
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    digest = hashlib.sha256(query.encode("utf-8")).hexdigest()
-    path = cache_dir / f"wdqs_imdb_{digest[:20]}.json"
-    if path.exists():
-        retained = json.loads(path.read_text(encoding="utf-8"))
-        if retained.get("query_sha256") != digest:
-            raise ValueError("Retained WDQS query hash mismatch")
-        return retained["payload"]
-    with httpx.Client(timeout=60, headers={
-        "User-Agent": get_settings().wikidata_user_agent,
-        "Accept": "application/sparql-results+json",
-    }) as client:
-        response = client.get(ENDPOINT, params={"query": query, "format": "json"})
-    if response.status_code in {401, 403, 429}:
-        raise RuntimeError(f"Wikidata query denied or limited ({response.status_code}); stop")
-    response.raise_for_status()
-    payload = response.json()
-    path.write_text(json.dumps({"query_sha256": digest, "query": query,
-                                "endpoint": ENDPOINT, "payload": payload}, ensure_ascii=False),
-                    encoding="utf-8")
-    return payload
+    del query, cache_dir
+    raise WikidataImdbDiscoveryUnavailable(
+        "IMDb-to-QID discovery through Wikidata Query Service /sparql is disabled. "
+        "Resolve the identity through an approved article/source candidate and verify it "
+        "against a robots-checked EntityData snapshot."
+    )
 
 
 def main() -> None:

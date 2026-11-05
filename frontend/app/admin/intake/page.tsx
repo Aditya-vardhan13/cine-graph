@@ -35,6 +35,7 @@ export default function IntakePage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState<Candidate[]>([]);
+  const [wikipediaUrl, setWikipediaUrl] = useState("");
   const [jobs, setJobs] = useState<IntakeJob[]>([]);
   const [preview, setPreview] = useState<IntakePreview | null>(null);
   const [message, setMessage] = useState("");
@@ -78,6 +79,7 @@ export default function IntakePage() {
   function add(candidate: Candidate) {
     setSelected(current => current.some(item => item.imdb_id === candidate.imdb_id)
       ? current : [...current, candidate]);
+    setWikipediaUrl("");
     setQuery("");
     setResults([]);
     setMessage("");
@@ -96,12 +98,14 @@ export default function IntakePage() {
     try {
       const response = await fetch(`${endpoint}/jobs`, {
         method: "POST", headers: { "x-operator-email": email.trim(), "content-type": "application/json" },
-        body: JSON.stringify({ films: selected.map(item => item.imdb_id) }),
+        body: JSON.stringify({ films: selected.map(item => item.imdb_id),
+          wikipedia_url: selected.length === 1 ? wikipediaUrl.trim() || null : null }),
       });
       const body = await response.json();
       if (!response.ok) { setMessage(body.detail ?? "Could not submit films"); return; }
       setJobs(current => [...body.jobs, ...current.filter(job => !body.jobs.some((next: IntakeJob) => next.id === job.id))]);
       setSelected([]);
+      setWikipediaUrl("");
       setMessage(`${body.jobs.length} film${body.jobs.length === 1 ? "" : "s"} queued or already tracked.`);
     } catch { setMessage("Could not reach the local API"); }
     finally { setBusy(false); }
@@ -153,8 +157,18 @@ export default function IntakePage() {
         <div className="intake-selected"><h3>Selected · {selected.length}/20</h3>
           {selected.length === 0 ? <p>Nothing selected yet.</p> : selected.map(item =>
             <div className="intake-chip" key={item.imdb_id}><span>{item.title} {item.year ? `(${item.year})` : ""}<small>{item.imdb_id}</small></span>
-              <button type="button" aria-label={`Remove ${item.title}`} onClick={() => setSelected(current => current.filter(row => row.imdb_id !== item.imdb_id))}>×</button></div>)}
+              <button type="button" aria-label={`Remove ${item.title}`} onClick={() => {
+                setSelected(current => current.filter(row => row.imdb_id !== item.imdb_id));
+                setWikipediaUrl("");
+              }}>×</button></div>)}
         </div>
+        {selected.length === 1 && <div className="intake-source-override">
+          <label htmlFor="wikipedia-source-url">Optional exact Wikipedia article URL</label>
+          <input id="wikipedia-source-url" type="url" value={wikipediaUrl}
+            onChange={event => setWikipediaUrl(event.target.value)}
+            placeholder="https://en.wikipedia.org/wiki/Film_title" />
+          <p>Use this when the article title differs from the local IMDb title. Only a single selected film can use an override; the pipeline still verifies QID, year, film type and IMDb ID.</p>
+        </div>}
         <button className="intake-submit" type="button" disabled={!selected.length || busy || selected.length > 20}
           onClick={submit}>{busy ? "Submitting…" : `Submit ${selected.length || "selected"} film${selected.length === 1 ? "" : "s"}`}</button>
         {message && <p className="intake-message" role="status">{message}</p>}

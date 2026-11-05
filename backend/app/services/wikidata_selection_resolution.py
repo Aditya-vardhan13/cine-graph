@@ -12,21 +12,15 @@ import unicodedata
 from collections.abc import Callable
 from typing import Any
 
-import httpx
-
-from app.core.config import get_settings
-from app.services.wikidata_raw import WIKIDATA_API, fetch_entities
+from app.services.wikidata_raw import fetch_entities
 
 FILM_QID = "Q11424"
 # These are direct Wikidata subclasses used by mainstream feature-film records.
 # The resolver keeps the original P31 evidence; accepting them prevents an
 # animated feature from being incorrectly discarded merely for being specific.
 FILM_TYPE_QIDS = {FILM_QID, "Q202866", "Q20650540"}
-WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
-
-
-def request_interval_seconds() -> float:
-    return get_settings().source_request_interval_seconds
+class WikidataDiscoveryUnavailable(RuntimeError):
+    """Raised when title discovery would require a robots-disallowed route."""
 
 
 def normalized(value: str) -> str:
@@ -69,74 +63,25 @@ def title_score(entity: dict[str, Any], title: str) -> int:
     return 1 if expected in {normalized(value) for value in [*labels, *aliases]} else 0
 
 
-def _request_search_ids(title: str, language: str) -> list[str]:
-    headers = {"User-Agent": get_settings().wikidata_user_agent, "Accept-Encoding": "gzip, deflate"}
-    for attempt in range(4):
-        with httpx.Client(timeout=30, headers=headers) as client:
-            response = client.get(WIKIDATA_API, params={
-                "action": "wbsearchentities", "format": "json", "language": language,
-                "type": "item", "limit": 10, "search": title,
-            })
-        if response.status_code in {401, 403}:
-            raise RuntimeError(f"Wikidata denied title resolution ({response.status_code}); stopping.")
-        if response.status_code == 429:
-            time.sleep(float(response.headers.get("Retry-After", "60")))
-            continue
-        if response.status_code in {502, 503, 504} and attempt < 3:
-            time.sleep(2 ** attempt)
-            continue
-        response.raise_for_status()
-        return [item["id"] for item in response.json().get("search", []) if isinstance(item.get("id"), str) and item["id"].startswith("Q")]
-    raise RuntimeError("Wikidata title resolution remained unavailable after bounded retries.")
-
-
 def search_ids(title: str) -> list[str]:
-    """The inexpensive primary route: English Wikidata labels and aliases."""
-    return _request_search_ids(title, "en")
+    """Refuse hidden network discovery through the blocked Action API route."""
+    raise WikidataDiscoveryUnavailable(
+        "Wikidata title search is disabled because /w/api.php is disallowed by current robots.txt. "
+        "Resolve against local/TMDB candidates or supply a reviewed QID."
+    )
 
 
 def multilingual_search_ids(title: str) -> list[str]:
-    """Fallback for original-language or transliterated titles."""
-    return _request_search_ids(title, "mul")
+    """Refuse multilingual discovery through the blocked Action API route."""
+    return search_ids(title)
 
 
 def wikipedia_search_ids(title: str) -> list[str]:
-    """Resolve alternate/original titles through English Wikipedia pageprops.
-
-    Wikipedia search is an independent discovery route. It never publishes a
-    match by itself: the caller still validates the returned Wikidata entity's
-    film type and release year.
-    """
-    headers = {"User-Agent": get_settings().wikidata_user_agent, "Accept-Encoding": "gzip, deflate"}
-    with httpx.Client(timeout=30, headers=headers) as client:
-        response = client.get(WIKIPEDIA_API, params={
-            "action": "query", "format": "json", "formatversion": "2",
-            "list": "search", "srsearch": title, "srnamespace": 0, "srlimit": 10,
-            "redirects": "1", "maxlag": "5",
-        })
-        if response.status_code in {401, 403}:
-            raise RuntimeError(f"Wikipedia denied title resolution ({response.status_code}); stopping.")
-        if response.status_code == 429:
-            raise RuntimeError("Wikipedia rate-limited title resolution; stop and retry later.")
-        response.raise_for_status()
-        titles = [item.get("title") for item in response.json().get("query", {}).get("search", []) if item.get("title")]
-        if not titles:
-            return []
-        response = client.get(WIKIPEDIA_API, params={
-            "action": "query", "format": "json", "formatversion": "2",
-            "titles": "|".join(titles), "prop": "pageprops", "ppprop": "wikibase_item",
-            "redirects": "1", "maxlag": "5",
-        })
-        if response.status_code in {401, 403}:
-            raise RuntimeError(f"Wikipedia denied page identity lookup ({response.status_code}); stopping.")
-        if response.status_code == 429:
-            raise RuntimeError("Wikipedia rate-limited page identity lookup; stop and retry later.")
-        response.raise_for_status()
-        return [
-            page.get("pageprops", {}).get("wikibase_item")
-            for page in response.json().get("query", {}).get("pages", [])
-            if page.get("pageprops", {}).get("wikibase_item")
-        ]
+    """Refuse API search until a robots-compliant article-page resolver exists."""
+    raise WikidataDiscoveryUnavailable(
+        "Wikipedia Action API title/pageprops search is disallowed by current robots.txt; "
+        "resolve through an approved local/source candidate instead."
+    )
 
 
 def wikipedia_title_year_search_ids(title: str, year: int) -> list[str]:
@@ -157,11 +102,15 @@ def multi_source_search_ids(
     traffic while preserving the independent-source fallback.
     """
     candidates: list[str] = []
-    for searcher in search_routes or (search_ids, multilingual_search_ids, wikipedia_search_ids):
+    if not search_routes:
+        raise WikidataDiscoveryUnavailable(
+            "No title-search route is enabled; provide explicit permitted discovery callbacks."
+        )
+    for searcher in search_routes:
         for qid in searcher(title):
             if qid not in candidates:
                 candidates.append(qid)
-        wait = request_interval_seconds() if delay_seconds is None else delay_seconds
+        wait = 1.0 if delay_seconds is None else max(0.0, delay_seconds)
         if wait > 0:
             time.sleep(wait)
     return candidates
@@ -170,31 +119,33 @@ def multi_source_search_ids(
 def resolve_entries(
     entries: list[dict[str, Any]],
     *,
-    searcher: Callable[[str], list[str]] = search_ids,
+    searcher: Callable[[str], list[str]] | None = None,
     fetcher: Callable[[list[str]], dict[str, dict[str, Any]]] = fetch_entities,
-    fallback_searchers: tuple[Callable[[str, int], list[str]], ...] | None = None,
+    fallback_searchers: tuple[Callable[[str, int], list[str]], ...] = (),
     delay_seconds: float | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Resolve title/year selections with cheap-first, auditable fallbacks.
 
-    Requests are serial and paced.  The primary Wikidata route handles the
-    ordinary case; multilingual Wikidata and English Wikipedia are queried only
-    for title/year misses.  Each accepted result still requires a film P31,
-    matching release year, and an English Wikipedia sitelink.
+    Discovery is supplied by the caller so this use case cannot silently call
+    a route disallowed by robots.txt. Known QIDs are fetched through EntityData.
+    Each accepted result still requires film type, matching release year and
+    an English Wikipedia sitelink evidence.
     """
     candidate_ids: dict[int, list[str]] = {}
     all_ids: set[str] = set()
     for index, entry in enumerate(entries):
-        ids = [str(entry["wikidata_id"])] if entry.get("wikidata_id") else searcher(str(entry["title"]))
+        ids = [str(entry["wikidata_id"])] if entry.get("wikidata_id") else (
+            searcher(str(entry["title"])) if searcher else []
+        )
         candidate_ids[index] = ids
         all_ids.update(ids)
         if (index + 1) % 10 == 0 or index + 1 == len(entries):
             print(f"resolution primary search: {index + 1}/{len(entries)}", flush=True)
         if index + 1 < len(entries):
-            wait = request_interval_seconds() if delay_seconds is None else delay_seconds
+            wait = 1.0 if delay_seconds is None else max(0.0, delay_seconds)
             if wait > 0:
                 time.sleep(wait)
-    entities = fetcher(sorted(all_ids))
+    entities = fetcher(sorted(all_ids)) if all_ids else {}
     selected: dict[int, dict[str, Any]] = {}
     for index, entry in enumerate(entries):
         year = int(entry["release_year"])
@@ -216,26 +167,22 @@ def resolve_entries(
     for ordinal, index in enumerate((index for index in range(len(entries)) if index not in selected), start=1):
         entry = entries[index]
         ids: list[str] = []
-        fallback_searches = fallback_searchers or (
-            lambda title, _year: multilingual_search_ids(title),
-            lambda title, _year: wikipedia_search_ids(title),
-            wikipedia_title_year_search_ids,
-        )
-        for fallback in fallback_searches:
+        for fallback in fallback_searchers:
             for qid in fallback(str(entry["title"]), int(entry["release_year"])):
                 if qid not in ids:
                     ids.append(qid)
-            wait = request_interval_seconds() if delay_seconds is None else delay_seconds
+            wait = 1.0 if delay_seconds is None else max(0.0, delay_seconds)
             if wait > 0:
                 time.sleep(wait)
         fallback_ids[index] = ids
         if ordinal % 5 == 0 or ordinal == len(entries) - len(selected):
             print(f"resolution fallback search: {ordinal}/{len(entries) - len(selected)}", flush=True)
         if ordinal < len(entries) - len(selected):
-            wait = request_interval_seconds() if delay_seconds is None else delay_seconds
+            wait = 1.0 if delay_seconds is None else max(0.0, delay_seconds)
             if wait > 0:
                 time.sleep(wait)
-    fallback_entities = fetcher(sorted({qid for ids in fallback_ids.values() for qid in ids})) if fallback_ids else {}
+    all_fallback_ids = {qid for ids in fallback_ids.values() for qid in ids}
+    fallback_entities = fetcher(sorted(all_fallback_ids)) if all_fallback_ids else {}
     for index, ids in fallback_ids.items():
         entry = entries[index]
         matches = [fallback_entities[qid] for qid in ids if qid in fallback_entities and is_film_in_year(fallback_entities[qid], int(entry["release_year"]))]
@@ -247,7 +194,12 @@ def resolve_entries(
     for index, entry in enumerate(entries):
         selected_entity = selected.get(index)
         if not selected_entity:
-            unresolved.append({**entry, "resolution_reason": "no film QID with matching release year after Wikidata and Wikipedia fallback"})
+            reason = (
+                "no film QID with matching release year after supplied discovery routes"
+                if entry.get("wikidata_id") or searcher or fallback_searchers
+                else "no Wikidata QID supplied; automatic web title search is disabled until a robots-compliant route is configured"
+            )
+            unresolved.append({**entry, "resolution_reason": reason})
             continue
         enwiki = selected_entity.get("sitelinks", {}).get("enwiki", {}).get("title")
         if not enwiki:

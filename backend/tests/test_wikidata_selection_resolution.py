@@ -1,4 +1,11 @@
-from app.services.wikidata_selection_resolution import multi_source_search_ids, resolve_entries
+import pytest
+
+from app.services.wikidata_selection_resolution import (
+    WikidataDiscoveryUnavailable,
+    multi_source_search_ids,
+    resolve_entries,
+    search_ids,
+)
 
 
 def _film(qid: str, label: str, year: int, enwiki: str, film_type: str = "Q11424") -> dict:
@@ -60,6 +67,19 @@ def test_resolver_accepts_specific_animated_feature_type() -> None:
     )
     assert unresolved == []
     assert resolved[0]["wikidata_id"] == "Qanimated"
+
+
+def test_title_without_qid_is_queued_without_calling_disallowed_web_search() -> None:
+    resolved, unresolved = resolve_entries(
+        [{"position": 1, "title": "A Film", "release_year": 2020}],
+        delay_seconds=0,
+    )
+
+    assert resolved == []
+    assert len(unresolved) == 1
+    assert "robots-compliant route" in unresolved[0]["resolution_reason"]
+    with pytest.raises(WikidataDiscoveryUnavailable, match="disallowed by current robots.txt"):
+        search_ids("A Film")
 
 
 def test_resolver_allows_a_reviewed_wikipedia_release_date_conflict() -> None:

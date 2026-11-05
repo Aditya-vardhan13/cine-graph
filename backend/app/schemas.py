@@ -26,6 +26,10 @@ class SourcedCreditOut(BaseModel):
     character_name: str | None
     position: int | None
     source_url: str
+    name_source_url: str | None = None
+    name_source_revision: str | None = None
+    character_source_url: str | None = None
+    character_source_revision: str | None = None
 
 
 class SourcedCreditGroupOut(BaseModel):

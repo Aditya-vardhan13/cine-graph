@@ -64,7 +64,9 @@ export type FilmDetail = Film & {
   credits: Array<{ person_id: string; name: string; role: string; character_name: string | null }>;
   sourced_credit_groups: Array<{
     source_name: string; source_license: string; rights_status: string;
-    credits: Array<{ name: string; role: string; character_name: string | null; position: number | null; source_url: string }>;
+    credits: Array<{ name: string; role: string; character_name: string | null; position: number | null; source_url: string;
+      name_source_url?: string | null; name_source_revision?: string | null;
+      character_source_url?: string | null; character_source_revision?: string | null }>;
   }>;
   provenance: Array<{ source_name: string; source_url: string; license: string; field_name: string; source_reference: string }>;
 };

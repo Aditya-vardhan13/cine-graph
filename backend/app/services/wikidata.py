@@ -9,14 +9,12 @@ import argparse
 import fcntl
 import json
 import re
-import time
 from collections import defaultdict
 from contextlib import contextmanager
 from datetime import date
 from collections.abc import Callable
 from typing import Any
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -38,17 +36,22 @@ from app.models import (
     PersonProvenance,
 )
 
-ENDPOINT = "https://query.wikidata.org/sparql"
 SOURCE_URL = "https://www.wikidata.org/"
-SOURCE_REFERENCE = "https://query.wikidata.org/"
+# Kept only for historical source-provenance labels in legacy imports. No
+# runtime HTTP client is allowed to request this route.
+ENDPOINT = "https://query.wikidata.org/sparql"
+SOURCE_REFERENCE = SOURCE_URL
 ACCESS_POLICY_URL = "https://www.wikidata.org/wiki/Wikidata:Data_access"
-MIN_REQUEST_INTERVAL_SECONDS = 1.0
 INGESTION_LOCK_PATH = "/tmp/cinegraph-wikidata-ingestion.lock"
 WIKIDATA_ITEM = re.compile(r"/(Q\d+)$")
 
 
 class WikidataIngestionError(RuntimeError):
     pass
+
+
+class WikidataQueryRouteUnavailable(WikidataIngestionError):
+    """Raised rather than contacting the excluded WDQS route."""
 
 
 @contextmanager
@@ -94,39 +97,11 @@ def _value(row: dict[str, Any], key: str) -> str | None:
 
 
 def sparql_query_runner() -> Callable[[str], list[dict[str, Any]]]:
-    """Create one polite, rate-limited Wikidata query session for a job."""
-    headers = {
-        "Accept": "application/sparql-results+json",
-        "User-Agent": get_settings().wikidata_user_agent,
-        "Accept-Encoding": "gzip, deflate",
-    }
-
-    last_request_at = 0.0
-
-    def run_query(query: str) -> list[dict[str, Any]]:
-        nonlocal last_request_at
-        for attempt in range(4):
-            pause = MIN_REQUEST_INTERVAL_SECONDS - (time.monotonic() - last_request_at)
-            if pause > 0:
-                time.sleep(pause)
-            with httpx.Client(timeout=90, headers=headers) as client:
-                response = client.post(ENDPOINT, data={"query": query, "format": "json"})
-            last_request_at = time.monotonic()
-            if response.status_code == 429:
-                retry_after = float(response.headers.get("Retry-After", "60"))
-                time.sleep(retry_after)
-                continue
-            if response.status_code in {403, 401}:
-                raise WikidataIngestionError(
-                    f"Wikidata denied the request (HTTP {response.status_code}); stopping rather than bypassing access controls."
-                )
-            if response.status_code in {502, 503, 504} and attempt < 3:
-                time.sleep(2 ** attempt)
-                continue
-            response.raise_for_status()
-            return response.json()["results"]["bindings"]
-        raise WikidataIngestionError("Wikidata remained unavailable after bounded, polite retries.")
-    return run_query
+    """Fail closed; query-based acquisition is excluded by the source policy."""
+    raise WikidataQueryRouteUnavailable(
+        "Wikidata Query Service /sparql is disabled by the current source-access policy. "
+        "Use a reviewed QID with the robots-checked EntityData adapter."
+    )
 
 
 def enrich_film_rows(
@@ -268,7 +243,12 @@ def ensure_language_editions(db: Session) -> None:
 
 def source_for_wikidata(db: Session) -> DataSource:
     source = db.scalar(select(DataSource).where(DataSource.name == "Wikidata"))
+    notes = (
+        "Wikidata structured data is captured by known-QID EntityData JSON only. "
+        f"Access policy: {ACCESS_POLICY_URL}. WDQS /sparql discovery is disabled."
+    )
     if source:
+        source.notes = notes
         return source
     source = DataSource(
         name="Wikidata",
@@ -276,10 +256,7 @@ def source_for_wikidata(db: Session) -> DataSource:
         source_type="structured_metadata",
         license="CC0 1.0",
         rights_status="open",
-        notes=(
-            "Phase A uses only Wikidata CC0 structured data through its documented query API. "
-            f"API etiquette: {ACCESS_POLICY_URL}. No HTML pages are crawled; robots.txt applies to future HTML adapters."
-        ),
+        notes=notes,
     )
     db.add(source)
     db.flush()
@@ -336,7 +313,7 @@ def _ingest_locked(
     source = source_for_wikidata(db)
     batch = IngestionBatch(
         source_id=source.id,
-        external_reference=external_reference or f"{ENDPOINT}?offset={offset}&limit={limit}",
+        external_reference=external_reference or f"operator-supplied-wikidata-rows:{offset}:{limit}",
         status="running",
     )
     db.add(batch)

@@ -15,7 +15,7 @@ from app.services.wikipedia_raw import ingest_title_year_entries, read_manifest
 
 def qids_from_wikipedia_run(db: Session, manifest_uri: str) -> list[str]:
     run = db.scalar(select(RawIngestionRun).where(
-        RawIngestionRun.adapter_name == "wikipedia_api_revision_snapshot",
+        RawIngestionRun.adapter_name.in_(("wikipedia_article_html_snapshot", "wikipedia_api_revision_snapshot")),
         RawIngestionRun.manifest_uri == manifest_uri,
     ).order_by(RawIngestionRun.created_at.desc()))
     if not run:
