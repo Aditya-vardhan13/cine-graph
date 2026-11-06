@@ -19,6 +19,33 @@ from app.models import (
     Assertion, CanonicalEntity, EvidenceEmbedding, EvidenceChunk, Film, FilmAlias,
     FilmCredit, FilmGenre, NarrativePassage, SourceSnapshot,
 )
+from app.services.narrative_use_decisions import latest_decisions
+from app.services.source_rights_policy import can_use_narrative_semantically
+
+
+def _narrative_use_coverage(snapshots, decisions):
+    """Summarize distinct source snapshots without treating missing decisions as approval."""
+    counts = {"total": len(snapshots), "with_license_and_attribution": 0,
+              "with_decision": 0, "approved": 0, "denied": 0, "review_required": 0,
+              "eligible": 0}
+    eligible_ids = set()
+    for snapshot_id, license_name, attribution_url in snapshots:
+        if license_name and attribution_url:
+            counts["with_license_and_attribution"] += 1
+        decision = decisions.get(snapshot_id)
+        if decision is None:
+            continue
+        counts["with_decision"] += 1
+        counts[decision.decision] += 1
+        if (license_name == "CC BY-SA 4.0" and attribution_url
+                and can_use_narrative_semantically(
+                    decision=decision.decision,
+                    basis_url=decision.decision_basis_url,
+                    notes=decision.decision_notes,
+                )):
+            counts["eligible"] += 1
+            eligible_ids.add(snapshot_id)
+    return counts, eligible_ids
 
 
 def main():
@@ -39,6 +66,26 @@ def main():
             films = list(db.execute(select(Film, CanonicalEntity).join(
                 CanonicalEntity, CanonicalEntity.id == Film.entity_id,
             ).order_by(Film.canonical_title, Film.id)))
+            entity_ids = {entity.id for _film, entity in films}
+            passage_snapshot_rows = list(db.execute(
+                select(NarrativePassage.subject_entity_id, SourceSnapshot.id,
+                       SourceSnapshot.source_revision, SourceSnapshot.license,
+                       SourceSnapshot.attribution_url, NarrativePassage.extraction_version)
+                .join(SourceSnapshot, SourceSnapshot.id == NarrativePassage.source_snapshot_id)
+                .where(NarrativePassage.subject_entity_id.in_(entity_ids))
+                .distinct()
+            )) if entity_ids else []
+            snapshots_by_entity = defaultdict(dict)
+            for entity_id, snapshot_id, revision, license_name, attribution, version in passage_snapshot_rows:
+                snapshots_by_entity[entity_id][snapshot_id] = {
+                    "revision": revision, "license": license_name,
+                    "attribution_url": attribution, "extraction_version": version,
+                }
+            all_snapshot_ids = {
+                snapshot_id for snapshots in snapshots_by_entity.values()
+                for snapshot_id in snapshots
+            }
+            decisions = latest_decisions(db, all_snapshot_ids)
             result = []
             for film, entity in films:
                 resolved = defaultdict(int)
@@ -69,12 +116,9 @@ def main():
                                  for role, count, with_character in credits}
                 categories = set()
                 source_versions = set()
-                provenance = []
-                for title, locator, revision, license_name, attribution, version in db.execute(
+                for title, locator, version in db.execute(
                     select(NarrativePassage.section_title, NarrativePassage.section_locator,
-                           SourceSnapshot.source_revision, SourceSnapshot.license,
-                           SourceSnapshot.attribution_url, NarrativePassage.extraction_version)
-                    .join(SourceSnapshot, SourceSnapshot.id == NarrativePassage.source_snapshot_id)
+                           NarrativePassage.extraction_version)
                     .where(NarrativePassage.subject_entity_id == entity.id)
                 ):
                     heading = f"{title} {locator}".casefold()
@@ -89,11 +133,21 @@ def main():
                         if any(term in heading for term in terms):
                             categories.add(key)
                     source_versions.add(version)
-                    provenance.append({"revision": revision, "license": license_name,
-                                       "attributed": bool(attribution), "extraction_version": version})
+                film_snapshots = snapshots_by_entity.get(entity.id, {})
+                use_coverage, eligible_snapshot_ids = _narrative_use_coverage(
+                    [(snapshot_id, row["license"], row["attribution_url"])
+                     for snapshot_id, row in film_snapshots.items()],
+                    decisions,
+                )
                 vector_count = db.scalar(select(func.count(EvidenceEmbedding.id)).join(
                     EvidenceChunk, EvidenceChunk.id == EvidenceEmbedding.evidence_chunk_id,
                 ).where(EvidenceChunk.subject_entity_id == entity.id)) or 0
+                eligible_vector_count = db.scalar(select(func.count(EvidenceEmbedding.id)).join(
+                    EvidenceChunk, EvidenceChunk.id == EvidenceEmbedding.evidence_chunk_id,
+                ).where(
+                    EvidenceChunk.subject_entity_id == entity.id,
+                    EvidenceChunk.source_snapshot_id.in_(eligible_snapshot_ids),
+                )) or 0
                 result.append({
                     "film_id": str(film.id), "entity_id": str(entity.id),
                     "title": film.canonical_title, "wikidata_id": film.wikidata_id,
@@ -109,21 +163,22 @@ def main():
                     "genres": db.scalar(select(func.count(FilmGenre.id)).where(FilmGenre.film_id == film.id)) or 0,
                     "narrative_categories": sorted(categories),
                     "source_versions": sorted(source_versions),
-                    "source_snapshots": len(provenance),
-                    "snapshots_with_license_and_attribution": sum(
-                        bool(p["license"] and p["attributed"]) for p in provenance),
+                    "source_snapshots": len(film_snapshots),
+                    "narrative_use_coverage": use_coverage,
                     "embedding_vectors": vector_count,
+                    "semantically_eligible_embedding_vectors": eligible_vector_count,
                     "gaps": [field for field, value in {
                         "release_date": film.release_date,
                         "runtime_minutes": film.runtime_minutes,
                         "director": resolved["director"], "cast": resolved["cast"],
                         "character": resolved["character"], "plot": "plot" in categories,
                         "indexed": vector_count,
+                        "semantically_eligible_indexed": eligible_vector_count,
                     }.items() if not value],
                 })
-            report = {"version": "catalog-readiness-v1", "database_read_only": True,
+            report = {"version": "catalog-readiness-v2", "database_read_only": True,
                       "film_count": len(result), "films": result,
-                      "caution": "Coverage indicators do not validate identity, factual correctness, rights eligibility, narrative relevance, or writer usefulness."}
+                      "caution": "Coverage indicators do not validate identity, factual correctness, commercial rights, narrative relevance, or writer usefulness. Semantic eligibility reports the latest recorded operator decision under the local policy, not legal advice."}
     finally:
         engine.dispose()
     args.output.parent.mkdir(parents=True, exist_ok=True)

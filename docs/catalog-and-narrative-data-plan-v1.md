@@ -1394,3 +1394,17 @@ remain local and out of Git.
   working corpus were not changed. This milestone does not complete the
   catalog plan: source/field quality, broader rights review, retrieval quality
   evaluation and the 100/1,000-title expansion gates remain open.
+
+### Follow-up — rights-aware catalog readiness measurement
+
+- Upgraded the read-only catalog report to count distinct narrative snapshots
+  and report how many have license/attribution metadata, a latest decision,
+  approval, denial, or remain eligible under the same per-snapshot policy as
+  retrieval. Existing stored vectors and vectors eligible for current semantic
+  use are now reported separately, so revocation cannot be hidden by historical
+  index counts.
+- Added a deterministic policy test covering unreviewed, denied, approved and
+  restricted-license snapshots. It passes. Python compilation and whitespace
+  checks pass. The local Docker stack was stopped during this follow-up, so the
+  updated report has not yet been run against the full working catalog; no new
+  corpus counts are claimed.
