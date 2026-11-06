@@ -449,6 +449,29 @@ retrieval over eligible local Wikipedia evidence against the frozen paired
 questions. The 100-film expansion remains gated on those measured results and
 rights review.
 
+### Citation-target follow-up (6 November 2026)
+
+A targeted follow-up used retained v6 paragraph indexes and marker offsets to
+inspect the exact linked claim rather than treating topical relevance as
+support. It directly confirmed four narrow details (the Godfather's 2022 BFI
+poll positions; the Vatican encyclical's wording about *Schindler's List*;
+Janusz Kamiński's account of the red-dress rotoscoping; and the Great Adventure
+Dark Knight coaster's length/cost). It also found that an AllMovie synopsis
+labels itself “Description by Wikipedia,” so it is not independent
+corroboration, and left the inaccessible 12 Angry Men Variety scan unresolved.
+The Great America coaster entry has not been checked; do not transfer the
+Great Adventure result to it. See ignored local
+`citation-support-review-v2.md` for exact locators and dispositions.
+
+This is targeted evidence, not a stratified or representative sample, and
+does not change the original smoke sample's caveats or establish an overall
+support rate. It strengthens the workflow's key distinction: reference
+linkage, direct claim support, source independence, accessibility, and rights
+are separate dimensions. Keep the corpus and release gate unchanged. Next:
+finish a predeclared source/section-balanced sample and rights classification,
+then measure retrieval over eligible text on the frozen paired questions.
+Do not advance to the 100-title expansion on these spot checks alone.
+
 Raw snapshots, passage derivatives and the detailed audit remain local under
 `data/evaluation/catalog-intake/first10-v1/` (ignored by Git). Only code,
 documentation and small attributed fixtures belong in Git.

@@ -947,6 +947,22 @@ remain local and out of Git.
   evidence. Keep supportability labels and source snapshots local, and do not
   expand to 100 until retrieval quality is measured on the frozen questions.
 
+### Follow-up — exact-target citation checks (6 November 2026)
+
+- A targeted second pass used the retained v6 marker offsets to inspect exact
+  claims at BFI, the Vatican, Vulture, and RCDB. Four narrow factual details
+  were directly supported; an AllMovie summary explicitly attributed its text
+  to Wikipedia and therefore did not count as independent corroboration. The
+  old 12 Angry Men Variety scan remained inaccessible; a different AFI catalog
+  page was not substituted for it. Local dispositions are in the ignored
+  `citation-support-review-v2.md`.
+- This was purposive follow-up, not a representative accuracy sample. No
+  corpus, embedding, or operational-fact changes were made. Citation linkage,
+  claim support, independent corroboration, target accessibility, and reuse
+  rights remain separately reviewed. Continue with a declared balanced sample
+  and rights analysis before the isolated retrieval experiment; the 100-title
+  expansion gate remains closed.
+
 ### Follow-up — ten-film structured-field coverage and dataset-admission plan (5 November 2026)
 
 - Extended the offline capture audit to report structured Wikidata field
