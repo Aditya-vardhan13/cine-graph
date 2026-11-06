@@ -2985,7 +2985,10 @@ remain local and out of Git.
   The resulting English-100 heading inventory is **100/100 plot-section
   present**; this is source-heading availability, not semantic adequacy or
   answer support. No raw source, identity, assertion, passage or vector was
-  changed.
+  changed. These are local retained-capture results only: the capture bundle
+  has not been replayed into the working catalog, so the older DB-backed
+  readiness report remains a historical snapshot and must not be silently
+  updated to 100/100.
 - Saved new local-only audit versions at
   `data/evaluation/catalog-intake/first10-v1/capture-audit-v10.md` and
   `data/evaluation/catalog-intake/english100-rank11-100-v1/capture-audit-v4.md`.
