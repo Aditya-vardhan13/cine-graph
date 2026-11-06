@@ -1651,3 +1651,37 @@ remain local and out of Git.
   The next gate is source- and purpose-specific review of the 208 narrative
   assets plus a sampled content/identity review; this audit does not authorize
   semantic indexing or certify the 100-film set as complete.
+
+### Follow-up — render the frozen pilot as a film-by-film coverage sheet
+
+- Added `scripts/render_catalog_pilot_coverage.py`, a local-only deterministic
+  renderer joining the frozen 100-film manifest to the read-only readiness and
+  metadata audits. It verifies the manifest hash carried by the metadata audit,
+  checks all 100 candidate IDs and Wikidata IDs across reports, and validates
+  the selection-only identity-decision sidecar against the exact pilot bytes.
+  The 23 approved pilot-membership crosslinks are labeled as such, not as
+  catalog merges; the report shows both selected-list and canonical catalog
+  titles when they differ. It rejects any sidecar that grants operational
+  merges or product-field authorization.
+- Generated the ignored/local `data/evaluation/catalog-pilot-coverage-v3.md`
+  (SHA-256 `046f181e54224f940d0946da1fab26d9b51d1d6c94a39cb1e14e0e9fe9b1214b`).
+  It makes the pilot's actual state readable in one place: 77 exact
+  title/year rows and 23 membership-only crosslinks; plot/production/reception
+  section presence of 99/100, 96/100 and 100/100; 208 attributed narrative
+  snapshots but zero approved and zero eligible; 7,270 stored vectors but
+  zero rights-eligible vectors; and 194 verified / 14 unmapped snapshot paths
+  in the limited release/runtime evidence audit. Per-film rows expose section
+  presence, resolved director/cast/character assertion counts, legacy versus
+  research release fields, runtime options and eligible-versus-stored
+  narrative/vector counts. A section heading is not a quality judgment, and
+  resolved assertion presence is not proof of correctness or complete credits.
+- Added four fixture-based tests covering report joins, pilot-hash mismatch,
+  pilot-only crosslink labeling/title display, and rejection of broader
+  authority or wrong-film decisions. The focused suite passes **4/4**. The
+  renderer writes only under ignored `data/evaluation/`; it does not access the
+  database, crawl sources, or change corpus facts, snapshots, decisions or
+  vectors.
+- This completes the Phase A *coverage-sheet* artifact, not the entire Phase A
+  baseline: a fresh question-conditioned retrieval output/latency baseline and
+  human content review remain separate. The narrative-rights and
+  source-eligibility gates also remain closed for the current 100-film corpus.
