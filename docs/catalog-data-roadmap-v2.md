@@ -105,8 +105,8 @@ question-conditioned writer evaluation.
 Treat rights as a per-source/per-asset/per-purpose decision, not a boolean
 "publicly accessible" label. The current implementation now separates
 structured-metadata display from narrative semantic use. New evidence chunks
-and lexical/vector retrieval require the explicit source status
-`semantic_use_approved`; generic `attributed_reuse`, `open`, local research, or
+and embedding-cache/index inputs plus lexical/vector retrieval require the
+explicit source status `semantic_use_approved`; generic `attributed_reuse`, `open`, local research, or
 an attribution URL alone is insufficient. This is a conservative engineering
 gate, not a legal determination. Existing local snapshots and prior experiment
 artifacts are retained; this change neither deletes them nor retroactively

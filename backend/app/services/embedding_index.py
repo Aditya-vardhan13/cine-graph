@@ -29,6 +29,7 @@ from app.services.embedding_artifacts import (
     embedding_configuration_hash,
 )
 from app.services.ollama_embeddings import QWEN_FILM_RETRIEVAL_INSTRUCTION
+from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
 
 
 def instruction_hash(instruction: str) -> str:
@@ -52,6 +53,7 @@ def _ordered_chunks_and_contents(
     chunks = list(db.scalars(select(EvidenceChunk).where(
         EvidenceChunk.preprocessing_run_id == run.id,
         EvidenceChunk.quality_status == "eligible",
+        EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
     ).order_by(EvidenceChunk.id)))
     labels = dict(db.execute(select(CanonicalEntity.id, CanonicalEntity.canonical_label).where(
         CanonicalEntity.id.in_({chunk.subject_entity_id for chunk in chunks})

@@ -992,8 +992,9 @@ remain local and out of Git.
   attribution URL as sufficient for semantic indexing, while retrieval queried
   all eligible chunks without checking the source's intended-use state.
 - Added a conservative, explicit `semantic_use_approved` gate: new chunk
-  creation and both lexical/vector retrieval require it. Structured metadata
-  display policy remains separate. Wikipedia currently remains
+  creation, embedding cache/index inputs, vector reuse, and both lexical/vector
+  retrieval require it. Structured metadata display policy remains separate.
+  Wikipedia currently remains
   `attributed_reuse`, so its narrative content is retained and source-linkable
   but does not enter new retrieval runs unless a reviewed approval is recorded.
 - An isolated real-PostgreSQL test now verifies default-deny chunking and

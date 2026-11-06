@@ -18,6 +18,7 @@ from app.models import (
 )
 from app.migrations import alembic_config
 from app.services.evidence_preprocessing import ChunkConfiguration, build_evidence_chunks, evidence_chunk_quality_report
+from app.services.embedding_index import _ordered_chunks_and_contents
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.retrieval_scope import resolve_retrieval_scope
 from app.services.research_credits import sourced_credit_groups
@@ -215,6 +216,12 @@ def test_attributed_wikipedia_passages_are_not_semantically_retrievable_without_
         original_status = source.rights_status
         source.rights_status = "attributed_reuse"
         db.commit()
+        existing_chunk_run = db.scalar(select(EvidenceChunkRun).where(
+            EvidenceChunkRun.collection_code == "integration-narrative-v1",
+            EvidenceChunkRun.status == "complete",
+        ).order_by(EvidenceChunkRun.completed_at.desc()).limit(1))
+        assert existing_chunk_run is not None
+        assert _ordered_chunks_and_contents(db, existing_chunk_run) == ([], [])
         scope = resolve_retrieval_scope(db, collection_code="integration-narrative-v1")
         entity_id = db.scalar(select(CanonicalEntity.id).where(CanonicalEntity.wikidata_id == "Q163872"))
         assert entity_id is not None
@@ -226,6 +233,7 @@ def test_attributed_wikipedia_passages_are_not_semantically_retrievable_without_
         assert lexical.evidence == ()
         source.rights_status = original_status
         db.commit()
+        assert _ordered_chunks_and_contents(db, existing_chunk_run)[0]
         approved = retrieve_narrative_candidates(
             db, subject_entity_id=entity_id, question_id="story.writer_focus",
             question_text="Batman conflict and choice", method=NarrativeRetrievalMethod.LEXICAL,

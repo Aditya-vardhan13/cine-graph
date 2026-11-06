@@ -25,6 +25,7 @@ from app.services.embedding_artifacts import (
     embedding_configuration_hash,
 )
 from app.services.embedding_index import _ordered_chunks_and_contents
+from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
 
 
 def _source_and_target(db: Session, source_index_id: UUID, target_chunk_run_id: UUID):
@@ -82,6 +83,7 @@ def plan_exact_embedding_reuse(
     target_count = db.scalar(select(func.count()).select_from(EvidenceChunk).where(
         EvidenceChunk.preprocessing_run_id == target_run.id,
         EvidenceChunk.quality_status == "eligible",
+        EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
     )) or 0
     if target_count == 0 or target_count != source_count:
         raise ValueError("Source and target runs must have the same non-zero eligible chunk count.")
@@ -107,6 +109,7 @@ def plan_exact_embedding_reuse(
         .where(
             target.preprocessing_run_id == target_run.id,
             target.quality_status == "eligible",
+            target.id.in_(semantically_approved_chunk_ids()),
             source.preprocessing_run_id == source_run.id,
             source.quality_status == "eligible",
         )

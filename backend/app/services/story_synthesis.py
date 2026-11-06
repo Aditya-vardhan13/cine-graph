@@ -18,6 +18,7 @@ from app.models import EvidenceChunk, SourceSnapshot
 from app.services.comparison_answerability import unmet_source_requirement
 from app.services.research_catalog import DEFAULT_RESEARCH_COLLECTION, get_research_film
 from app.services.retrieval_scope import resolve_retrieval_scope
+from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
 
 
 class ModelReading(BaseModel):
@@ -153,7 +154,8 @@ def synthesize_story_brief(
         select(EvidenceChunk, SourceSnapshot)
         .join(SourceSnapshot, SourceSnapshot.id == EvidenceChunk.source_snapshot_id)
         .where(EvidenceChunk.id.in_(all_ids), EvidenceChunk.preprocessing_run_id == scope.preprocessing_run_id,
-               EvidenceChunk.quality_status == "eligible", SourceSnapshot.fetch_status == "success")
+               EvidenceChunk.quality_status == "eligible", SourceSnapshot.fetch_status == "success",
+               EvidenceChunk.id.in_(semantically_approved_chunk_ids()))
     ).all()
     by_id = {chunk.id: (chunk, snapshot) for chunk, snapshot in rows}
     passages: list[tuple[str, EvidenceChunk]] = []

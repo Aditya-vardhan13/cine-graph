@@ -22,6 +22,7 @@ from app.services.ollama_embeddings import (
     OllamaEmbeddingProfile,
 )
 from app.services.pair_relevance_eval import validate_manifest
+from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
 
 
 def trial_question_texts(query_rows: list[tuple], *, film_context: bool) -> list[str]:
@@ -127,6 +128,7 @@ def capture(
         chunks = list(db.scalars(select(EvidenceChunk).where(
             EvidenceChunk.preprocessing_run_id == run.id,
             EvidenceChunk.quality_status == "eligible",
+            EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
             EvidenceChunk.subject_entity_id.in_(entity_ids),
         ).order_by(EvidenceChunk.id)))
         labels = {entity_id: label for entity_id, label in entities.values()}

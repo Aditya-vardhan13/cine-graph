@@ -34,6 +34,7 @@ from app.services.lexical_retrieval import Bm25Index, reciprocal_rank_fusion
 from app.services.embedding_artifacts import DOCUMENT_REPRESENTATION, document_cache_key
 from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_routing import narrative_section_candidates
+from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
 
 
 MODEL_CANDIDATES = (
@@ -94,6 +95,7 @@ def _evaluation_rows(db: Session, run: EvidenceChunkRun) -> tuple[list[EvidenceC
     chunks = list(db.scalars(select(EvidenceChunk).where(
         EvidenceChunk.preprocessing_run_id == run.id,
         EvidenceChunk.quality_status == "eligible",
+        EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
     ).order_by(EvidenceChunk.id)))
     chunk_ids_by_passage: dict[object, set[str]] = defaultdict(set)
     for chunk in chunks:

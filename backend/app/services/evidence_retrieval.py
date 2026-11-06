@@ -18,6 +18,7 @@ from app.services.retrieval_routing import (
     narrative_section_candidates,
     route_research_question,
 )
+from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,7 @@ def retrieve_narrative_evidence(
             EvidenceEmbedding.index_run_id == index_run.id,
             EvidenceChunk.subject_entity_id == subject_entity_id,
             EvidenceChunk.quality_status == "eligible",
+            EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
         )
     )
     section_candidates = narrative_section_candidates(question_id=question_id, evidence_class=evidence_class)

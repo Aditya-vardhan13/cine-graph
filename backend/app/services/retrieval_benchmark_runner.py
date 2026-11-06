@@ -31,6 +31,7 @@ from app.services.hybrid_evidence_retrieval import (
 )
 from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_scope import resolve_retrieval_scope
+from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
 from app.services.retrieval_benchmark import (
     BenchmarkCase,
     BenchmarkTarget,
@@ -82,6 +83,7 @@ def _narrative_target_ids(
             NarrativePassage.content_hash == target.content_hash,
             EvidenceChunk.preprocessing_run_id == chunk_run_id,
             EvidenceChunk.quality_status == "eligible",
+            EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
         )
     ).all()
     return {str(identifier) for identifier in rows}

@@ -22,6 +22,7 @@ from app.services.research_catalog import (
     DEFAULT_RESEARCH_COLLECTION, ResearchFilm, research_films_from_entities,
 )
 from app.services.retrieval_scope import resolve_retrieval_scope
+from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
 
 
 _GENERIC_WORDS = frozenset({
@@ -81,6 +82,7 @@ def _lexical_candidates(db: Session, *, question: str, run_id: UUID, limit: int)
     return list(db.scalars(select(EvidenceChunk).where(
         EvidenceChunk.preprocessing_run_id == run_id,
         EvidenceChunk.quality_status == "eligible",
+        EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
         document.op("@@")(query),
     ).order_by(score.desc(), EvidenceChunk.id).limit(limit)).all())
 
@@ -96,6 +98,7 @@ def _semantic_candidates(
             EvidenceEmbedding.index_run_id == index_run_id,
             EvidenceChunk.preprocessing_run_id == chunk_run_id,
             EvidenceChunk.quality_status == "eligible",
+            EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
         )
         .order_by(distance, EvidenceChunk.id).limit(limit)
     ).all())
