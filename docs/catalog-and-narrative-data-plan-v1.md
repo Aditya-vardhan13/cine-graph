@@ -1691,3 +1691,17 @@ remain local and out of Git.
   baseline: a fresh question-conditioned retrieval output/latency baseline and
   human content review remain separate. The narrative-rights and
   source-eligibility gates also remain closed for the current 100-film corpus.
+
+### Follow-up — correct operator-access documentation
+
+- Audited the active intake route against the expansion plan. The current gate
+  compares a configured email string in `x-operator-email`; it is not a bearer
+  credential or proof of identity, and the API explicitly disables it outside
+  `development` / `local`. Docker binds the API to `127.0.0.1` by default. The
+  intake UI already describes this as a local pilot and says sign-in is needed
+  before public deployment.
+- Corrected the expansion plan's stale claim that the local intake has an
+  authenticated bearer token. This avoids treating email-only local access as
+  an admin-authentication feature or shipping it as a production boundary.
+  Production authentication remains unimplemented and is a go-live blocker.
+- This documentation audit made no access-control, data or runtime changes.

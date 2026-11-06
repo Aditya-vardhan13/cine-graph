@@ -347,13 +347,16 @@ separate evaluations.
 
 ## 7. Visible stages and operator workflow
 
-The current local operator intake already supports an authenticated bearer
-token, title suggestions from a local IMDb index, multi-select up to 20 films,
-job submission, progress listing and a source/passages preview. It is a useful
-shell, not yet a complete multi-source catalog curation system. The local
-operator key is not user authentication and an email string is not a secure
-admin role; production must use real authentication and server-side
-authorization for the configured admin identity.
+The current local operator intake supports title suggestions from the local
+IMDb index, multi-select up to 20 films, job submission, progress listing and a
+source/passages preview. Its operator gate checks a configured email value in
+the `x-operator-email` request header and is enabled only in `development` or
+`local`; it is not an authenticated bearer token and an email string is not
+proof of identity. Docker binds the API to loopback by default. This is a
+local-pilot convenience, not a security boundary for a public or networked
+deployment. Production must use real authentication and server-side
+authorization for the configured admin identity. It remains a shell, not yet a
+complete multi-source catalog curation system.
 
 Recommended job states:
 
