@@ -11,7 +11,7 @@ from pathlib import Path
 from collections import defaultdict
 import re
 
-from sqlalchemy import create_engine, select, text, func
+from sqlalchemy import create_engine, inspect, select, text, func
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
@@ -56,13 +56,14 @@ def main():
     url = make_url(args.database_url)
     if url.database != "cinegraph" or url.host not in {"db", "127.0.0.1", "localhost"}:
         raise ValueError("Readiness report is restricted to the local cinegraph database")
-    root = Path("/workspace/data/evaluation").resolve()
+    root = (Path(__file__).resolve().parents[1] / "data" / "evaluation").resolve()
     if not args.output.resolve().is_relative_to(root) or args.output.exists():
         raise ValueError("Output must be a new file inside local data/evaluation")
     engine = create_engine(args.database_url)
     try:
         with Session(engine) as db:
             db.execute(text("SET TRANSACTION READ ONLY"))
+            rights_ledger_present = inspect(engine).has_table("narrative_use_decisions")
             films = list(db.execute(select(Film, CanonicalEntity).join(
                 CanonicalEntity, CanonicalEntity.id == Film.entity_id,
             ).order_by(Film.canonical_title, Film.id)))
@@ -85,7 +86,7 @@ def main():
                 snapshot_id for snapshots in snapshots_by_entity.values()
                 for snapshot_id in snapshots
             }
-            decisions = latest_decisions(db, all_snapshot_ids)
+            decisions = latest_decisions(db, all_snapshot_ids) if rights_ledger_present else {}
             result = []
             for film, entity in films:
                 resolved = defaultdict(int)
@@ -177,6 +178,7 @@ def main():
                     }.items() if not value],
                 })
             report = {"version": "catalog-readiness-v2", "database_read_only": True,
+                      "narrative_use_decision_ledger_present": rights_ledger_present,
                       "film_count": len(result), "films": result,
                       "caution": "Coverage indicators do not validate identity, factual correctness, commercial rights, narrative relevance, or writer usefulness. Semantic eligibility reports the latest recorded operator decision under the local policy, not legal advice."}
     finally:

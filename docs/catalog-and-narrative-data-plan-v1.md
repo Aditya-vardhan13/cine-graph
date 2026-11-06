@@ -1405,6 +1405,23 @@ remain local and out of Git.
   index counts.
 - Added a deterministic policy test covering unreviewed, denied, approved and
   restricted-license snapshots. It passes. Python compilation and whitespace
-  checks pass. The local Docker stack was stopped during this follow-up, so the
-  updated report has not yet been run against the full working catalog; no new
-  corpus counts are claimed.
+  checks pass. At first the local Docker stack was stopped, so the full report
+  was deferred until the existing database could be started and safely audited.
+- After this code-level test, started only the existing local PostgreSQL
+  container and verified the working database was at Alembic `20261005_15`.
+  Applied the reviewed additive migrations through `20261106_20`; no source,
+  passage, chunk or vector rows were modified. The local rights ledger is
+  present and empty. A subsequent read-only report over all **2,586** films
+  found **3,037** distinct narrative snapshots, all with recorded
+  license/attribution fields, **0** decisions and therefore **0** semantically
+  eligible snapshots or vectors. There are **48,352** historically stored
+  vectors; these are not currently available to retrieval under the policy.
+  The report also identifies Plot for 1,472 films, Production for 1,290 and
+  Reception for 1,460 using section-heading heuristics only. Local output is
+  ignored at `data/evaluation/catalog-readiness-v6.json`; these are coverage
+  counts, not correctness or commercial-rights determinations.
+- Fixed the report output-root check to resolve relative to the project, and
+  made it fail closed on older schemas by recording the missing ledger and
+  returning zero eligible vectors rather than querying a nonexistent table.
+  This was exercised first against the pre-migration schema and then against
+  the migrated local database.
