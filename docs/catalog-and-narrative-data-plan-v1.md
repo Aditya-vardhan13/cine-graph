@@ -1471,3 +1471,33 @@ remain local and out of Git.
   source approvals were made. The local live queue totals **3,039** snapshots:
   **3,037** linked to film records plus **2** narrative snapshots without a
   Film link. API reads returned 100 items at both offsets 0 and 100.
+
+### Follow-up — snapshot integrity audits across local mount namespaces
+
+- A read-only integrity check run inside Docker treated host `file://` URIs as
+  missing when their original absolute paths were not visible inside the
+  container. That status conflated actual absence with an audit process that
+  lacked the corresponding mount.
+- Added opt-in `--path-map PERSISTED_ROOT=VISIBLE_ROOT` support to the integrity
+  auditor. It resolves mapped paths only for that audit, verifies bytes by
+  SHA-256 and size as before, reports unmatched URIs as `unmapped`, and still
+  reports `missing` when the translated path is visible but absent. It never
+  rewrites snapshot URIs or changes snapshot recovery/ingestion behavior.
+  Mappings are component-bounded and reject path traversal.
+- The offline capture and citation audits were replayed against the retained
+  first-ten bundle: **10/10** film captures, **484** passages, **2,612/2,612**
+  markers linked to a retained reference entry, and **1,656** markers with an
+  external URL. The credit-label audit verified **445/445** captures, with
+  **440** English labels and **5** unresolved no-English-label entities.
+- Verification for the path-mapping change: the full offline backend suite
+  passed (**294 passed, 88 integration tests deselected**), including all four
+  pure snapshot-integrity tests; Python compilation and `git diff --check`
+  passed. The Conda environment needed the existing local
+  `data/vendor/mwparserfromhell` fallback on `PYTHONPATH`. PostgreSQL
+  integration passed (**1 passed**) against `cinegraph_test`; the test created
+  and used an isolated schema. The full integration suite was not rerun. No
+  working-corpus data, source snapshots, or evaluation artifacts were changed.
+  Next: rerun the database-backed integrity report with explicit
+  host-to-container mappings, then continue rights/support review and
+  question-conditioned retrieval evaluation; no rights decisions or 100-film
+  expansion were made.

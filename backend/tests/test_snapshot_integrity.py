@@ -1,4 +1,5 @@
 import hashlib
+from pathlib import Path
 
 import pytest
 from sqlalchemy.orm import Session
@@ -28,6 +29,41 @@ def test_snapshot_file_reports_missing_or_unsupported_source(tmp_path) -> None:
     assert verify_snapshot_file(None, "0" * 64, None) == "no_uri"
     assert verify_snapshot_file((tmp_path / "missing.json").as_uri(), "0" * 64, None) == "missing"
     assert verify_snapshot_file("s3://bucket/source.json", "0" * 64, None) == "unsupported_uri"
+
+
+def test_snapshot_audit_maps_persisted_root_without_rewriting_uri(tmp_path) -> None:
+    persisted_root = Path("/host/project/data/raw-snapshots")
+    mounted_root = tmp_path / "mounted-data"
+    mapped = mounted_root / "raw-snapshots" / "source.json"
+    mapped.parent.mkdir(parents=True)
+    payload = b"retained bytes"
+    mapped.write_bytes(payload)
+    uri = (persisted_root / "source.json").as_uri()
+    mapping = ((persisted_root, mounted_root / "raw-snapshots"),)
+
+    assert verify_snapshot_file(
+        uri, hashlib.sha256(payload).hexdigest(), len(payload), root_mappings=mapping,
+    ) == "verified"
+    assert verify_snapshot_file(
+        (persisted_root / "absent.json").as_uri(), "0" * 64, None, root_mappings=mapping,
+    ) == "missing"
+    assert verify_snapshot_file(
+        Path("/private/tmp/other/source.json").as_uri(), "0" * 64, None, root_mappings=mapping,
+    ) == "unmapped"
+
+
+def test_snapshot_audit_mapping_is_path_component_bounded(tmp_path) -> None:
+    persisted_root = Path("/host/project/data")
+    mounted_root = tmp_path / "data"
+    sibling = Path("/host/project/database/source.json")
+
+    assert verify_snapshot_file(
+        sibling.as_uri(), "0" * 64, None, root_mappings=((persisted_root, mounted_root),),
+    ) == "unmapped"
+    traversal = Path("/host/project/data/../secret/source.json")
+    assert verify_snapshot_file(
+        traversal.as_uri(), "0" * 64, None, root_mappings=((persisted_root, mounted_root),),
+    ) == "unmapped"
 
 
 @pytest.mark.integration
