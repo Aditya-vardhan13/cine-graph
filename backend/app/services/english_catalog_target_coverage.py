@@ -50,6 +50,7 @@ def build_english_catalog_target_coverage(
     items: list[dict[str, Any]] = []
     mapping_states: Counter[str] = Counter()
     languages: Counter[str] = Counter()
+    language_admission: Counter[str] = Counter()
     stage_counts: Counter[str] = Counter()
     for source in target["candidates"]:
         rank = source["selection_rank"]
@@ -121,6 +122,17 @@ def build_english_catalog_target_coverage(
                     "mapping_status": "no_catalog_candidate", "mapping_basis": mapping_basis}
 
         is_candidate = item["mapping_status"] == "candidate_review_required"
+        language = item.get("catalog_language") if is_candidate else None
+        if not is_candidate:
+            admission = "identity_unresolved"
+        elif language == "en":
+            admission = "english_candidate_review_required"
+        elif language in {"und", "mul", None}:
+            admission = "language_unresolved"
+        else:
+            admission = "non_english_candidate"
+        item["english_target_status"] = admission
+        language_admission[admission] += 1
         is_evidence_ready = bool(
             is_candidate
             and item["semantic_rights_eligible_snapshot_count"] > 0
@@ -149,6 +161,7 @@ def build_english_catalog_target_coverage(
         item["pipeline_stages"] = {
             "requested": True,
             "catalog_identity_candidate_resolved": is_candidate,
+            "english_language_candidate": is_candidate and language == "en",
             "narrative_evidence_ready": is_evidence_ready,
             "semantically_indexed": is_indexed,
             "review_required": bool(review_reasons),
@@ -166,12 +179,13 @@ def build_english_catalog_target_coverage(
         for category in ("plot", "production", "reception", "themes", "legacy", "writing_craft")
     }
     return {
-        "schema": "cinegraph.english-catalog-target-coverage/v2",
+        "schema": "cinegraph.english-catalog-target-coverage/v3",
         "target_count": len(items),
         "catalog_candidate_mappings": len(mapped),
         "pipeline_stage_counts": dict(sorted(stage_counts.items())),
         "mapping_status_counts": dict(sorted(mapping_states.items())),
         "mapped_candidate_language_counts": dict(sorted(languages.items())),
+        "english_target_status_counts": dict(sorted(language_admission.items())),
         "mapped_candidate_category_counts": category_counts,
         "mapped_candidate_counts": {
             "with_release_date": sum(row["release_date_present"] for row in mapped),
@@ -204,12 +218,13 @@ def render_english_catalog_target_coverage(report: dict[str, Any]) -> str:
     lines = [
         "# Local candidate coverage: supplied 1,000-title list",
         "",
-        "This is a read-only join to catalog readiness. The input list is not certified as an English-only set or a current IMDb ranking. Candidate identity matches are not reviewed facts.",
+        "This is a read-only join to catalog readiness. The input list is not certified as an English-only set or a current IMDb ranking. Candidate identity matches are not reviewed facts. This report does not establish a 1,000-film English collection.",
         "",
         f"- Target rows: **{report['target_count']}**",
         f"- Unique catalog candidate mappings: **{mapped_count}**",
         f"- Mapping states: {report['mapping_status_counts']}",
         f"- Language labels among mapped candidates: {report['mapped_candidate_language_counts']}",
+        f"- English-target admission states: {report['english_target_status_counts']}",
         "",
         "## Intake pipeline gates",
         "",
@@ -219,6 +234,7 @@ def render_english_catalog_target_coverage(report: dict[str, Any]) -> str:
         "| --- | ---: | ---: |",
         f"| Requested | {report['pipeline_stage_counts'].get('requested', 0)} | {report['target_count']} candidates |",
         f"| Unique catalog identity candidate resolved (unreviewed) | {report['pipeline_stage_counts'].get('catalog_identity_candidate_resolved', 0)} | {report['target_count']} candidates |",
+        f"| English-language identity candidates (still unreviewed) | {report['pipeline_stage_counts'].get('english_language_candidate', 0)} | {report['target_count']} candidates |",
         f"| Narrative evidence ready for semantic use | {report['pipeline_stage_counts'].get('narrative_evidence_ready', 0)} | {report['target_count']} candidates |",
         f"| Semantically indexed | {report['pipeline_stage_counts'].get('semantically_indexed', 0)} | {report['target_count']} candidates |",
         f"| Review required | {report['pipeline_stage_counts'].get('review_required', 0)} | {report['target_count']} candidates |",
