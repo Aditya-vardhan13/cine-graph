@@ -78,6 +78,7 @@ def test_pilot_coverage_sheet_joins_only_matching_source_identity() -> None:
     assert "| 1 | Film 1 (2001) | en | `exact title year`" in report
     assert "Narrative snapshots: **100**" in report
     assert "vectors eligible under current rights policy: **0**" in report
+    assert "`en` 100" in report
 
 
 def test_pilot_coverage_sheet_rejects_mixed_identity_or_pilot_hash() -> None:
@@ -110,6 +111,7 @@ def test_crosslink_is_labeled_membership_only_and_shows_both_titles() -> None:
     assert "Gisaengchung (2019) → Parasite" in report
     assert "crosslink: pilot membership only" in report
     assert "not a catalog identity merge" in report
+    assert "`und` is unclassified, not English" in report
 
 
 def test_crosslink_decision_rejects_product_authorization_or_wrong_film() -> None:

@@ -155,6 +155,10 @@ def render_markdown(
     identity_counts: dict[str, int] = {}
     for row in rows:
         identity_counts[row["identity"]] = identity_counts.get(row["identity"], 0) + 1
+    language_counts: dict[str, int] = {}
+    for row in rows:
+        language = row["language"]
+        language_counts[language] = language_counts.get(language, 0) + 1
 
     integrity_counts = metadata["snapshot_integrity"]["unique_snapshot_status_counts"]
     integrity_summary = ", ".join(
@@ -171,6 +175,7 @@ def render_markdown(
         "## Snapshot",
         "",
         f"- Films: **{len(rows)}**; identity states: " + ", ".join(f"`{key}` {value}" for key, value in sorted(identity_counts.items())) + ".",
+        "- Catalog original-language codes: " + ", ".join(f"`{key}` {value}" for key, value in sorted(language_counts.items())) + ". `und` is unclassified, not English; `mul` is multilingual.",
         "- Section presence: " + ", ".join(f"{key} {section_counts[key]}/100" for key in section_counts) + ".",
         f"- Narrative snapshots: **{narrative_totals['snapshots']}**; with license and attribution **{narrative_totals['with_license_attribution']}**; approved **{narrative_totals['approved']}**; semantically eligible **{narrative_totals['eligible']}**.",
         f"- Stored vectors: **{vector_totals['stored']}**; vectors eligible under current rights policy: **{vector_totals['eligible']}**.",
@@ -227,7 +232,7 @@ def main() -> None:
     parser.add_argument("--readiness", type=Path, default=Path("data/evaluation/catalog-readiness-v7.json"))
     parser.add_argument("--metadata", type=Path, default=Path("data/evaluation/catalog-pilot-metadata-audit-v11.json"))
     parser.add_argument("--identity-decisions", type=Path, default=Path("data/evaluation/catalog-pilot-identity-decisions-v1.json"))
-    parser.add_argument("--output", type=Path, default=Path("data/evaluation/catalog-pilot-coverage-v3.md"))
+    parser.add_argument("--output", type=Path, default=Path("data/evaluation/catalog-pilot-coverage-v4.md"))
     args = parser.parse_args()
     evaluation = (Path.cwd() / "data/evaluation").resolve()
     inputs = (args.pilot, args.readiness, args.metadata, args.identity_decisions)

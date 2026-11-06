@@ -1663,8 +1663,8 @@ remain local and out of Git.
   catalog merges; the report shows both selected-list and canonical catalog
   titles when they differ. It rejects any sidecar that grants operational
   merges or product-field authorization.
-- Generated the ignored/local `data/evaluation/catalog-pilot-coverage-v3.md`
-  (SHA-256 `046f181e54224f940d0946da1fab26d9b51d1d6c94a39cb1e14e0e9fe9b1214b`).
+- Generated the ignored/local `data/evaluation/catalog-pilot-coverage-v4.md`
+  (SHA-256 `972ec94ae2289aae03f17c9814f6239046a53e976497ca5177c3e80fb2fc877e`).
   It makes the pilot's actual state readable in one place: 77 exact
   title/year rows and 23 membership-only crosslinks; plot/production/reception
   section presence of 99/100, 96/100 and 100/100; 208 attributed narrative
@@ -1675,11 +1675,17 @@ remain local and out of Git.
   research release fields, runtime options and eligible-versus-stored
   narrative/vector counts. A section heading is not a quality judgment, and
   resolved assertion presence is not proof of correctness or complete credits.
+- The pilot is not English-only: the catalog currently labels 72 films `en`,
+  5 `hi`, 2 `ta`, 1 `ml`, 1 `mul` and 19 `und` (unclassified). Therefore this
+  report cannot be described as a fully English-language pilot; in particular,
+  unclassified titles should not be silently treated as English. Language codes
+  are shown in the summary and per-film table.
 - Added four fixture-based tests covering report joins, pilot-hash mismatch,
   pilot-only crosslink labeling/title display, and rejection of broader
-  authority or wrong-film decisions. The focused suite passes **4/4**. The
-  renderer writes only under ignored `data/evaluation/`; it does not access the
-  database, crawl sources, or change corpus facts, snapshots, decisions or
+  authority or wrong-film decisions. The focused suite passes **4/4**; the
+  complete non-integration backend suite passes **301 tests, 88 deselected**.
+  The renderer writes only under ignored `data/evaluation/`; it does not access
+  the database, crawl sources, or change corpus facts, snapshots, decisions or
   vectors.
 - This completes the Phase A *coverage-sheet* artifact, not the entire Phase A
   baseline: a fresh question-conditioned retrieval output/latency baseline and
