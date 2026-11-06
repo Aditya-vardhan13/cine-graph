@@ -1966,11 +1966,14 @@ remain local and out of Git.
   the selection, both capture-manifest hashes and both `robots.txt` hashes
   into a deterministic input digest. The local command is:
   `PYTHONPATH=backend python -m app.services.english_pilot_raw_replay`.
-- Once the local Compose catalog is healthy, the explicit apply command is
-  `docker compose exec -T api python -m app.services.english_pilot_raw_replay --apply`.
-  Compose mounts the ignored local `data/` tree read-only for input and the
-  shared raw-snapshot volume for output; the command still performs its exact
-  database identity/schema preflight before writing.
+- Once the local Compose catalog is healthy, build the current API image and
+  use a one-off API container for apply:
+  `docker compose build api && docker compose run --rm --no-deps api python -m app.services.english_pilot_raw_replay --apply`.
+  The one-off container receives the ignored local `data/` tree read-only for
+  input and the shared raw-snapshot volume for output; it uses the current
+  source code without restarting or recreating the database service. The
+  command still performs its exact database identity/schema preflight before
+  writing.
 - An explicit `--apply` path is fenced to the local Compose `cinegraph`
   PostgreSQL service and the shared `/var/lib/cinegraph/raw-snapshots` volume.
   It requires a current schema and verifies that each Wikidata QID still maps
