@@ -1934,3 +1934,19 @@ remain local and out of Git.
   database backup, then verify the schema and run the isolated `cinegraph_test`
   suite before retrying any corpus integration. Do not remove or recreate the
   PostgreSQL volume without a verified backup.
+
+### Follow-up — local database target no longer silently defaults to SQLite
+
+- Changed the host-development default to the Compose PostgreSQL catalog on
+  `127.0.0.1:5432`. A missing `DATABASE_URL` now surfaces an unavailable local
+  PostgreSQL service instead of silently opening/creating a separate empty
+  `cinegraph.db`; Compose and tests can still provide explicit URLs.
+- Added a pure settings test for the default target. Focused config tests pass
+  **7/7**; the full backend non-integration suite passes **324 tests, 88
+  integration tests deselected**. This does not validate PostgreSQL health or
+  migrations. Database/API integration remains blocked by the recorded Docker
+  storage I/O failure; no corpus database was queried or changed by these
+  tests.
+- Frontend tests remain **5/5** with a successful production build/type check.
+  The separate original-language browser assertion still needs a healthy
+  isolated `cinegraph_test` stack before it can be considered verified.

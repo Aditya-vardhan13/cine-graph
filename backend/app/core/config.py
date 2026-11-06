@@ -4,10 +4,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, model_validator
 
 
+DEFAULT_LOCAL_DATABASE_URL = "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/cinegraph"
+
+
 class Settings(BaseSettings):
     app_name: str = "Cinegraph Explorer API"
     environment: str = "development"
-    database_url: str = "sqlite:///./cinegraph.db"
+    # A missing local DATABASE_URL must not silently create a second, empty
+    # SQLite catalog. Docker Compose and deployed environments provide their
+    # own explicit URLs; direct local development targets the published loopback
+    # PostgreSQL port by default.
+    database_url: str = DEFAULT_LOCAL_DATABASE_URL
     api_cors_origins: str = "http://localhost:3000"
     wikidata_user_agent: str = "CineGraphExplorer/0.1 (https://github.com/Aditya-vardhan13/cine-graph)"
     raw_snapshot_root: str = "./data/raw-snapshots"

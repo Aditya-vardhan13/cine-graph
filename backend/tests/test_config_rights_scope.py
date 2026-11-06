@@ -1,7 +1,13 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import DEFAULT_LOCAL_DATABASE_URL, Settings
+
+
+def test_default_database_target_is_the_local_postgres_catalog() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.database_url == DEFAULT_LOCAL_DATABASE_URL
+    assert settings.database_url.startswith("postgresql+psycopg://")
 
 
 @pytest.mark.parametrize("environment", ["development", "local"])
