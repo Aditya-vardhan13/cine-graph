@@ -1907,14 +1907,17 @@ remain local and out of Git.
   later row overwrite an earlier one. Focused target/identity/IMDb/coverage
   tests pass **14/14**, and the local report validator confirms all 1,000 ranks
   against the current input hashes. This is an offline report gate only.
-- The full backend non-integration suite is **not verified** in the current
-  local environment: collection stops with six import errors because the
-  `cine-graph` Conda environment lacks the pinned `mwparserfromhell==0.7.2`
-  dependency; it also emits a NumPy 2.5.2 binary-compatibility warning from
-  compiled packages. The project `.venv` is likewise incomplete. Do not treat
-  the broad-suite result as a code regression or as a passing gate; restore the
-  declared development dependencies before claiming it passes. No database
-  integration tests or corpus writes were run.
+- The full backend non-integration suite passes **353 tests, 88 integration
+  tests deselected** when run with the project Conda interpreter and the
+  documented local `data/vendor/mwparserfromhell` fallback on `PYTHONPATH`.
+  The run emits a non-fatal PyTorch/NumPy initialization warning and a spaCy
+  deprecation warning; model-inference evaluation still needs its own runtime
+  check. An initial attempt without the documented fallback failed collection
+  on six imports; no environment packages were installed or changed.
+- The isolated integration gate remains open: a read-only `docker compose ps`
+  check reports both `db` and `api` containers running but **unhealthy**. No
+  integration tests, migration, replay apply, corpus query, or corpus write
+  was attempted in this step.
 
 ### Follow-up — English pilot coverage sheet
 
