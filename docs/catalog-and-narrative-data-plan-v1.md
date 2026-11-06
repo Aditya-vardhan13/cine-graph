@@ -1709,9 +1709,12 @@ remain local and out of Git.
   `intake_worker` container was running because this local stack had been
   started with a service subset. The rights API still reported **3,039**
   unreviewed snapshots; the two *The Dark Knight Rises* snapshots were both
-  unreviewed English Wikipedia / CC BY-SA 4.0 records. No decision was written
-  and the worker was deliberately not started, so no queued source job could
-  begin unexpectedly.
+  unreviewed English Wikipedia / CC BY-SA 4.0 records. No decision was written.
+- Checked the intake queue before starting the worker: it contained four jobs,
+  all legacy terminal states (`ready` / `ready_with_gaps`), with no queued or
+  running jobs. Started `intake_worker`; it remains running and idle, with no
+  source job claimed and no queue-state change. The local frontend returned
+  HTTP 200. No source request or catalog write occurred.
 - Corrected the local intake runbook and README: `docker compose up --build -d`
   starts the worker and may resume already queued work; starting only `api web`
   leaves new jobs queued unless `intake_worker` is also started. Replaced stale
