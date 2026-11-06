@@ -11,6 +11,7 @@ from app.services.english_pilot_raw_replay import (
     _validate_pilot_shape,
 )
 from app.services.wikidata_raw import RawWikidataError, validate_capture_hashes
+from app.services.wikipedia_raw import RawWikipediaError, validate_article_capture_hashes
 
 
 def test_capture_policy_requires_sequential_robots_checked_entitydata() -> None:
@@ -20,6 +21,7 @@ def test_capture_policy_requires_sequential_robots_checked_entitydata() -> None:
         "robots_required": True,
         "stop_on_denial_or_rate_limit": True,
         "wikidata_route": "known-QID Special:EntityData JSON only",
+        "wikipedia_route": "known enwiki sitelink ordinary /wiki/ page only",
     }, batch_name="fixture")
 
 
@@ -41,6 +43,7 @@ def test_capture_policy_rejects_unapproved_route_or_rate(change: dict[str, objec
         "robots_required": True,
         "stop_on_denial_or_rate_limit": True,
         "wikidata_route": "known-QID Special:EntityData JSON only",
+        "wikipedia_route": "known enwiki sitelink ordinary /wiki/ page only",
     }
     policy.update(change)
     with pytest.raises(EnglishPilotReplayError, match="less restrictive"):
@@ -95,3 +98,6 @@ def test_capture_provenance_hashes_are_validated_before_ingestion() -> None:
     validate_capture_hashes(robots_sha256="a" * 64, manifest_sha256="b" * 64)
     with pytest.raises(RawWikidataError, match="manifest SHA-256"):
         validate_capture_hashes(robots_sha256="a" * 64, manifest_sha256="nope")
+    validate_article_capture_hashes(robots_sha256="c" * 64, manifest_sha256="d" * 64)
+    with pytest.raises(RawWikipediaError, match="robots.txt SHA-256"):
+        validate_article_capture_hashes(robots_sha256="missing", manifest_sha256="d" * 64)

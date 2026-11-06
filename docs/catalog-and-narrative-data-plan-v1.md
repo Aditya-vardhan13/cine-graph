@@ -1959,11 +1959,12 @@ remain local and out of Git.
 
 - Added `english_pilot_raw_replay`, an offline-by-default replay command for
   the two retained capture batches. Its dry run re-audits the frozen English
-  pilot rows, both capture manifests, robots policy fingerprint, source
-  revision and exact SHA-256 bytes for all 100 CC0 Wikidata entity payloads.
-  The current run validates **100 films / 21,744,082 raw JSON bytes** and binds
-  the selection, two capture-manifest hashes and `robots.txt` hash into a
-  deterministic input digest. The local command is:
+  pilot rows, both capture manifests, robots policy fingerprints, source
+  revisions, exact SHA-256 bytes and article-page identity for all 100 films.
+  The current run validates **21,744,082 Wikidata JSON bytes** and **77,560,804
+  Wikipedia HTML bytes** across the same 100 exact film identities. It binds
+  the selection, both capture-manifest hashes and both `robots.txt` hashes
+  into a deterministic input digest. The local command is:
   `PYTHONPATH=backend python -m app.services.english_pilot_raw_replay`.
 - Once the local Compose catalog is healthy, the explicit apply command is
   `docker compose exec -T api python -m app.services.english_pilot_raw_replay --apply`.
@@ -1974,11 +1975,14 @@ remain local and out of Git.
   PostgreSQL service and the shared `/var/lib/cinegraph/raw-snapshots` volume.
   It requires a current schema and verifies that each Wikidata QID still maps
   to the exact frozen catalog film UUID before writing. It saves an
-  input-hashed replay manifest to the shared volume, retains only Wikidata
-  structured snapshots/assertions, and projects supported facts through the
-  existing `Assertion` pipeline. It does not ingest Wikipedia article prose,
-  create narrative-use approvals, or build embeddings. The working DB is
-  currently unhealthy, so this write path was **not** applied.
+  input-hashed replay manifest to the shared volume, retains structured
+  Wikidata snapshots/assertions and exact CC BY-SA 4.0 Wikipedia HTML source
+  snapshots/page assertions, then projects supported facts through the
+  existing `Assertion` pipeline. It does **not** persist narrative passages,
+  create narrative-use approvals, or build embeddings; source text remains
+  ineligible for semantic/model use until the separate snapshot-scoped review
+  gate. The working DB is currently unhealthy, so this write path was **not**
+  applied.
 - Made raw assertion replay idempotently backfill newly supported statement
   fields from the exact retained EntityData bytes; the existing source
   assertion locator/version key prevents duplicates. The isolated PostgreSQL
@@ -1986,7 +1990,7 @@ remain local and out of Git.
   recovery, manifest hash and robots hash. That integration test is not yet
   executed because of the Docker storage I/O failure.
 - Added pure route-policy/path-containment/hash tests. Full backend
-  non-integration suite passes **333 tests, 88 integration tests deselected**.
+  non-integration suite passes **339 tests, 88 integration tests deselected**.
   The full local 100-capture dry run succeeds; integration, API, browser and
   database write gates remain pending recovery of local PostgreSQL storage.
 - No capture payload, snapshot, vector, rights decision or corpus row was
@@ -2007,7 +2011,23 @@ remain local and out of Git.
 - Tightened capture-policy numeric validation so boolean, NaN and infinite
   request intervals cannot be accepted as a valid rate-limit record. The
   validator also rejects malformed pilot/capture JSON shapes with explicit
-  replay errors before any database preflight. The focused replay suite now
-  passes **15/15** and the full non-integration suite passes **339 tests**. A
-  fresh 100-capture dry run still validates all **21,744,082** Wikidata payload
-  bytes with the same combined input digest.
+  replay errors before any database preflight. The focused replay suite then
+  passed **15/15** and the full non-integration suite passed **339 tests**. At
+  that checkpoint, a fresh 100-capture dry run still validated all
+  **21,744,082** Wikidata payload bytes with the same combined input digest.
+- Extended the replay to include the 100 retained Wikipedia article HTML
+  snapshots. Before any DB access, the dry run checks the exact page bytes,
+  SHA-256, article URL policy, CC BY-SA 4.0 declaration, QID, page ID, resolved
+  title and revision against both capture manifests; both batches must share
+  the same recorded Wikipedia robots fingerprint. The verified capture set is
+  **77,560,804 HTML bytes** plus the Wikidata payloads above; the v2 combined
+  input digest is `835bf314ff069248e3a24af9a30133fd916b13a39a10a77e30dede6d1bb2408f`.
+  On `--apply`, the existing `ingest_captured_article` path stores immutable
+  HTML snapshots and source-page assertions and records the replay manifest
+  hash for each run.
+  It does not create narrative passage rows, rights approvals or embeddings;
+  the existing snapshot-scoped semantic-use gate remains closed by default.
+- The Wikipedia persistence integration assertion now checks its manifest
+  hash, but remains unexecuted because the isolated PostgreSQL service cannot
+  be reached from the host and Docker cannot recreate its test image. The
+  offline replay stays green; no database or source artifact was modified.

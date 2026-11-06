@@ -1,8 +1,9 @@
-"""Validate and optionally replay retained English-pilot Wikidata captures.
+"""Validate and optionally replay retained English-pilot source captures.
 
 The default is an offline dry run. Applying requires the local development
 PostgreSQL catalog, an already-current schema, and exact pre-existing catalog
-film identities. Wikipedia article text is deliberately not ingested here.
+film identities. Wikipedia HTML is retained only as licensed source snapshots;
+the replay does not write narrative passages or make them model-eligible.
 """
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ from sqlalchemy.engine import make_url
 from app.core.config import get_settings
 from app.services.catalog_pilot_audit import audit_capture_bundle
 from app.services.english_catalog_pilot_reconciliation import reconcile_english_pilot_captures
+from app.services.wikipedia_article_html import parse_article_html, validate_article_url
 from app.services.wikidata_raw import entity_from_entitydata
 
 
@@ -39,8 +41,19 @@ class EnglishPilotReplayError(ValueError):
 class EnglishPilotReplay:
     entities: dict[str, dict[str, Any]]
     payloads: dict[str, bytes]
+    articles: dict[str, "RetainedWikipediaArticle"]
     catalog_ids: dict[str, str]
     report: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class RetainedWikipediaArticle:
+    qid: str
+    canonical_url: str
+    payload: bytes
+    title: str
+    page_id: int
+    revision_id: int
 
 
 def _path_within(path: Path, root: Path) -> bool:
@@ -80,7 +93,8 @@ def _validate_capture_policy(policy: Any, *, batch_name: str) -> None:
             or interval < 1.0
             or policy.get("robots_required") is not True
             or policy.get("stop_on_denial_or_rate_limit") is not True
-            or policy.get("wikidata_route") != "known-QID Special:EntityData JSON only"):
+            or policy.get("wikidata_route") != "known-QID Special:EntityData JSON only"
+            or policy.get("wikipedia_route") != "known enwiki sitelink ordinary /wiki/ page only"):
         raise EnglishPilotReplayError(f"{batch_name}: capture policy is missing or less restrictive than required.")
 
 
@@ -121,7 +135,7 @@ def load_english_pilot_replay(
     pilot_path: Path = DEFAULT_PILOT,
     batch_paths: tuple[Path, ...] = DEFAULT_BATCHES,
 ) -> EnglishPilotReplay:
-    """Verify both exact capture bundles and load only their CC0 JSON payloads."""
+    """Verify both capture bundles and load exact Wikidata JSON and Wikipedia HTML bytes."""
     project = project_root.resolve()
     evaluation_root = (project / "data/evaluation").resolve()
     pilot_file = (project / pilot_path).resolve()
@@ -180,6 +194,7 @@ def load_english_pilot_replay(
     }
     entities: dict[str, dict[str, Any]] = {}
     payloads: dict[str, bytes] = {}
+    articles: dict[str, RetainedWikipediaArticle] = {}
     catalog_ids: dict[str, str] = {}
     for rank in range(1, reconciliation["expected_films"] + 1):
         pilot_row = pilot_by_rank[rank]
@@ -203,12 +218,47 @@ def load_english_pilot_replay(
             raise EnglishPilotReplayError(f"{qid}: source revision differs from the capture manifest.")
         if qid != pilot_row.get("wikidata_id"):
             raise EnglishPilotReplayError(f"{qid}: QID differs from frozen pilot rank {rank}.")
+        if (capture_row.get("capture_status") != "complete"
+                or capture_row.get("wikipedia_status") != "captured"
+                or capture_row.get("wikipedia_http_status") != 200
+                or capture_row.get("wikipedia_media_type") != "text/html"
+                or capture_row.get("wikipedia_license") != "CC BY-SA 4.0"):
+            raise EnglishPilotReplayError(f"{qid}: retained Wikipedia article capture is incomplete or unlicensed.")
+        article_path = _capture_path(batch, capture_row.get("wikipedia_snapshot_path"), qid=qid)
+        article_payload = article_path.read_bytes()
+        article_hash = sha256(article_payload).hexdigest()
+        if (article_hash != capture_row.get("wikipedia_sha256")
+                or len(article_payload) != capture_row.get("wikipedia_bytes")):
+            raise EnglishPilotReplayError(f"{qid}: raw Wikipedia article bytes do not match the capture manifest.")
+        try:
+            canonical_url = validate_article_url(capture_row.get("wikipedia_capture_url", ""))
+            article = parse_article_html(article_payload, canonical_url=canonical_url, expected_qid=qid)
+        except (ValueError, TypeError) as exc:
+            raise EnglishPilotReplayError(f"{qid}: retained Wikipedia article failed identity parsing: {exc}") from exc
+        if (article.metadata.title != capture_row.get("wikipedia_title_resolved")
+                or article.metadata.page_id != capture_row.get("wikipedia_page_id")
+                or article.metadata.revision_id != capture_row.get("wikipedia_revision")):
+            raise EnglishPilotReplayError(f"{qid}: Wikipedia page metadata differs from its capture manifest.")
         entities[qid] = entity
         payloads[qid] = payload
+        articles[qid] = RetainedWikipediaArticle(
+            qid=qid, canonical_url=canonical_url, payload=article_payload,
+            title=article.metadata.title, page_id=article.metadata.page_id,
+            revision_id=article.metadata.revision_id,
+        )
         catalog_ids[qid] = str(pilot_row["catalog_film_id"])
 
+    wikipedia_robots_hashes = {
+        batch.get("wikipedia_robots_sha256") for batch in reconciliation["batches"]
+    }
+    if (len(wikipedia_robots_hashes) != 1
+            or not isinstance(next(iter(wikipedia_robots_hashes)), str)
+            or len(next(iter(wikipedia_robots_hashes))) != 64
+            or any(char not in "0123456789abcdef" for char in next(iter(wikipedia_robots_hashes)))):
+        raise EnglishPilotReplayError("Capture batches do not share one valid Wikipedia robots.txt hash.")
+
     manifest_inputs = {
-        "schema": "cinegraph.english-pilot-wikidata-inputs/v1",
+        "schema": "cinegraph.english-pilot-source-inputs/v2",
         "pilot_sha256": pilot_digest,
         "capture_manifests": [
             {"path": str((batch / "capture-manifest.json").relative_to(project)),
@@ -216,15 +266,18 @@ def load_english_pilot_replay(
             for batch, manifest_bytes, _manifest in manifests
         ],
         "wikidata_robots_sha256": next(iter(robots_hashes)),
+        "wikipedia_robots_sha256": next(iter(wikipedia_robots_hashes)),
     }
     combined_manifest = sha256(json.dumps(
         manifest_inputs, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")).hexdigest()
     report = {
-        "schema": "cinegraph.english-pilot-wikidata-replay/v1",
+        "schema": "cinegraph.english-pilot-source-replay/v2",
         "ready_for_database_preflight": True,
         "films": len(entities),
         "wikidata_payload_bytes": sum(map(len, payloads.values())),
+        "wikipedia_article_count": len(articles),
+        "wikipedia_article_bytes": sum(len(article.payload) for article in articles.values()),
         "pilot_sha256": pilot_digest,
         "combined_manifest_sha256": combined_manifest,
         "robots_sha256": next(iter(robots_hashes)),
@@ -232,18 +285,25 @@ def load_english_pilot_replay(
         "captures": [
             {"qid": qid, "catalog_film_id": catalog_ids[qid],
              "revision": entity.get("lastrevid"),
-             "sha256": sha256(payloads[qid]).hexdigest()}
+             "wikidata_sha256": sha256(payloads[qid]).hexdigest(),
+             "wikipedia_source_url": articles[qid].canonical_url,
+             "wikipedia_license": "CC BY-SA 4.0",
+             "wikipedia_title": articles[qid].title,
+             "wikipedia_page_id": articles[qid].page_id,
+             "wikipedia_revision": articles[qid].revision_id,
+             "wikipedia_sha256": sha256(articles[qid].payload).hexdigest()}
             for qid, entity in entities.items()
         ],
         "captured_passages_not_ingested": True,
-        "wikipedia_prose_not_ingested": True,
+        "wikipedia_prose_chunks_not_ingested": True,
+        "wikipedia_prose_not_model_eligible": True,
         "limitations": [
             "This verifies retained capture identity and bytes, not factual accuracy or human rights review.",
             "A successful dry run does not prove that catalog QIDs still map to the expected database IDs.",
             "Applying requires an explicit local-only PostgreSQL action and an exact database identity preflight.",
         ],
     }
-    return EnglishPilotReplay(entities, payloads, catalog_ids, report)
+    return EnglishPilotReplay(entities, payloads, articles, catalog_ids, report)
 
 
 def _preflight_database(db, replay: EnglishPilotReplay) -> None:
@@ -290,7 +350,7 @@ def main() -> None:
     parser.add_argument("--rank-11-100", type=Path, default=DEFAULT_BATCHES[1])
     parser.add_argument(
         "--manifest-output", type=Path,
-        default=Path("manifests/english100-wikidata-replay-manifest-v1.json"),
+        default=Path("manifests/english100-source-replay-manifest-v2.json"),
     )
     parser.add_argument("--apply", action="store_true", help="Write only to local PostgreSQL cinegraph after exact identity preflight.")
     args = parser.parse_args()
@@ -303,6 +363,7 @@ def main() -> None:
         from app.db import SessionLocal
         from app.services.source_assertion_projection import project_source_assertions
         from app.services.wikidata_raw import ingest_entities
+        from app.services.wikipedia_raw import ingest_captured_article
 
         with SessionLocal() as db:
             _preflight_database(db, replay)
@@ -326,9 +387,21 @@ def main() -> None:
                 robots_sha256=replay.report["robots_sha256"],
                 manifest_sha256=sha256(manifest_bytes).hexdigest(),
             )
+            article_stats = {"resolved": 0, "snapshots": 0, "source_assertions": 0}
+            for qid, article in replay.articles.items():
+                item = ingest_captured_article(
+                    db, payload=article.payload, canonical_url=article.canonical_url,
+                    media_type="text/html", expected_qid=qid,
+                    robots_sha256=replay.report["wikipedia_robots_sha256"],
+                    manifest_uri=output_path.as_uri(), manifest_sha256=sha256(manifest_bytes).hexdigest(),
+                    storage_root=snapshot_root,
+                )
+                for key in article_stats:
+                    article_stats[key] += item.get(key, 0)
             projection = project_source_assertions(db, qids=set(replay.entities))
         result.update({"mode": "applied", "replay_manifest_uri": output_path.as_uri(),
-                       "ingestion": ingestion, "projection": projection})
+                   "wikidata_ingestion": ingestion, "wikipedia_article_ingestion": article_stats,
+                   "projection": projection})
     print(json.dumps(result, indent=2, sort_keys=True, default=dict))
 
 

@@ -109,10 +109,12 @@ def test_captured_wikipedia_article_persists_exact_response_without_refetch(tmp_
         result = ingest_captured_article(
             db, payload=payload, canonical_url=canonical_url,
             media_type="text/html", expected_qid=document.metadata.wikidata_id,
-            robots_sha256="fixture-robots-sha256", storage_root=tmp_path,
+            robots_sha256="c" * 64, manifest_sha256="d" * 64,
+            storage_root=tmp_path,
         )
         stored = db.scalar(select(SourceSnapshot))
         assertions = list(db.scalars(select(SourceAssertion)))
+        run = db.scalar(select(RawIngestionRun))
 
         assert result["resolved"] == 1
         assert result["snapshots"] == 1
@@ -120,6 +122,7 @@ def test_captured_wikipedia_article_persists_exact_response_without_refetch(tmp_
         assert Path(urlparse(stored.storage_uri).path).read_bytes() == payload
         assert stored.content_hash == sha256(payload).hexdigest()
         assert assertions
+        assert run is not None and run.manifest_hash == "d" * 64
 
 
 def test_title_discovery_stays_disabled_without_permitted_route() -> None:

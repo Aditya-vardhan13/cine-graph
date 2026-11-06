@@ -30,6 +30,18 @@ class RawWikipediaError(RuntimeError):
     pass
 
 
+def validate_article_capture_hashes(
+    *, robots_sha256: str, manifest_sha256: str | None,
+) -> None:
+    """Validate source-policy and replay-manifest fingerprints before writes."""
+    for label, value in (("robots.txt", robots_sha256), ("manifest", manifest_sha256)):
+        if (label == "robots.txt" and value is None) or (value is not None and (
+            not isinstance(value, str) or len(value) != 64
+            or any(char not in "0123456789abcdef" for char in value)
+        )):
+            raise RawWikipediaError(f"{label} SHA-256 must be 64 lowercase hexadecimal characters.")
+
+
 def page_lookup_record(title: str, page: Any) -> dict[str, Any] | None:
     """Convert one resolved wikipedia-api page into a stable local record."""
     if not page.exists():
@@ -214,9 +226,11 @@ def persist_article_snapshot(
 def ingest_captured_article(
     db: Session, *, payload: bytes, canonical_url: str, media_type: str,
     expected_qid: str, robots_sha256: str, manifest_uri: str | None = None,
+    manifest_sha256: str | None = None,
     storage_root: str | Path | None = None,
 ) -> dict[str, int]:
     """Persist an already robots-checked exact article response without refetching it."""
+    validate_article_capture_hashes(robots_sha256=robots_sha256, manifest_sha256=manifest_sha256)
     source = source_for_wikipedia(db)
     policy = wikipedia_article_html_policy(db, source, robots_sha256=robots_sha256)
     document = parse_article_html(payload, canonical_url=canonical_url,
@@ -224,7 +238,8 @@ def ingest_captured_article(
     run = RawIngestionRun(
         source_id=source.id, access_policy_id=policy.id,
         adapter_name="wikipedia_article_html_snapshot", adapter_version=ADAPTER_VERSION,
-        manifest_uri=manifest_uri, status="running", records_requested=1,
+        manifest_uri=manifest_uri, manifest_hash=manifest_sha256,
+        status="running", records_requested=1,
         started_at=datetime.now(timezone.utc),
     )
     db.add(run)
