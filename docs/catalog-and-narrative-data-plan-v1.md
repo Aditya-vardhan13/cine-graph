@@ -1902,6 +1902,20 @@ remain local and out of Git.
   1,000, resolve all language-unknown candidates and either choose a separately
   justified English-only denominator or explicitly keep the target global.
 
+- The coverage join now rejects duplicate selection ranks, duplicate readiness
+  film IDs and out-of-target IMDb-review ranks rather than silently letting a
+  later row overwrite an earlier one. Focused target/identity/IMDb/coverage
+  tests pass **14/14**, and the local report validator confirms all 1,000 ranks
+  against the current input hashes. This is an offline report gate only.
+- The full backend non-integration suite is **not verified** in the current
+  local environment: collection stops with six import errors because the
+  `cine-graph` Conda environment lacks the pinned `mwparserfromhell==0.7.2`
+  dependency; it also emits a NumPy 2.5.2 binary-compatibility warning from
+  compiled packages. The project `.venv` is likewise incomplete. Do not treat
+  the broad-suite result as a code regression or as a passing gate; restore the
+  declared development dependencies before claiming it passes. No database
+  integration tests or corpus writes were run.
+
 ### Follow-up — English pilot coverage sheet
 
 - Added `scripts/render_english_catalog_pilot_coverage.py`, which verifies the
