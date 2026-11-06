@@ -94,6 +94,7 @@ test("film profile opens the writer desk with that film selected", async ({ page
   const film = (await films.json())[0];
   await page.goto(`/films/${film.id}`);
   const credits = page.locator(".credits");
+  await expect(credits.locator(".credit-source summary").filter({ hasText: "Wikidata" })).toBeVisible();
   await expect(credits.getByRole("link", { name: "Heath Ledger credit source" })).toHaveAttribute(
     "href", "https://www.wikidata.org/wiki/Q163872",
   );

@@ -1573,3 +1573,32 @@ remain local and out of Git.
   and renders available actor-to-character labels with source links. The
   profile still flags the runtime as needing version review. This is one-film
   verification, not a 100-film completeness claim.
+
+### Follow-up — retain CC0 credit labels and show source-scoped credits
+
+- A profile audit found that Wikidata retained cast statements but the actor
+  and character target entities had no local English-label snapshots. This
+  made those sourced credits invisible even though the underlying statements
+  existed. Ran the existing rate-limited, policy-guarded label intake for the
+  *The Dark Knight Rises* canary only: 66 target QIDs considered, 66 CC0
+  snapshots retained, 64 source assertions added, and two targets had no
+  English label. This adds raw source evidence only; it creates no reviewed
+  operational assertions and makes no rights or narrative approval decision.
+- The profile now keeps provider credit lists separate and expandable rather
+  than choosing one provider's credits and hiding the rest. The sourced,
+  commercial/open-rights list is shown first; local non-commercial-only
+  credits remain clearly labeled and separate. Actor names and character
+  labels continue to link to their respective evidence. This avoids blending
+  conflicting provider data or implying that restricted data is cleared for
+  commercial use.
+- The local profile now exposes both Wikidata (20 sourced credits, 17 cast)
+  and IMDb Non-Commercial Datasets (15 sourced credits, 10 cast) for this
+  canary, with character labels where retained. This is not a completeness
+  claim for the film catalog; the wider rights and 100-film metadata review
+  remains open. The local narrative rights queue still has 3,039 unreviewed
+  snapshots and zero approved assets, so none is cleared for semantic
+  indexing.
+- Verification: frontend unit suite **5 passed**, TypeScript check passed,
+  and full Playwright suite **10 passed**. Working-corpus writes were limited
+  to the described Wikidata CC0 label snapshots/assertions; no narrative
+  snapshot decisions, embeddings, or vectors were written.
