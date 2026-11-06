@@ -206,6 +206,34 @@ def test_preprocessing_uses_real_postgresql_rows_and_preserves_narrative_lineage
         assert rows and all(rows)
 
 
+def test_attributed_wikipedia_passages_are_not_semantically_retrievable_without_approval() -> None:
+    with Session(create_engine(DATABASE_URL)) as db:
+        source = db.scalar(select(DataSource).where(
+            DataSource.name == "Integration Wikipedia narrative fixture",
+        ))
+        assert source is not None
+        original_status = source.rights_status
+        source.rights_status = "attributed_reuse"
+        db.commit()
+        scope = resolve_retrieval_scope(db, collection_code="integration-narrative-v1")
+        entity_id = db.scalar(select(CanonicalEntity.id).where(CanonicalEntity.wikidata_id == "Q163872"))
+        assert entity_id is not None
+        lexical = retrieve_narrative_candidates(
+            db, subject_entity_id=entity_id, question_id="story.writer_focus",
+            question_text="Batman conflict and choice", method=NarrativeRetrievalMethod.LEXICAL,
+            limit=3, candidate_limit=10, scope=scope,
+        )
+        assert lexical.evidence == ()
+        source.rights_status = original_status
+        db.commit()
+        approved = retrieve_narrative_candidates(
+            db, subject_entity_id=entity_id, question_id="story.writer_focus",
+            question_text="Batman conflict and choice", method=NarrativeRetrievalMethod.LEXICAL,
+            limit=3, candidate_limit=10, scope=scope,
+        )
+        assert approved.evidence
+
+
 def test_preprocessing_refuses_mixed_source_versions_and_scoped_run_selects_one() -> None:
     with Session(create_engine(DATABASE_URL)) as db:
         snapshots = list(db.scalars(select(SourceSnapshot).where(SourceSnapshot.parser_version == "fixture-v1")))

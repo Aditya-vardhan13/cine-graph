@@ -963,6 +963,48 @@ remain local and out of Git.
   and rights analysis before the isolated retrieval experiment; the 100-title
   expansion gate remains closed.
 
+### Follow-up — section-balanced ten-film citation sample (6 November 2026)
+
+- Froze a deterministic selection of 20 citation markers from the retained v6
+  source map before opening the targets: one Story/Production/Cast and one
+  Interpretation/Reception marker for each film. The sample spans 17 publisher
+  domains (three appear twice), so it is balanced by title and broad section,
+  not a probability sample or a fully unique-source sample.
+- Exact-target review yielded 4 narrowly supported claims, 3 partial claims,
+  and 13 unresolved/unverified claims. It surfaced the distinctions we need
+  in the pipeline: direct metadata/credit support; first-person testimony;
+  attributed critical opinion; stale/historical ranking links; and inaccessible
+  targets. The exact sample manifest, citations, and dispositions remain in
+  ignored `data/evaluation/catalog-intake/first10-v1/citation-support-review-v3.md`.
+- No linked-source prose was copied into the corpus, and no operational facts,
+  chunks, embeddings, or working-database rows changed. The audit remains too
+  small and access-biased to justify a support-rate claim. Continue with a
+  separate source-rights / attribution matrix and the isolated, rights-eligible
+  retrieval evaluation; the 100-film expansion is still gated.
+
+### Follow-up — intended-use rights gate (6 November 2026)
+
+- Checked the official Wikimedia/Wikidata, TMDB and IMDb reuse terms and
+  documented a source-by-purpose matrix in `catalog-data-roadmap-v2.md`.
+  Accessibility, an API key, and an article citation are not blanket permission
+  for every downstream use.
+- Code review found narrative chunking previously treated CC BY-SA plus an
+  attribution URL as sufficient for semantic indexing, while retrieval queried
+  all eligible chunks without checking the source's intended-use state.
+- Added a conservative, explicit `semantic_use_approved` gate: new chunk
+  creation and both lexical/vector retrieval require it. Structured metadata
+  display policy remains separate. Wikipedia currently remains
+  `attributed_reuse`, so its narrative content is retained and source-linkable
+  but does not enter new retrieval runs unless a reviewed approval is recorded.
+- An isolated real-PostgreSQL test now verifies default-deny chunking and
+  retrieval, then opt-in with an explicit test fixture approval. Pure policy
+  tests cover the distinction. No working corpus rows, raw snapshots, vectors,
+  or local evaluation artifacts were changed.
+- This is a conservative product-policy gate, not a legal conclusion about
+  CC BY-SA embeddings or generated text. The final paid/public use model still
+  needs qualified review and a versioned per-asset/use rights record; the
+  100-film expansion remains gated.
+
 ### Follow-up — ten-film structured-field coverage and dataset-admission plan (5 November 2026)
 
 - Extended the offline capture audit to report structured Wikidata field

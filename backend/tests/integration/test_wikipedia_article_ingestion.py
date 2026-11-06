@@ -92,6 +92,7 @@ def test_article_snapshot_and_passages_keep_revision_provenance(tmp_path) -> Non
         assert policy.decision == "allowed"
         assert policy.allowed_paths == ["https://en.wikipedia.org/wiki/*"]
         assert policy.max_concurrency == 1
+        assert db.scalar(select(DataSource).where(DataSource.id == source.id)).rights_status == "attributed_reuse"
         assert db.scalar(select(SourceAssertion).where(
             SourceAssertion.source_snapshot_id == snapshot.id,
             SourceAssertion.source_property == "wikidata_item",
@@ -126,6 +127,23 @@ def test_article_snapshot_and_passages_keep_revision_provenance(tmp_path) -> Non
             collection_code=collection.code, entity_id=plot.subject_entity_id,
             source_reference=ARTICLE_URL,
         ))
+        db.commit()
+        blocked_report = build_evidence_chunks(
+            db, collection_code=collection.code,
+            config=ChunkConfiguration(
+                source_parser_version=ADAPTER_VERSION,
+                extraction_version=ARTICLE_HTML_EXTRACTION_VERSION,
+                minimum_words=1,
+            ),
+        )
+        persisted_chunks = list(db.scalars(select(EvidenceChunk).where(
+            EvidenceChunk.narrative_passage_id == plot.id,
+        )))
+        assert persisted_chunks == []
+        assert blocked_report["passages_rights_blocked"] == 3
+        # Attribution allows source-linked display, but does not implicitly
+        # approve semantic indexing or model-input use.
+        source.rights_status = "semantic_use_approved"
         db.commit()
         build_evidence_chunks(
             db, collection_code=collection.code,

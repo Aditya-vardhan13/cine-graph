@@ -45,7 +45,7 @@ def research_db():
     with Session(engine) as db:
         db.add(LanguageEdition(code="en", display_name="English", script="Latin", enabled=True))
         source = DataSource(name="English Wikipedia", url="https://en.wikipedia.org/", source_type="wiki",
-                            license="CC BY-SA 4.0", rights_status="open")
+                            license="CC BY-SA 4.0", rights_status="semantic_use_approved")
         metadata_source = DataSource(name="Wikidata", url="https://www.wikidata.org/", source_type="metadata",
                                      license="CC0 1.0", rights_status="open")
         film = CanonicalEntity(canonical_label="Her (2013 film)", entity_kind="film", wikidata_id="Q788822")

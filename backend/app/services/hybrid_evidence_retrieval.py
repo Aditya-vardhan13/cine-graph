@@ -15,7 +15,15 @@ from uuid import UUID
 from sqlalchemy import func, literal_column, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding
+from app.models import (
+    DataSource,
+    EmbeddingIndexRun,
+    EmbeddingModel,
+    EvidenceChunk,
+    EvidenceEmbedding,
+    SourceObject,
+    SourceSnapshot,
+)
 from app.services.lexical_retrieval import weighted_reciprocal_rank_fusion
 from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_routing import RetrievalLane, narrative_section_candidates, route_research_question
@@ -27,6 +35,17 @@ _LEXICAL_STOPWORDS = frozenset({
     "how", "in", "into", "is", "it", "its", "of", "on", "or", "that", "the", "their", "to",
     "was", "were", "what", "when", "which", "while", "who", "why", "with",
 })
+
+
+def _semantically_approved_chunk_ids(db: Session):
+    """Only retrieve chunks whose owning source has explicit semantic-use approval."""
+    return select(EvidenceChunk.id).join(
+        SourceSnapshot, SourceSnapshot.id == EvidenceChunk.source_snapshot_id,
+    ).join(
+        SourceObject, SourceObject.id == SourceSnapshot.source_object_id,
+    ).join(
+        DataSource, DataSource.id == SourceObject.source_id,
+    ).where(DataSource.rights_status == "semantic_use_approved")
 
 
 def lexical_tsquery(question_text: str) -> str:
@@ -132,6 +151,7 @@ def _lexical_rows(
         EvidenceChunk.subject_entity_id == subject_entity_id,
         EvidenceChunk.quality_status == "eligible",
         EvidenceChunk.preprocessing_run_id == preprocessing_run_id,
+        EvidenceChunk.id.in_(_semantically_approved_chunk_ids(db)),
         score > 0,
     )
     section_conditions = _section_conditions(question_id=question_id, evidence_class=evidence_class) if restrict_sections else ()
@@ -162,6 +182,7 @@ def _semantic_rows(
             EvidenceChunk.preprocessing_run_id == index_run.evidence_chunk_run_id,
             EvidenceChunk.subject_entity_id == subject_entity_id,
             EvidenceChunk.quality_status == "eligible",
+            EvidenceChunk.id.in_(_semantically_approved_chunk_ids(db)),
         )
     )
     section_conditions = _section_conditions(question_id=question_id, evidence_class=evidence_class) if restrict_sections else ()

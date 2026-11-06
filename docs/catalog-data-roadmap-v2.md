@@ -100,6 +100,45 @@ These resources can reveal failure modes and help compare methods. They do not
 replace a rights-cleared, source-attributed product evidence pipeline or
 question-conditioned writer evaluation.
 
+## Rights and intended-use gate (6 November 2026)
+
+Treat rights as a per-source/per-asset/per-purpose decision, not a boolean
+"publicly accessible" label. The current implementation now separates
+structured-metadata display from narrative semantic use. New evidence chunks
+and lexical/vector retrieval require the explicit source status
+`semantic_use_approved`; generic `attributed_reuse`, `open`, local research, or
+an attribution URL alone is insufficient. This is a conservative engineering
+gate, not a legal determination. Existing local snapshots and prior experiment
+artifacts are retained; this change neither deletes them nor retroactively
+certifies them. No working corpus is rebuilt by tests.
+
+| Source material | Current documented terms / practical boundary | Product gate |
+| --- | --- | --- |
+| Wikidata structured data | CC0/public-domain dedication; retain item/statement references for quality and transparency. | Structured facts may be reused subject to provenance and review; do not extend this permission to article prose. |
+| Wikipedia article prose | CC BY-SA 4.0 permits commercial reuse subject to attribution and ShareAlike obligations. Each article's own external references may have separate terms. Whether a particular excerpting, embedding, vector index, or generated derivative complies is a use-specific review question. | Keep captures local and attributed; semantic chunking/indexing is disabled unless a per-source/use approval is recorded and attribution/ShareAlike presentation is designed. |
+| TMDB API | Developer FAQ describes free API use as non-commercial with attribution and directs commercial users to obtain a commercial license. Possessing an API key is not that license. | Do not place TMDB-sourced data in a commercial or revenue-generating product before a suitable grant. |
+| IMDb datasets | Published datasets are described as personal/non-commercial and the terms limit republishing/repurposing into a movie information database. | Candidate selection and local evaluation only within terms; never scrape IMDb or publish these fields absent a separate grant. |
+| Reviews, essays and criticism | Public availability, search snippets, or article links do not grant full-text, embedding, excerpt-display, or redistribution rights. Letterboxd helper repositories are code, not platform permission or rights in reviews. | Default to metadata and outbound links; acquire asset-specific license/permission before retaining or processing full text. |
+
+The official references checked for this gate are Wikimedia's [Terms of Use](https://foundation.wikimedia.org/wiki/Terms_of_Use?useformat=mobile)
+and [CC BY-SA 4.0 license text](https://foundation.wikimedia.org/wiki/Legal%3AText_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License),
+Wikidata's [data overview](https://www.wikidata.org/wiki/Help%3AAbout_data)
+and [reuse guidance](https://www.wikidata.org/wiki/Help%3AData_access),
+TMDB's [API FAQ](https://developer.themoviedb.org/docs/faq), and IMDb's
+[dataset use guidance](https://help.imdb.com/article/imdb/general-information/can-i-use-imdb-data-in-my-software/G5JTRESSHJBBHTGX).
+These operational notes are not legal advice; obtain qualified review before
+public/paid launch, particularly for vector indexes and generated outputs.
+
+The initial source state vocabulary should be explicit and purpose-specific:
+`not_reviewed`, `metadata_link_only`, `local_noncommercial_only`,
+`attribution_required`, `review_required`, `semantic_use_approved`,
+`commercial_licensed`, and `not_permitted`. Do not make a universal source
+status implicitly authorize display, storage, embedding, prompting, or
+redistribution. The current string status is a safe interim gate; a future
+additive versioned rights record should capture asset, use purpose, territory,
+expiry, conditions, evidence URL, reviewer, and decision timestamp before the
+admin intake workflow can promote a source.
+
 ## Target record model and evidence contract
 
 Treat the catalog as linked records with source/version context, not a single
@@ -471,6 +510,27 @@ are separate dimensions. Keep the corpus and release gate unchanged. Next:
 finish a predeclared source/section-balanced sample and rights classification,
 then measure retrieval over eligible text on the frozen paired questions.
 Do not advance to the 100-title expansion on these spot checks alone.
+
+### Ten-film section-balanced citation review (6 November 2026)
+
+A predeclared deterministic sample selected two URL-linked claims per film:
+one from Plot/Production/Cast and one from Reception/Themes/Legacy/Analysis/
+Impact, for 20 total across 17 publisher domains. Selection uses retained v6
+passages and marker offsets, unwraps Wayback URLs, caps the cited paragraph at
+1,800 characters, sorts candidates by locator, and hashes the title/category
+to choose an index. Exact reference targets were then inspected, not replaced
+when inaccessible. Result: **4 narrowly supported, 3 partial, 13
+unverified**. This is not a probability sample or accuracy rate; inaccessible
+targets are unknown, not false. Local selections, source URLs and dispositions
+are in ignored `data/evaluation/catalog-intake/first10-v1/citation-support-review-v3.md`.
+
+The sample found one useful pattern for the corpus policy: the WGA source
+supports a screenplay-ranking claim; AFI supports a cast/role credit; a first-
+person Guardian interview supports an actor's account; commentary sources only
+support explicitly attributed interpretations. It also found partial source
+support and inaccessible historical targets. No linked text was added to the
+corpus. Rights/attribution review and retrieval eligibility remain open; this
+sample does not authorize the 100-film expansion.
 
 Raw snapshots, passage derivatives and the detailed audit remain local under
 `data/evaluation/catalog-intake/first10-v1/` (ignored by Git). Only code,

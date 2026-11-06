@@ -25,6 +25,7 @@ from app.services.hybrid_evidence_retrieval import (
     embed_narrative_queries,
     retrieve_narrative_candidates,
 )
+from app.services.hybrid_evidence_retrieval import _semantically_approved_chunk_ids
 from app.services.ollama_embeddings import OllamaEmbeddingClient
 from app.services.research_catalog import DEFAULT_RESEARCH_COLLECTION, ResearchFilm, get_research_film
 from app.services.retrieval_scope import resolve_retrieval_scope
@@ -204,6 +205,7 @@ def _both_films_have_question_anchor(
         EvidenceChunk.preprocessing_run_id == preprocessing_run_id,
         EvidenceChunk.subject_entity_id.in_((first.entity_id, second.entity_id)),
         EvidenceChunk.quality_status == "eligible",
+        EvidenceChunk.id.in_(_semantically_approved_chunk_ids(db)),
         document.op("@@")(query),
     ).distinct()).all())
     return first.entity_id in matched_subjects and second.entity_id in matched_subjects

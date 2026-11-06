@@ -215,7 +215,7 @@ def seed() -> None:
             url="https://en.wikipedia.org/",
             source_type="recorded_test_fixture",
             license="CC BY-SA 4.0",
-            rights_status="open_with_attribution",
+            rights_status="semantic_use_approved",
             notes="Attributable local prose fixture; no external request.",
         )
         collection = ReferenceCollection(
