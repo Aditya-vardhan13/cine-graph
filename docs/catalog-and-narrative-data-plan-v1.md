@@ -2023,6 +2023,16 @@ remain local and out of Git.
   frontend unit tests **5/5** and production build pass. The local JSON includes
   hashes and detailed per-film counts and remains ignored; no source prose/raw
   payload was added to Git.
+- Re-ran the retained-input command on 6 November with the project Conda
+  interpreter and the repository's ignored vendored parser fallback. The
+  offline v2 replay again validates the exact 100 film/page identities, source
+  hashes and current v6 deterministic passage derivatives: **100 films**,
+  **21,744,082 Wikidata bytes**, **77,560,804 Wikipedia HTML bytes**, and
+  combined manifest digest
+  `835bf314ff069248e3a24af9a30133fd916b13a39a10a77e30dede6d1bb2408f`.
+  The replay says `ready_for_database_preflight`, which means only that local
+  inputs passed; it does not mean the DB identity preflight passed or that
+  anything was ingested. No apply, DB query, or corpus write occurred.
 
 ### Follow-up — local corpus storage unavailable; ingestion remains stopped
 
