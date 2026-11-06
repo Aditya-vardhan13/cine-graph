@@ -2742,3 +2742,10 @@ remain local and out of Git.
   snapshot-purpose gate. This blocks any claim that the existing embeddings
   are currently cleared for product retrieval; rights decisions must be
   explicitly reviewed and recorded.
+- Spot-checked the exact crosswalk rows for *The Dark Knight*: it has 9 direct
+  Wikidata `P161`/`P453` links aligned to retained Wikipedia cast passages;
+  5 are exact English-label agreements. The other 4 illustrate why string
+  matching is not approval (for example, `Bruce Wayne / Batman` versus
+  `Bruce Wayne`, and `James "Jim" Gordon` versus `Jim Gordon`). All 9 remain
+  `review_required`; the crosswalk remains corroboration for a human, not a
+  claim that the film's complete cast/character mapping has been verified.
