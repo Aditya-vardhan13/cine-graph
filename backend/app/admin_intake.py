@@ -18,12 +18,28 @@ from app.db import get_db
 from app.models import CanonicalEntity, MovieIntakeJob
 from app.services.current_narrative_passages import current_passage_rows
 from app.services.imdb_dataset import IMDB_ID, ImdbDataset
+from app.services.narrative_use_decisions import SEMANTIC_MODEL_USE, latest_decisions
 from app.services.research_catalog import research_films_from_entities
+from app.services.source_rights_policy import (
+    NARRATIVE_SEMANTIC_LICENSES, can_use_narrative_semantically,
+)
 from app.services.wikipedia_article_html import ArticlePageUrlError, validate_article_url
 
 
 router = APIRouter(prefix="/api/v1/admin/intake", tags=["local-admin-intake"])
 IMDB_URL_PATH = re.compile(r"/title/(tt\d{7,10})/?\Z")
+def intake_status_label(status: str) -> str:
+    """Explain legacy terminal statuses without presenting capture as indexing."""
+    return {
+        "queued": "Queued",
+        "running": "Capturing sources",
+        "captured": "Capture complete",
+        "captured_with_gaps": "Captured with gaps",
+        "ready": "Captured · legacy status",
+        "ready_with_gaps": "Captured with gaps · legacy status",
+        "needs_review": "Review required",
+        "failed": "Capture failed",
+    }.get(status, status.replace("_", " ").capitalize())
 
 
 def imdb_id_from_input(value: str) -> str | None:
@@ -65,6 +81,7 @@ def dataset() -> ImdbDataset:
 def job_out(job: MovieIntakeJob) -> dict:
     return {"id": str(job.id), "imdb_id": job.imdb_id, "title": job.title,
             "year": job.year, "status": job.status, "stage": job.stage,
+            "status_label": intake_status_label(job.status),
             "attempts": job.attempts, "review_reason": job.review_reason,
             "film_entity_id": str(job.film_entity_id) if job.film_entity_id else None,
             "updated_at": job.updated_at.isoformat() if job.updated_at else None}
@@ -151,6 +168,25 @@ def preview_job(job_id: UUID, db: Session = Depends(get_db)) -> dict:
                   key=lambda row: (row[0].section_locator, row[0].ordinal))
     sections: dict[str, int] = {}
     samples: list[dict] = []
+    snapshot_by_id = {snapshot.id: snapshot for _passage, snapshot in rows}
+    decisions = latest_decisions(db, set(snapshot_by_id))
+    use_counts = {"approved": 0, "pending": 0, "denied": 0, "eligible_for_semantic_processing": 0}
+    for snapshot_id, snapshot in snapshot_by_id.items():
+        decision = decisions.get(snapshot_id)
+        decision_status = decision.decision if decision else None
+        if decision_status == "approved":
+            use_counts["approved"] += 1
+        elif decision_status == "denied":
+            use_counts["denied"] += 1
+        else:
+            use_counts["pending"] += 1
+        if (snapshot.license in NARRATIVE_SEMANTIC_LICENSES and snapshot.attribution_url
+                and can_use_narrative_semantically(
+                    decision=decision_status,
+                    basis_url=decision.decision_basis_url if decision else None,
+                    notes=decision.decision_notes if decision else None,
+                )):
+            use_counts["eligible_for_semantic_processing"] += 1
     for passage, snapshot in rows:
         section = passage.section_locator.split("/", 1)[0].strip()
         sections[section] = sections.get(section, 0) + 1
@@ -165,7 +201,13 @@ def preview_job(job_id: UUID, db: Session = Depends(get_db)) -> dict:
         "release_year": film.release_year, "language_code": film.language_code,
         "genres": film.genres, "metadata_issues": film.metadata_issues,
         "metadata_evidence": film.metadata_evidence,
-    }, "passage_count": len(rows), "sections": sections, "samples": samples}
+    }, "passage_count": len(rows), "sections": sections, "samples": samples,
+        "narrative_use": {
+            "use_case": SEMANTIC_MODEL_USE,
+            "snapshots_with_passages": len(snapshot_by_id),
+            **use_counts,
+            "indexing_performed_by_intake": False,
+        }}
 
 
 @router.post("/jobs/{job_id}/retry", dependencies=[Depends(require_operator)])

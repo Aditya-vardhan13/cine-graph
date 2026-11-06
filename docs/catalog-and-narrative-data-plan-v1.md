@@ -518,6 +518,31 @@ readiness is asserted until the baseline and source constraints are measured.
   profile date/runtime fields with research assertions, record crosslink
   dispositions and exercise the local intake pipeline before batch enrichment.
 
+### Intake lifecycle and rights visibility — 6 November 2026
+
+- Corrected the local intake worker's successful terminal states to
+  `captured` / `captured_with_gaps`. The previous `ready` labels overstated
+  completion: this worker captures source data and extracts passages but does
+  not approve rights or run chunking/embedding. Existing persisted `ready`
+  records remain readable and are explicitly labelled as legacy capture states.
+- Extended the per-film preview with counts for current narrative snapshots
+  with passages: approved, pending, denied, and currently eligible for
+  semantic processing under the shared explicit-license, attribution and
+  snapshot-decision policy. No decision is created or inferred by this read.
+- The intake page now explains that capture, rights review, chunking and
+  embedding are distinct stages, and links directly to the snapshot rights
+  desk. The count is limited to snapshots represented by the film's current
+  passages; it is not a full catalog or index completion metric.
+- Updated the isolated API integration stack to use the explicitly local
+  operator gate and added a real PostgreSQL/API contract covering a pending
+  snapshot beside an approved fixture. The test asserts that intake does not
+  claim to perform indexing. The integration database remains
+  `cinegraph_test`; it does not touch the working corpus.
+- Fixed the integration runner's missing repository-root `PYTHONPATH`, and
+  configured Playwright to launch a separate Next dev server/build directory
+  with the integration API as its backend. This prevents browser tests from
+  accidentally proxying through the working development API.
+
 ### Follow-up — explicit pilot crosslink dispositions
 
 - Added a pure, fail-closed adjudication policy and local CLI that bind the

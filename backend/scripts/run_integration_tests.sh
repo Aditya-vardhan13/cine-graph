@@ -26,7 +26,7 @@ if [ ! -x "$test_python" ]; then
   echo "Conda test interpreter not found: $test_python" >&2
   exit 1
 fi
-test_pythonpath="$backend_dir"
+test_pythonpath="$backend_dir:$repo_root"
 if ! "$test_python" -c 'import mwparserfromhell' >/dev/null 2>&1; then
   vendored_parser="$repo_root/data/vendor/mwparserfromhell"
   if [ ! -d "$vendored_parser/mwparserfromhell" ]; then

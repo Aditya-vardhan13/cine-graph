@@ -8,3 +8,10 @@ test("local narrative rights desk explains the snapshot review workflow", async 
   await expect(page.getByText(/Enter the configured local operator email/)).toBeVisible();
   await expect(page.getByRole("link", { name: "← Film intake" })).toHaveAttribute("href", "/admin/intake");
 });
+
+test("film intake labels the boundary between capture and indexing", async ({ page }) => {
+  await page.goto("/admin/intake");
+  await expect(page.getByRole("heading", { name: "Add films to the research corpus" })).toBeVisible();
+  await expect(page.getByText(/Capture complete.*does not mean rights approval, evidence indexing, or embeddings are complete/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Review narrative-use permissions →" })).toHaveAttribute("href", "/admin/rights");
+});

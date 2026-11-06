@@ -1,7 +1,8 @@
 import pytest
 
 from app.services.source_rights_policy import (
-    can_display_source, can_use_narrative_semantically, displayable_rights_statuses,
+    NARRATIVE_SEMANTIC_LICENSES, can_display_source, can_use_narrative_semantically,
+    displayable_rights_statuses,
 )
 
 
@@ -43,3 +44,7 @@ def test_semantic_use_requires_explicit_snapshot_decision_separate_from_display_
     assert can_use_narrative_semantically(
         decision="approved", basis_url="https://example.test/policy", notes="Reviewed intended use.",
     )
+
+
+def test_narrative_semantic_license_allowlist_is_shared_and_explicit():
+    assert NARRATIVE_SEMANTIC_LICENSES == frozenset({"CC BY-SA 4.0"})

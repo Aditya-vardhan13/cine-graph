@@ -15,6 +15,7 @@ LOCAL_NONCOMMERCIAL_STATUS = "local_noncommercial_only"
 # versioned decision for the specific immutable snapshot and purpose; source-
 # wide metadata cannot authorize every current and future asset at once.
 NARRATIVE_USE_DECISIONS = frozenset({"approved"})
+NARRATIVE_SEMANTIC_LICENSES = frozenset({"CC BY-SA 4.0"})
 
 
 def displayable_rights_statuses(*, include_noncommercial: bool = False) -> tuple[str, ...]:

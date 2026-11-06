@@ -7,6 +7,7 @@ import "./preview.css";
 type Candidate = { imdb_id: string; title: string; year: number | null };
 type IntakeJob = Candidate & {
   id: string; status: string; stage: string; attempts: number;
+  status_label: string;
   review_reason: string | null; film_entity_id: string | null;
 };
 type IntakePreview = {
@@ -14,6 +15,8 @@ type IntakePreview = {
   film: { title: string; release_year: number | null; language_code: string;
           genres: string[]; metadata_issues: string[] };
   passage_count: number; sections: Record<string, number>;
+  narrative_use: { snapshots_with_passages: number; approved: number; pending: number;
+    denied: number; eligible_for_semantic_processing: number; indexing_performed_by_intake: boolean };
   samples: { section: string; excerpt: string; source_url: string | null;
              source_revision: string | null; license: string }[];
 };
@@ -176,10 +179,10 @@ export default function IntakePage() {
       </section>
       <section className="intake-panel">
         <h2>2 · Watch the pipeline</h2>
-        <p>Jobs refresh every five seconds. “Needs review” flags an identity conflict; “ready with gaps” lists missing source material, including a full plot when unavailable.</p>
+        <p>Jobs refresh every five seconds. “Capture complete” means identity checks and source capture/extraction finished; it does not mean rights approval, evidence indexing, or embeddings are complete. “Captured with gaps” lists missing source material, including a full plot when unavailable.</p>
         <div className="intake-jobs">{jobs.length === 0 ? <p>No submitted films yet.</p> : jobs.map(job =>
           <article className="intake-job" key={job.id}><div><strong>{job.title}</strong><small>{job.year ?? "Year unknown"} · {job.imdb_id}</small></div>
-            <span className={`intake-status intake-status-${job.status}`}>{job.status.replaceAll("_", " ")}</span>
+            <span className={`intake-status intake-status-${job.status}`}>{job.status_label}</span>
             <p>Stage: {job.stage.replaceAll("_", " ")}{job.review_reason ? ` · ${job.review_reason}` : ""}</p>
             {job.film_entity_id && <button type="button" onClick={() => inspect(job)}>
               {preview?.job.id === job.id ? "Close data preview" : "Inspect captured data"}</button>}
@@ -188,6 +191,12 @@ export default function IntakePage() {
               <h3>{preview.film.title} · captured data</h3>
               <p>{preview.film.release_year ?? "Year unverified"} · {preview.film.language_code.toUpperCase()} · {preview.passage_count} attributable passages</p>
               <p>{Object.entries(preview.sections).map(([name, count]) => `${name}: ${count}`).join(" · ") || "No narrative passages captured."}</p>
+              <section className="intake-rights-summary" aria-label="Narrative rights and indexing status">
+                <strong>Narrative-use gate</strong>
+                <p>{preview.narrative_use.snapshots_with_passages} source snapshots with passages · {preview.narrative_use.approved} approved · {preview.narrative_use.pending} pending · {preview.narrative_use.denied} denied</p>
+                <p>{preview.narrative_use.eligible_for_semantic_processing} snapshot(s) currently meet the explicit decision, attribution, and supported-license checks. Intake did not run chunking or embeddings.</p>
+                <a href="/admin/rights">Review snapshot permissions →</a>
+              </section>
               {preview.film.metadata_issues.length > 0 && <p>Metadata to review: {preview.film.metadata_issues.join(", ")}</p>}
               {preview.samples.map(sample => <div className="intake-preview-source" key={`${sample.section}:${sample.source_revision}`}>
                 <strong>{sample.section.replaceAll("/", " / ")}</strong>

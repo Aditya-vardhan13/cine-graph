@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     Assertion, AssertionEvidence, CanonicalEntity, DataSource, EmbeddingIndexRun, EmbeddingModel,
     EvidenceChunk, EvidenceChunkRun, EvidenceEmbedding, Film, NarrativeUseDecision, ReferenceCollection, ReferenceCollectionMembership,
-    SourceAssertion, SourceObject, SourceSnapshot,
+    MovieIntakeJob, NarrativePassage, SourceAssertion, SourceObject, SourceSnapshot,
 )
 from app.migrations import alembic_config
 from app.services.evidence_preprocessing import ChunkConfiguration, build_evidence_chunks, evidence_chunk_quality_report
@@ -44,13 +44,102 @@ def api_get(path: str) -> httpx.Response:
     return httpx.get(f"{API_URL}{path}", timeout=5.0)
 
 
-def test_email_only_admin_gate_is_disabled_outside_local_development() -> None:
-    response = httpx.get(
+def test_local_admin_intake_requires_the_configured_operator_email() -> None:
+    denied = httpx.get(
+        f"{API_URL}/api/v1/admin/intake/jobs",
+        headers={"x-operator-email": "not-the-operator@example.test"}, timeout=5.0,
+    )
+    assert denied.status_code == 401
+    allowed = httpx.get(
         f"{API_URL}/api/v1/admin/intake/jobs",
         headers={"x-operator-email": "adityavk1310@gmail.com"}, timeout=5.0,
     )
-    assert response.status_code == 503
-    assert "disabled outside local development" in response.json()["detail"]
+    assert allowed.status_code == 200
+
+
+def test_intake_preview_distinguishes_capture_from_rights_and_indexing() -> None:
+    engine = create_engine(DATABASE_URL)
+    imdb_id = f"tt{uuid4().int % 9_000_000 + 1_000_000}"
+    with Session(engine) as db:
+        entity = db.scalar(select(CanonicalEntity).where(CanonicalEntity.wikidata_id == "Q163872"))
+        source = db.scalar(select(DataSource).where(DataSource.name == "Integration Wikipedia narrative fixture"))
+        assert entity is not None and source is not None
+        source_object = SourceObject(
+            source_id=source.id,
+            external_id=f"intake-preview-{uuid4()}",
+            object_kind="article",
+            canonical_url="https://en.wikipedia.org/wiki/Intake_preview_fixture",
+        )
+        db.add(source_object)
+        db.flush()
+        snapshot = SourceSnapshot(
+            source_object_id=source_object.id,
+            source_revision="intake-preview-revision-1",
+            canonical_url=source_object.canonical_url,
+            content_hash=hashlib.sha256(str(uuid4()).encode()).hexdigest(),
+            fetch_status="success",
+            license="CC BY-SA 4.0",
+            attribution_url=source_object.canonical_url,
+            parser_version="fixture-v1",
+        )
+        db.add(snapshot)
+        db.flush()
+        snapshot_id = snapshot.id
+        source_object_id = source_object.id
+        db.add(NarrativePassage(
+            subject_entity_id=entity.id,
+            source_snapshot_id=snapshot.id,
+            section_locator="plot",
+            section_title="Plot",
+            ordinal=0,
+            content="A retained integration-only passage awaiting its own use decision.",
+            content_hash=hashlib.sha256(str(uuid4()).encode()).hexdigest(),
+            extraction_version="fixture-v1",
+        ))
+        passage_id = db.scalar(select(NarrativePassage.id).where(
+            NarrativePassage.source_snapshot_id == snapshot.id,
+        ))
+        job = MovieIntakeJob(
+            imdb_id=imdb_id,
+            title="The Dark Knight",
+            year=2008,
+            status="captured",
+            stage="captured",
+            attempts=1,
+            film_entity_id=entity.id,
+        )
+        db.add(job)
+        db.commit()
+        job_id = job.id
+
+    try:
+        response = httpx.get(
+            f"{API_URL}/api/v1/admin/intake/jobs/{job_id}/preview",
+            headers={"x-operator-email": "adityavk1310@gmail.com"}, timeout=5.0,
+        )
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["job"]["status_label"] == "Capture complete"
+        assert payload["narrative_use"] == {
+            "use_case": "semantic_index_and_model_input",
+            "snapshots_with_passages": 2,
+            "approved": 1,
+            "pending": 1,
+            "denied": 0,
+            "eligible_for_semantic_processing": 1,
+            "indexing_performed_by_intake": False,
+        }
+    finally:
+        with Session(engine) as db:
+            job = db.get(MovieIntakeJob, job_id)
+            passage = db.get(NarrativePassage, passage_id)
+            snapshot = db.get(SourceSnapshot, snapshot_id)
+            source_object = db.get(SourceObject, source_object_id)
+            for record in (job, passage, snapshot, source_object):
+                if record is not None:
+                    db.delete(record)
+            db.commit()
+        engine.dispose()
 
 
 def test_preprocessing_rerun_preserves_excluded_count_in_real_postgresql() -> None:

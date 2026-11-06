@@ -4,7 +4,7 @@ from app.services.movie_intake_identity import identity_issue
 from app.services.wikidata import WikidataQueryRouteUnavailable, sparql_query_runner
 from app.services.wikidata_imdb_resolver import WikidataImdbDiscoveryUnavailable, acquire
 from app.services.indian_film_selection import acquire_candidates
-from app.admin_intake import local_operator_email_allowed
+from app.admin_intake import intake_status_label, local_operator_email_allowed
 
 
 def _entity() -> dict:
@@ -65,3 +65,9 @@ def test_email_operator_gate_is_local_only_and_case_insensitive() -> None:
         "someone@example.com", expected="adityavk1310@gmail.com",
         environment="development",
     )
+
+
+def test_intake_status_labels_never_call_source_capture_indexing_readiness() -> None:
+    assert intake_status_label("captured") == "Capture complete"
+    assert intake_status_label("captured_with_gaps") == "Captured with gaps"
+    assert intake_status_label("ready") == "Captured · legacy status"

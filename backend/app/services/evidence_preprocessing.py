@@ -32,12 +32,14 @@ from app.models import (
     SourceSnapshot,
 )
 from app.services.narrative_use_decisions import latest_decisions
-from app.services.source_rights_policy import can_use_narrative_semantically
+from app.services.source_rights_policy import (
+    NARRATIVE_SEMANTIC_LICENSES, can_use_narrative_semantically,
+)
 
 
 CHUNKER_VERSION = "spacy-sentencizer-evidence-v5-citation-positions"
 NORMALIZATION_VERSION = "unicode-nfc-whitespace-v1"
-ALLOWED_NARRATIVE_LICENSES = {"CC BY-SA 4.0"}
+ALLOWED_NARRATIVE_LICENSES = NARRATIVE_SEMANTIC_LICENSES
 WORD = re.compile(r"\b[\w'-]+\b", re.UNICODE)
 
 

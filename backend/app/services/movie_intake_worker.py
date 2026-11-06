@@ -192,7 +192,9 @@ def process_one(db: Session, job: MovieIntakeJob, *, dataset: ImdbDataset,
         gaps.append("no verified English Wikipedia sitelink")
     if not has_plot(db, entity.id):
         gaps.append("no full plot passage")
-    finish(db, job, "ready_with_gaps" if gaps else "ready", "; ".join(gaps) if gaps else None)
+    # This worker captures and extracts source evidence only. Rights review,
+    # chunking and embedding are separate, explicit stages.
+    finish(db, job, "captured_with_gaps" if gaps else "captured", "; ".join(gaps) if gaps else None)
 
 
 def run_once(*, tmdb_key_file: Path, cache_dir: Path) -> bool:
