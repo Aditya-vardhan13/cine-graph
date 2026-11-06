@@ -1802,6 +1802,34 @@ remain local and out of Git.
   claim; existing draft questions and single-reviewer judgments do not yet
   satisfy that gate.
 
+### Follow-up — freeze the full English candidate denominator
+
+- Added `backend/app/services/english_catalog_target.py` and
+  `scripts/freeze_english_catalog_target.py` to freeze the first 1,000 data
+  rows of the supplied CSV as an explicit, deterministic target list. The CSV
+  has 1,001 data rows: rank 1,001 is `The Hobbit: The Battle of the Five
+  Armies` (2014), recorded explicitly as out-of-scope rather than silently
+  discarded. The artifact
+  contains only source rank, input row, title, release-year candidate and an
+  unresolved identity status, plus the exact CSV SHA-256. It intentionally
+  excludes overview, ratings, gross, cast, crew and other CSV fields.
+- Duplicate title/year rows are retained in rank order and marked for identity
+  review rather than silently deduplicated. The repeated `Drishyam` entries
+  have different years and remain separate candidates; title alone is not an
+  identity key.
+- The generated manifest is local-only under ignored
+  `data/evaluation/catalog-target-english1000-candidates-v1.json`. It is a
+  candidate denominator, not a current/official IMDb ranking, verified English
+  catalog, ingestion authorization, or evidence-quality claim. Catalog identity
+  resolution, language adjudication and per-film source/rights review remain
+  separate gates.
+- The command refuses a different CSV path, fewer than 1,000 rows, malformed
+  selected title/year rows, and overwriting an existing artifact. It records
+  rows after the first 1,000 as out of scope. `--validate`
+  deterministically rebuilds and compares the artifact against the exact
+  source bytes. Small synthetic tests cover field minimization, duplicate
+  handling, malformed input and fingerprint drift.
+
 ### Follow-up — English pilot coverage sheet
 
 - Added `scripts/render_english_catalog_pilot_coverage.py`, which verifies the
