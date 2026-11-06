@@ -1802,11 +1802,13 @@ remain local and out of Git.
   claim; existing draft questions and single-reviewer judgments do not yet
   satisfy that gate.
 
-### Follow-up — freeze the full English candidate denominator
+### Follow-up — freeze the supplied Top-1,000 candidate denominator
 
 - Added `backend/app/services/english_catalog_target.py` and
   `scripts/freeze_english_catalog_target.py` to freeze the first 1,000 data
-  rows of the supplied CSV as an explicit, deterministic target list. The CSV
+  rows of the supplied CSV as an explicit, deterministic source-list target.
+  This is not an English-only list: its language composition is unresolved
+  until source-backed identity/language review. The CSV
   has 1,001 data rows: rank 1,001 is `The Hobbit: The Battle of the Five
   Armies` (2014), recorded explicitly as out-of-scope rather than silently
   discarded. The artifact
@@ -1870,6 +1872,35 @@ remain local and out of Git.
   authorize carrying this index or its fields into a paid product. Output is
   ignored under `data/evaluation/`, bound to target/readiness/audit/index
   hashes, and can be regenerated and validated deterministically.
+
+### Follow-up — per-title data coverage for the supplied 1,000 candidates
+
+- Added `backend/app/services/english_catalog_target_coverage.py` and
+  `scripts/render_english_catalog_target_coverage.py`. The report joins the
+  exact target, readiness, identity and restricted IMDb-review artifacts by
+  rank and file hash. It shows catalog coverage and source-use eligibility
+  without copying narrative text or changing the working DB. Local JSON and
+  Markdown outputs remain ignored under `data/evaluation/`.
+- The current candidate mapping yields 969 unique catalog candidate rows, 1
+  ambiguous row, and 30 rows without a current catalog candidate. The 969
+  candidates have language labels: 730 `en`, 50 explicitly non-English
+  (`hi`, `kn`, `ml`, `ta`, `te`), 182 `und`, and 7 `mul`. Therefore
+  this supplied global Top-1,000 list is not yet an English-only corpus.
+- Among the 969 mapped candidates, 967 have a plot section, 912 production,
+  966 reception, 258 themes/analysis, 349 legacy/influence and 527
+  writing/craft. All 969 have at least one resolved release-event, runtime,
+  director, writer and cast assertion; only 127 populate the older profile
+  release-date and runtime fields. This points to a projection/UI distinction,
+  not absence of all source data. 257 have at least one resolved character
+  assertion, while the legacy credit table exposes no character labels.
+- **0/969** mapped candidates have any snapshot currently eligible for
+  semantic/model use, and **0/969** have any eligible embedding vector. The
+  main retrieval gate is still rights approval, not running a larger embedding
+  model. Section presence and resolved assertions do not establish factual
+  correctness, complete credits, meaningful relevance or reuse permission.
+- The report is a coverage diagnosis only. Before calling this the English
+  1,000, resolve all language-unknown candidates and either choose a separately
+  justified English-only denominator or explicitly keep the target global.
 
 ### Follow-up — English pilot coverage sheet
 
