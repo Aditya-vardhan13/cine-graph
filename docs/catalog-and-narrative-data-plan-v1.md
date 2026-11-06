@@ -1920,6 +1920,10 @@ remain local and out of Git.
   `DATABASE_URL` is loaded. A read-only probe initially hit that fallback and
   was stopped; it did not query or write the catalog. Future local pipeline
   commands must explicitly load/check their database target before running.
+- The ignored root `cinegraph.db` is an existing **24 MB** SQLite catalog
+  (file timestamp 12 August 2026), not an empty file created by that probe. It
+  was inspected read-only and left untouched; it is not the Compose
+  PostgreSQL database and must not be treated as interchangeable with it.
 - The 100-film source captures and reconciliation remain complete as local QA
   artifacts, but have **not** been ingested or indexed. Narrative semantic-use
   approval is still 0/200 snapshots. Therefore the 100-film enrichment and
@@ -1939,8 +1943,8 @@ remain local and out of Git.
 
 - Changed the host-development default to the Compose PostgreSQL catalog on
   `127.0.0.1:5432`. A missing `DATABASE_URL` now surfaces an unavailable local
-  PostgreSQL service instead of silently opening/creating a separate empty
-  `cinegraph.db`; Compose and tests can still provide explicit URLs.
+  PostgreSQL service instead of silently targeting the separate SQLite
+  `cinegraph.db` catalog; Compose and tests can still provide explicit URLs.
 - Added a pure settings test for the default target. Focused config tests pass
   **7/7**; the full backend non-integration suite passes **324 tests, 88
   integration tests deselected**. This does not validate PostgreSQL health or
@@ -1950,3 +1954,48 @@ remain local and out of Git.
 - Frontend tests remain **5/5** with a successful production build/type check.
   The separate original-language browser assertion still needs a healthy
   isolated `cinegraph_test` stack before it can be considered verified.
+
+### Follow-up — retained English pilot Wikidata replay is prepared, not applied
+
+- Added `english_pilot_raw_replay`, an offline-by-default replay command for
+  the two retained capture batches. Its dry run re-audits the frozen English
+  pilot rows, both capture manifests, robots policy fingerprint, source
+  revision and exact SHA-256 bytes for all 100 CC0 Wikidata entity payloads.
+  The current run validates **100 films / 21,744,082 raw JSON bytes** and binds
+  the selection, two capture-manifest hashes and `robots.txt` hash into a
+  deterministic input digest. The local command is:
+  `PYTHONPATH=backend python -m app.services.english_pilot_raw_replay`.
+- An explicit `--apply` path is fenced to the local Compose `cinegraph`
+  PostgreSQL service and the shared `/var/lib/cinegraph/raw-snapshots` volume.
+  It requires a current schema and verifies that each Wikidata QID still maps
+  to the exact frozen catalog film UUID before writing. It saves an
+  input-hashed replay manifest to the shared volume, retains only Wikidata
+  structured snapshots/assertions, and projects supported facts through the
+  existing `Assertion` pipeline. It does not ingest Wikipedia article prose,
+  create narrative-use approvals, or build embeddings. The working DB is
+  currently unhealthy, so this write path was **not** applied.
+- Made raw assertion replay idempotently backfill newly supported statement
+  fields from the exact retained EntityData bytes; the existing source
+  assertion locator/version key prevents duplicates. The isolated PostgreSQL
+  integration test now simulates a missing prior statement and checks its
+  recovery, manifest hash and robots hash. That integration test is not yet
+  executed because of the Docker storage I/O failure.
+- Added pure route-policy/path-containment/hash tests. Full backend
+  non-integration suite passes **333 tests, 88 integration tests deselected**.
+  The full local 100-capture dry run succeeds; integration, API, browser and
+  database write gates remain pending recovery of local PostgreSQL storage.
+- No capture payload, snapshot, vector, rights decision or corpus row was
+  modified in this step. The replay output is a validated preflight, not a
+  claim that the data is searchable or ready for a writer-facing quality gate.
+- Tightened the offline replay validator to require the frozen pilot's exact
+  100 contiguous ranks and to reject symlinked capture manifests or payloads.
+  The focused replay tests pass **9/9**, and the full non-integration suite
+  passes **333/333** with integration tests intentionally deselected. Frontend
+  tests pass **5/5**, and the production build/type check succeeds.
+- Integration was retried without touching the corpus database. The existing
+  `cinegraph_test` container is healthy but has no host port mapping; the
+  project runner cannot recreate its migration image because Docker reports a
+  containerd blob `input/output error`. A direct isolated-schema test therefore
+  failed to connect (`127.0.0.1:5433` refused) before executing assertions.
+  This leaves the replay persistence behavior unverified, not failed. No
+  database writes occurred.

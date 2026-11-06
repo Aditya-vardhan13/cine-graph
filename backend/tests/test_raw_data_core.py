@@ -49,18 +49,30 @@ def test_raw_snapshots_are_immutable_and_statements_are_replayable(tmp_path) -> 
     }
     retained_payload = json.dumps({"entities": {"Q42": entity}}, ensure_ascii=False).encode("utf-8")
     with Session(engine) as db:
-        first = ingest_entities(db, {"Q42": entity}, raw_payloads={"Q42": retained_payload}, snapshot_root=tmp_path)
-        second = ingest_entities(db, {"Q42": entity}, raw_payloads={"Q42": retained_payload}, snapshot_root=tmp_path)
+        first = ingest_entities(
+            db, {"Q42": entity}, raw_payloads={"Q42": retained_payload}, snapshot_root=tmp_path,
+            robots_sha256="a" * 64, manifest_sha256="b" * 64,
+        )
+        missing_statement = db.scalar(select(SourceAssertion).where(SourceAssertion.source_property == "P57"))
+        assert missing_statement is not None
+        db.delete(missing_statement)
+        db.commit()
+        second = ingest_entities(
+            db, {"Q42": entity}, raw_payloads={"Q42": retained_payload}, snapshot_root=tmp_path,
+            robots_sha256="a" * 64, manifest_sha256="b" * 64,
+        )
         stored = db.scalar(select(SourceSnapshot))
         assertions = list(db.scalars(select(SourceAssertion).order_by(SourceAssertion.statement_locator)))
         links = list(db.scalars(select(RawIngestionRunSnapshot).order_by(RawIngestionRunSnapshot.disposition)))
+        runs = list(db.scalars(select(RawIngestionRun).order_by(RawIngestionRun.created_at)))
 
         assert first == {"objects": 1, "snapshots": 1, "source_assertions": 3}
-        assert second == {"objects": 1, "snapshots": 0, "source_assertions": 0}
+        assert second == {"objects": 1, "snapshots": 0, "source_assertions": 1}
         assert stored.storage_uri and stored.storage_uri.startswith("file:")
         assert Path(urlparse(stored.storage_uri).path).read_bytes() == retained_payload
         assert json.loads(retained_payload)["entities"]["Q42"]["id"] == "Q42"
         assert sorted(item.disposition for item in links) == ["created", "reused"]
+        assert len(runs) == 2 and all(run.manifest_hash == "b" * 64 for run in runs)
         assert [(item.source_property, item.statement_locator, item.source_rank) for item in assertions] == [
             ("P57", "claims.P57[0]", "preferred"), ("P577", "claims.P577[0]", "normal"),
             ("wikidata:label:en", "labels.en", None),
@@ -71,6 +83,7 @@ def test_raw_snapshots_are_immutable_and_statements_are_replayable(tmp_path) -> 
         assert policy.required_user_agent is True
         assert policy.robots_decision == "allow_extension_route"
         assert policy.allowed_paths == ["https://www.wikidata.org/wiki/Special:EntityData/*.json"]
+        assert policy.policy_revision == f"robots-sha256:{'a' * 64}"
         assert policy.max_requests_per_minute <= 60
         assert policy.max_concurrency == 1
 

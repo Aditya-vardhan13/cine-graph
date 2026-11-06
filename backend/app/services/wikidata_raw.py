@@ -42,6 +42,15 @@ class RawWikidataError(RuntimeError):
     pass
 
 
+def validate_capture_hashes(
+    *, robots_sha256: str | None, manifest_sha256: str | None,
+) -> None:
+    """Reject malformed provenance hashes before opening a write transaction."""
+    for label, value in (("robots.txt", robots_sha256), ("manifest", manifest_sha256)):
+        if value is not None and not re.fullmatch(r"[0-9a-f]{64}", value):
+            raise RawWikidataError(f"{label} SHA-256 must be 64 lowercase hexadecimal characters.")
+
+
 @dataclass(frozen=True)
 class EntityDataCapture:
     qid: str
@@ -556,10 +565,10 @@ def persist_entity_capture(
         attribution_url=f"{SOURCE_URL}wiki/{qid}", parser_version=ADAPTER_VERSION,
         storage_root=snapshot_root,
     )
-    # Replaying an existing exact snapshot can append newly supported source
-    # fields while the original source bytes and prior statements stay intact.
-    assertions_created = (extract_assertions(db, stored_snapshot.id, entity) if created
-                          else extract_english_label(db, stored_snapshot.id, entity))
+    # Replaying an exact snapshot may add statement fields supported by a newer
+    # extractor revision. source_assertion() makes this idempotent at the
+    # locator/extractor-version boundary while preserving the original bytes.
+    assertions_created = extract_assertions(db, stored_snapshot.id, entity)
     return created, assertions_created
 
 
@@ -585,8 +594,11 @@ def ingest_entities(
     *,
     raw_payloads: dict[str, bytes] | None = None,
     snapshot_root: str | Path | None = None,
+    robots_sha256: str | None = None,
+    manifest_sha256: str | None = None,
 ) -> dict[str, int]:
     """Persist already-captured entities, requiring their exact source bytes."""
+    validate_capture_hashes(robots_sha256=robots_sha256, manifest_sha256=manifest_sha256)
     raw_payloads = raw_payloads or {}
     validated: list[tuple[str, dict[str, Any], bytes]] = []
     for qid, entity in entities.items():
@@ -604,7 +616,7 @@ def ingest_entities(
         validated.append((qid, entity, payload))
 
     source: DataSource = source_for_wikidata(db)
-    policy = wikidata_entitydata_policy(db, source)
+    policy = wikidata_entitydata_policy(db, source, robots_sha256=robots_sha256)
     if policy.decision != "allowed":
         raise RawWikidataError("The registered Wikidata EntityData policy is not approved; refusing to ingest.")
     run = RawIngestionRun(
@@ -613,6 +625,7 @@ def ingest_entities(
         adapter_name="wikidata_entity_json",
         adapter_version=ADAPTER_VERSION,
         manifest_uri=manifest_uri,
+        manifest_hash=manifest_sha256,
         status="running",
         records_requested=len(validated),
         started_at=datetime.now(timezone.utc),
