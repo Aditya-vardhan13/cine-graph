@@ -277,11 +277,15 @@ unless the evidence actually establishes influence.
 
 ### Phase A — freeze the target and baseline
 
-1. Version a reproducible pilot list of 100 films: start from the user's chosen
-   list, include representative well-known English titles and the requested
-   comparison examples where available, and explicitly record additions or
-   exceptions. Record language, year and candidate identifiers; do not call
-   the CSV a current official ranking.
+1. Version a reproducible English-first pilot list of 100 films. The earlier
+   global top-100 manifest is a separate multilingual diagnostic, not this
+   English pilot. Select unique exact title/year matches against the existing
+   catalog whose recorded catalog language is `en`; retain input rank, year,
+   catalog ID and explicit skipped-row counts. The local IMDb CSV supplies
+   candidate ordering only: do not reuse its non-commercial data fields or
+   describe it as a current official ranking. Add user-requested comparison
+   films only through a separately recorded, sourced exception if they are not
+   in the deterministic selection.
 2. Run a read-only coverage and integrity report for each film: identity,
    metadata, actor-character mappings, source availability, plot, craft,
    reception, license scope and index status. Include missing and conflicted
@@ -325,10 +329,14 @@ evidence; a per-film report shows what is present, absent or unresolved.
 
 ### Phase D — question-led retrieval and answers
 
-1. Prepare a development set of real writing questions and a separately frozen
-   holdout. Include the requested **10 film pairs × 5 questions = 50 holdout
-   cases**, with family, loyalty, injustice, character choices, consequences,
-   craft and contrast among the question types. Do not tune on holdout results.
+1. Keep the existing **10 film pairs × 5 questions = 50 cases** as an inspected
+   development/regression set, not a holdout: rankings and passages have
+   already been reviewed during tuning. Use it to reproduce and compare
+   iterations, but do not use its score as an independent quality claim. In
+   parallel, prepare a separately frozen film-pair-disjoint holdout before
+   evaluating a release candidate. Include family, loyalty, injustice,
+   character choices, consequences, craft and contrast in both sets; never
+   tune against the holdout.
 2. Mark independently whether each film actually has sufficient retained
    evidence for the question. Include supported, partially supported and
    unsupported-premise cases. Count repeated pairs and films; 50 questions on
@@ -340,14 +348,17 @@ evidence; a per-film report shows what is present, absent or unresolved.
    correct character attribution, question coverage, source support,
    appropriate abstention, comparative insight and writer usefulness.
 
-**Proposed gate, not a current achievement:** on the 50 frozen cases, relevant
-supporting evidence is found for *both* films on at least 80% of cases judged
-supportable for both films. Report the exact numerator and denominator and all
-partially supported/unsupported cases separately. Also report unsupported
-claims, misattributions and abstention failures; a retrieval percentage alone
-does not qualify an answer as good. Because 50 cases and 10 pairs are small,
-show per-pair results and uncertainty and validate on additional unseen films
-before claiming general performance.
+**Proposed development gate, not a current achievement:** on the 50
+development/regression cases, relevant supporting evidence is found for *both*
+films on at least 80% of cases independently judged supportable for both.
+Report the exact numerator and denominator and all partially supported or
+unsupported cases separately. Passing this set only shows that an iteration
+meets a development target; it cannot qualify a release. The same metric must
+then be measured once on the untouched film-pair-disjoint holdout. Also report
+unsupported claims, misattributions and abstention failures; a retrieval
+percentage alone does not qualify an answer as good. Because 50 cases and 10
+pairs are small, show per-pair results and uncertainty and validate on
+additional unseen films before claiming general performance.
 
 **Outcome:** a reproducible comparison demonstrating whether the system is
 actually answering writer questions better than its own baseline.
@@ -1720,3 +1731,172 @@ remain local and out of Git.
   leaves new jobs queued unless `intake_worker` is also started. Replaced stale
   service-token and `ready` status instructions with the current local email
   gate and `captured` / `captured_with_gaps` meanings.
+
+### Follow-up — original-language evidence is inspectable in film profiles
+
+- The research API already returned source-backed original-language Wikidata
+  item IDs and field-level provenance, but the film profile displayed only a
+  short catalog code. For unsupported source languages this appeared as
+  `UND`, hiding the actual recorded evidence; multiple source languages were
+  similarly collapsed to `MUL`.
+- Updated the profile to call this value a **catalog language code** when
+  research metadata is present, and added a collapsible evidence section with
+  every recorded language item ID and its source URL, license and revision.
+  `und` is explicitly described as unmapped by the current language-code
+  configuration, not as missing source data. Multiple source entries are
+  inspectable rather than flattened into an apparent single-language fact.
+- Added an open CC0 language assertion to the isolated Dark Knight fixture and
+  browser assertions for the code, item link and source revision. Frontend
+  unit tests pass **5/5** and the production build/type check passes. The
+  Playwright/API integration did not pass in this environment. The test stack
+  was later reachable, but its film-search route returned HTTP 500; details of
+  the isolated stack failure are recorded below. No working-corpus data was
+  changed.
+- This improves evidence visibility but does not resolve the underlying
+  language model: `original_language_code` remains a limited catalog
+  classification, and source disagreements still need review. The browser
+  assertion is pending successful execution against the separate
+  `cinegraph_test` stack. The attempted suite reached 56 passing tests before
+  the host could no longer connect to the test database on port 5433; the
+  resulting 17 failures and 14 setup errors were database-connection failures,
+  not assertions about language behavior. The focused Playwright run then
+  found the isolated API health route responsive but film search returned
+  HTTP 500. Docker reported an I/O error reading the PostgreSQL image layer
+  and container logs, so the test DB container was not forcibly replaced and
+  no Docker images or volumes were pruned. Working API/database ports were
+  not listening in this session. Treat browser/API verification as unresolved,
+  not passed.
+
+### Follow-up — separate the English-first pilot from the multilingual list
+
+- The earlier frozen global top-100 manifest was not an English-only sample:
+  its catalog language distribution was 72 `en`, 5 `hi`, 2 `ta`, 1 `ml`, 1
+  `mul`, and 19 `und`. Reusing it as the English-first pilot would silently
+  mix language editions and unknown classifications.
+- Added a deterministic, offline selector and validator in
+  `backend/app/services/english_catalog_pilot.py` and
+  `scripts/freeze_english_catalog_pilot.py`. It uses the local IMDb CSV only
+  for ordered title/year candidates, matches only exact title/year or catalog
+  aliases against the read-only catalog readiness report, selects only
+  distinct catalog films recorded as `en`, fingerprints both input artifacts,
+  and records skipped rows. It does not change catalog identities or grant
+  source/data rights.
+- The local-only `data/evaluation/catalog-pilot-english100-v1.json` validates
+  against its exact inputs: 100 unique films, all 100 exact title/year
+  matches, scanning through input rank 165. Before reaching 100, 37 rows had
+  no exact title/year match and 28 matched only a non-English or unclassified
+  catalog record. The Godfather (rank 2), The Dark Knight (3), Interstellar
+  (22), and Avengers: Endgame (60) are present. CSV SHA-256:
+  `6b8695e6efee6941bbeb0fb391538d1f7798290412b911f4f3db897f155af744`;
+  readiness-report SHA-256:
+  `271fc6354b7fea91ff8fdb11ae2502e12b20fe075b1a5baca5df6d3476a357e4`.
+- Added four pure tests for deterministic selection, exclusion/ambiguity,
+  fingerprint validation and insufficient candidate counts. The selector and
+  manifest-gate tests pass **15/15**. The candidate manifest remains ignored
+  local evaluation data and was not added to Git. This is a target-list gate,
+  not the requested film-by-film source/rights/content review.
+- Corrected Phase D: the existing 50 questions are already inspected and are
+  development/regression data, not a holdout. Their 80% threshold is now
+  explicitly a development gate only. A separately frozen, film-pair-disjoint
+  holdout must be labeled and evaluated untouched before any release-quality
+  claim; existing draft questions and single-reviewer judgments do not yet
+  satisfy that gate.
+
+### Follow-up — English pilot coverage sheet
+
+- Added `scripts/render_english_catalog_pilot_coverage.py`, which verifies the
+  English pilot against the exact local candidate CSV and readiness report
+  fingerprints before rendering. It cross-checks all 100 catalog IDs, QIDs and
+  English language states, and reports film-by-film sections, release years,
+  runtime presence, director/writer/cast/character assertion counts, snapshot
+  rights states, stored-versus-eligible vectors and existing readiness gaps.
+- Generated local-only
+  `data/evaluation/catalog-pilot-english100-coverage-v2.md` (SHA-256
+  `193bc74fab98ca64f2028db7f507f6293d818544c77c4cb3f93c754f928d9596`). The
+  100 selected films have plot sections for 99, production and reception
+  sections for 100, themes for 46, and writing-craft sections for 80. Their
+  200 narrative snapshots have license/attribution metadata, but **0** are
+  approved or eligible for semantic use; all **7,466** stored vectors are
+  ineligible under the current rights policy. This is the most important
+  operational limitation for the planned retrieval layer.
+- The report explicitly omits source-text review and the separate
+  release/runtime snapshot-integrity audit; its counts do not certify correct
+  credits, character mappings, story quality or legal clearance. Those remain
+  Phase A/B work. The report has no narrative text and remains ignored local
+  evaluation output.
+- Added six pure renderer tests. Full non-integration backend tests pass
+  **311 passed, 88 deselected** when using the project Conda test runner with
+  the project venv's `mwparserfromhell` package on the import path. The Conda
+  environment alone lacks that parser dependency; no environment or files
+  outside this repository were changed.
+
+### Follow-up — exact-source capture for all English pilot titles
+
+- Added offset-based, checkpoint-friendly capture batches to the existing
+  sequential Wikimedia capture adapter. It accepts the frozen English pilot
+  manifest and validates each selected row's English classification, exact
+  title/year match, catalog film ID and Wikidata QID before capture. Existing
+  robots checks, one-request-at-a-time operation, minimum one-second request
+  spacing and stop-on-denial/rate-limit behavior remain in force.
+- Captured pilot ranks 11–100 (90/90 identity-verified; 90/90 Wikipedia pages)
+  into ignored local evaluation storage. Together with the previously captured
+  exact ranks 1–10, the pilot selection has matching retained source bundles;
+  these captures have not been inserted into PostgreSQL or the embedding
+  index, and they do not imply narrative rights approval.
+- Corrected audit semantics so absent plot/production sections are explicit
+  content-coverage gaps rather than false capture-integrity failures. Hash,
+  identity, revision-binding and deterministic-parser mismatches remain hard
+  failures. The updated 90-title audit passes source-integrity checks **90/90**
+  with **3,210** passages; plot is present for 89/90, production 90/90,
+  reception 90/90, themes/analysis 36/90 and legacy 43/90. Hamilton is
+  explicitly listed as the one plot gap.
+- The 90-title bundle contains 2,213 Wikidata cast statements; 1,056 (47.7%)
+  carry a character entity/name qualifier and 1,157 do not. Wikidata contains
+  release-date values for 90/90 films (396 statements, 346 territory-qualified,
+  340 source-referenced) and runtime values for 90/90 (105 statements). These
+  are retained-source counts, not reviewed truth or proof that the application
+  projection displays them.
+- The ten-title bundle independently reports 484 passages, 426 citation
+  marker-bearing passages (88.0%), and 328 cast statements, 214 with a
+  character qualifier. It includes The Dark Knight with 29 cast statements,
+  17 role-qualified. Citation marker presence is not itself citation support
+  or permission to redistribute.
+- The updated full non-integration backend suite passes **322 tests, 88
+  integration tests deselected**. Frontend unit tests pass **5/5** and the
+  production build/type check succeeds. Docker reports the working API and DB
+  as unhealthy; reading PostgreSQL container logs still fails with an
+  image-layer `input/output error`. Thus database/API integration and browser
+  E2E remain unverified. The existing narrative rights gate remains closed
+  (0/200 approved for the 100-film narrative corpus), so these new pages are
+  local research/QA material only, not searchable production evidence.
+
+### Follow-up — reconcile the exact English 100 source captures
+
+- Added an offline reconciler that reruns the hash, identity, revision-binding
+  and deterministic-parser audit for each bundle, then compares every
+  `selection_rank` / title / year / QID against the frozen English pilot. This
+  exposed and preserves the provenance distinction: ranks 11–100 were captured
+  directly from the frozen English manifest; ranks 1–10 came from a previous
+  manifest with a different SHA-256, but each exact row matches the English
+  pilot. The report does not claim the two source manifests were identical.
+- Local output `data/evaluation/english100-capture-reconciliation-v4.md` and
+  JSON reconcile **100/100 unique ranks**, **3,694 passages**, and **3,165
+  citation-marker-bearing passages (85.7%)**. Plot sections exist for 99/100,
+  production and reception for 100/100, themes/analysis for 43/100 and legacy
+  for 50/100. Hamilton is the one missing plot section. These are section
+  availability counts, not semantic completeness judgments.
+- Across the captured Wikidata payloads there are 2,541 cast statements;
+  1,270 carry a P453/P4633 character qualifier and 1,271 do not. Release dates
+  have 447 statements across 100 films (395 territory-qualified, 378 with a
+  Wikidata reference); runtime appears on all 100 (118 statements). These
+  payload counts do not prove that the local DB/API projects or displays every
+  statement; no structured statements were ingested into the working DB in
+  this step.
+- The capture audit schema is versioned as v2 to distinguish content gaps from
+  capture integrity. The reconciler has pure tests for exact identity matching,
+  distinct selection hashes, duplicate-ID rejection, missing-content reporting
+  and integrity failure. It retains the capture-policy and robots.txt hashes
+  for each batch. Full offline backend tests pass **323 passed, 88 deselected**;
+  frontend unit tests **5/5** and production build pass. The local JSON includes
+  hashes and detailed per-film counts and remains ignored; no source prose/raw
+  payload was added to Git.

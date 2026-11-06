@@ -52,30 +52,51 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     _atomic_replace(path, (json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode())
 
 
-def _load_selection(path: Path, limit: int) -> tuple[list[dict[str, Any]], str]:
+def _load_selection(path: Path, limit: int, *, offset: int = 0) -> tuple[list[dict[str, Any]], str]:
     if limit < 1:
         raise CatalogPilotCaptureError("Pilot limit must be a positive integer.")
+    if offset < 0:
+        raise CatalogPilotCaptureError("Pilot offset cannot be negative.")
     raw = path.read_bytes()
     document = json.loads(raw)
     films = document.get("films")
-    if not isinstance(films, list) or len(films) < limit:
+    if not isinstance(films, list) or len(films) < offset + limit:
         raise CatalogPilotCaptureError("Selection manifest does not contain the requested number of films.")
     selected: list[dict[str, Any]] = []
     seen_qids: set[str] = set()
-    for rank, film in enumerate(films[:limit], start=1):
+    english_manifest = document.get("version") == "english-catalog-pilot-v1"
+    for rank, film in enumerate(films[offset:offset + limit], start=offset + 1):
+        if not isinstance(film, dict):
+            raise CatalogPilotCaptureError(f"Selection row {rank} is malformed.")
         title = str(film.get("input_title") or "").strip()
         year = film.get("input_year")
-        candidates = film.get("catalog_candidates") or []
-        qids = sorted({str(item.get("wikidata_id")) for item in candidates if item.get("wikidata_id")})
-        if film.get("match_status") != "exact_title_year" or len(qids) != 1:
-            raise CatalogPilotCaptureError(
-                f"Selection row {rank} is not an unambiguous exact-title/year candidate; review it first."
-            )
-        qid = qids[0]
+        if english_manifest:
+            qid = film.get("wikidata_id")
+            if (film.get("catalog_language") != "en"
+                    or film.get("catalog_match") not in {"exact_title_year", "exact_alias_year"}
+                    or not isinstance(film.get("catalog_film_id"), str)
+                    or not isinstance(qid, str) or not qid.startswith("Q")):
+                raise CatalogPilotCaptureError(
+                    f"Selection row {rank} is not an English exact-title/year catalog candidate."
+                )
+        else:
+            candidates = film.get("catalog_candidates") or []
+            qids = sorted({str(item.get("wikidata_id")) for item in candidates if item.get("wikidata_id")})
+            if film.get("match_status") != "exact_title_year" or len(qids) != 1:
+                raise CatalogPilotCaptureError(
+                    f"Selection row {rank} is not an unambiguous exact-title/year candidate; review it first."
+                )
+            qid = qids[0]
         if not title or not isinstance(year, int) or qid in seen_qids:
             raise CatalogPilotCaptureError(f"Selection row {rank} has incomplete or duplicate identity input.")
         seen_qids.add(qid)
-        selected.append({"selection_rank": rank, "title": title, "year": year, "qid": qid})
+        selected.append({
+            "selection_rank": rank,
+            "title": title,
+            "year": year,
+            "qid": qid,
+            **({"catalog_film_id": film["catalog_film_id"]} if english_manifest else {}),
+        })
     return selected, sha256(raw).hexdigest()
 
 
@@ -131,13 +152,15 @@ def _source_file(output_dir: Path, source: str, qid: str, payload: bytes, suffix
     return path.relative_to(output_dir).as_posix(), digest
 
 
-def capture_catalog_pilot(selection_path: Path, output_dir: Path, *, limit: int = 10) -> dict[str, Any]:
+def capture_catalog_pilot(
+    selection_path: Path, output_dir: Path, *, limit: int = 10, offset: int = 0,
+) -> dict[str, Any]:
     """Capture and identity-check a small frozen selection, checkpointing each work.
 
     Any network failure stops the run. Rerunning the same command is an
     explicit resume; completed, hash-verified captures are reused.
     """
-    selection, selection_hash = _load_selection(selection_path, limit)
+    selection, selection_hash = _load_selection(selection_path, limit, offset=offset)
     output_dir = output_dir.resolve()
     manifest_path = output_dir / "capture-manifest.json"
     manifest = _read_or_create_manifest(manifest_path, selection, selection_hash)
@@ -289,9 +312,10 @@ def main() -> None:
     parser.add_argument("selection", type=Path, help="Frozen catalog pilot JSON with title/year/QID candidates")
     parser.add_argument("--output", type=Path, required=True, help="Ignored local output directory for captures and report")
     parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--offset", type=int, default=0, help="Number of frozen pilot rows to skip (for checkpointed batches)")
     args = parser.parse_args()
     try:
-        report = capture_catalog_pilot(args.selection, args.output, limit=args.limit)
+        report = capture_catalog_pilot(args.selection, args.output, limit=args.limit, offset=args.offset)
     except (CatalogPilotCaptureError, OSError, ValueError, RuntimeError) as exc:
         print(f"catalog pilot capture stopped: {type(exc).__name__}: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc

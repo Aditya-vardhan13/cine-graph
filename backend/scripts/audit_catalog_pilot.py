@@ -14,8 +14,11 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(render_audit_markdown(report), encoding="utf-8")
     print(f"report: {output.resolve()}")
-    print(f"films: {report['audited_films']}/{report['requested_films']}; "
-          f"passages: {report['total_passages']}; pass: {report['identity_and_capture_pass']}")
+    print(f"integrity: {report['audited_films']}/{report['requested_films']}; "
+          f"passages: {report['total_passages']}; "
+          f"plot gaps: {report['content_coverage']['plot']['films_missing_section']}; "
+          f"production gaps: {report['content_coverage']['production']['films_missing_section']}; "
+          f"pass: {report['identity_and_capture_pass']}")
     if not report["identity_and_capture_pass"]:
         raise SystemExit(1)
 

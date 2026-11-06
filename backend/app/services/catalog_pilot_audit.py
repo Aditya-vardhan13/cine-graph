@@ -102,6 +102,22 @@ def section_categories(section_counts: dict[str, int]) -> dict[str, int]:
     return categories
 
 
+def missing_content_categories(categories: dict[str, int]) -> list[str]:
+    """Report absent article sections without treating them as capture corruption."""
+    return [name for name in ("plot", "production") if not categories.get(name)]
+
+
+def _content_coverage(film_rows: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+    """Summarize source section availability separately from capture integrity."""
+    return {
+        category: {
+            "films_with_section": sum(bool(film["categories"][category]) for film in film_rows),
+            "films_missing_section": sum(not film["categories"][category] for film in film_rows),
+        }
+        for category in ("plot", "production", "reception", "themes_analysis", "legacy")
+    }
+
+
 def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
     manifest_path = output_dir / "capture-manifest.json"
     if not manifest_path.is_file():
@@ -134,6 +150,7 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
     release_dates_with_references = 0
     runtime_values_with_references = 0
     cast_total = cast_with_character = cast_character_entities = cast_character_names = 0
+    content_gaps: list[dict[str, Any]] = []
 
     for film in manifest.get("films", []):
         title, qid = film.get("title"), film.get("qid")
@@ -224,10 +241,9 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
                 local_hashes.append(parsed.content_hash)
                 passage_hashes[parsed.content_hash] += 1
             categories = section_categories(dict(section_counts))
-            if not categories["plot"]:
-                raise CatalogPilotAuditError(f"{qid}: no plot-located passage was extracted.")
-            if not categories["production"]:
-                raise CatalogPilotAuditError(f"{qid}: no production/casting-located passage was extracted.")
+            missing_categories = missing_content_categories(categories)
+            if missing_categories:
+                content_gaps.append({"title": title, "qid": qid, "missing_categories": missing_categories})
             total_capture_bytes += len(wiki_bytes) + len(page_bytes)
             total_passages += len(passages)
             total_cited_passages += citation_count
@@ -247,6 +263,7 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
                 "cited_passage_count": citation_count,
                 "wikidata_metadata": metadata_coverage,
                 "categories": categories,
+                "missing_content_categories": missing_categories,
                 "sections": dict(sorted(section_counts.items())),
             })
         except (CatalogPilotAuditError, CatalogPilotCaptureError, KeyError, OSError, ValueError, TypeError) as exc:
@@ -255,12 +272,14 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
     duplicate_passages = sum(count - 1 for count in passage_hashes.values() if count > 1)
     requested = len(manifest.get("films", []))
     return {
-        "schema": "cinegraph.catalog-pilot-audit/v1",
+        "schema": "cinegraph.catalog-pilot-audit/v2",
         "selection_sha256": manifest.get("selection_sha256"),
         "run_status": manifest.get("run_status"),
         "requested_films": requested,
         "audited_films": len(film_rows),
         "identity_and_capture_pass": not errors and len(film_rows) == requested,
+        "content_coverage": _content_coverage(film_rows),
+        "content_gaps": content_gaps,
         "wikidata_robots_sha256": manifest.get("wikidata_robots_sha256"),
         "wikipedia_robots_sha256": manifest.get("wikipedia_robots_sha256"),
         "total_raw_capture_bytes": total_capture_bytes,
@@ -300,9 +319,10 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
 
 def render_audit_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# Ten-film catalog capture audit",
+        "# Catalog pilot source-capture audit",
         "",
-        "Status: " + ("PASS" if report["identity_and_capture_pass"] else "FAIL"),
+        "Source identity, snapshot hashes, and deterministic extraction: "
+        + ("PASS" if report["identity_and_capture_pass"] else "FAIL"),
         "",
         f"Selection SHA-256: `{report['selection_sha256']}`",
         f"Films audited: {report['audited_films']} / {report['requested_films']}",
@@ -322,6 +342,21 @@ def render_audit_markdown(report: dict[str, Any]) -> str:
             f"{film['passage_count']} | {film['section_count']} | {categories['plot']} | "
             f"{categories['production']} | {categories['reception']} | {categories['themes_analysis']} | {categories['legacy']} |"
         )
+    coverage = report["content_coverage"]
+    lines.extend([
+        "",
+        "## Article section availability (not an integrity gate)",
+        "",
+        "| Section category | Films with section | Films missing section |",
+        "| --- | ---: | ---: |",
+    ])
+    for category, values in coverage.items():
+        lines.append(f"| {category.replace('_', ' ')} | {values['films_with_section']} | {values['films_missing_section']} |")
+    if report["content_gaps"]:
+        lines.extend(["", "Films with missing plot/production sections:", ""])
+        for gap in report["content_gaps"]:
+            missing = ", ".join(gap["missing_categories"])
+            lines.append(f"- {gap['title']} (`{gap['qid']}`): {missing}")
     lines.extend([
         "",
         "## Structured Wikidata field coverage",

@@ -14,6 +14,7 @@ from app.services.catalog_pilot_capture import (
 from app.services.catalog_pilot_audit import (
     audit_capture_bundle,
     render_audit_markdown,
+    missing_content_categories,
     section_categories,
     structured_metadata_coverage,
 )
@@ -31,6 +32,23 @@ def _selection_document(*, match_status: str = "exact_title_year", qids: tuple[s
     }
 
 
+def _english_selection_document() -> dict:
+    films = []
+    for rank in range(1, 4):
+        films.append({
+            "selection_rank": rank,
+            "input_rank": rank + 5,
+            "input_title": f"English Film {rank}",
+            "input_year": 2000 + rank,
+            "catalog_match": "exact_title_year",
+            "catalog_film_id": f"film-{rank}",
+            "catalog_title": f"English Film {rank}",
+            "wikidata_id": f"Q{rank}",
+            "catalog_language": "en",
+        })
+    return {"version": "english-catalog-pilot-v1", "film_count": len(films), "films": films}
+
+
 def test_catalog_pilot_manifest_requires_unambiguous_title_year_and_qid(tmp_path: Path) -> None:
     source = tmp_path / "selection.json"
     source.write_text(json.dumps(_selection_document()), encoding="utf-8")
@@ -39,6 +57,48 @@ def test_catalog_pilot_manifest_requires_unambiguous_title_year_and_qid(tmp_path
 
     assert rows == [{"selection_rank": 1, "title": "Example Film", "year": 2000, "qid": "Q123"}]
     assert len(digest) == 64
+
+
+def test_english_pilot_capture_supports_checkpointed_offset_batches(tmp_path: Path) -> None:
+    source = tmp_path / "selection.json"
+    source.write_text(json.dumps(_english_selection_document()), encoding="utf-8")
+
+    rows, digest = _load_selection(source, 2, offset=1)
+
+    assert rows == [
+        {"selection_rank": 2, "title": "English Film 2", "year": 2002,
+         "qid": "Q2", "catalog_film_id": "film-2"},
+        {"selection_rank": 3, "title": "English Film 3", "year": 2003,
+         "qid": "Q3", "catalog_film_id": "film-3"},
+    ]
+    assert len(digest) == 64
+
+
+@pytest.mark.parametrize("mutation", ["language", "match", "missing_catalog_id", "missing_qid"])
+def test_english_pilot_capture_rejects_unqualified_rows(tmp_path: Path, mutation: str) -> None:
+    document = _english_selection_document()
+    film = document["films"][0]
+    if mutation == "language":
+        film["catalog_language"] = "und"
+    elif mutation == "match":
+        film["catalog_match"] = "review_required_crosslink"
+    elif mutation == "missing_catalog_id":
+        film.pop("catalog_film_id")
+    else:
+        film.pop("wikidata_id")
+    source = tmp_path / "selection.json"
+    source.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(CatalogPilotCaptureError, match="English exact-title/year"):
+        _load_selection(source, 1)
+
+
+def test_catalog_pilot_capture_rejects_out_of_range_offsets(tmp_path: Path) -> None:
+    source = tmp_path / "selection.json"
+    source.write_text(json.dumps(_english_selection_document()), encoding="utf-8")
+
+    with pytest.raises(CatalogPilotCaptureError, match="requested number of films"):
+        _load_selection(source, 2, offset=2)
 
 
 @pytest.mark.parametrize(
@@ -190,6 +250,7 @@ def test_catalog_pilot_audit_reverifies_bytes_identity_and_parser_output(tmp_pat
     report = audit_capture_bundle(tmp_path)
 
     assert report["identity_and_capture_pass"] is True, report["failures"]
+    assert report["schema"] == "cinegraph.catalog-pilot-audit/v2"
     assert report["total_passages"] == 3
     assert report["exact_duplicate_passages"] == 0
     assert report["wikidata_metadata_coverage"]["director"] == {
@@ -199,9 +260,14 @@ def test_catalog_pilot_audit_reverifies_bytes_identity_and_parser_output(tmp_pat
     assert report["cast_credits_with_character_qualifier"] == 1
     assert section_categories({"Plot": 1, "Production / Development": 1})["production"] == 1
     rendered = render_audit_markdown(report)
-    assert "Status: PASS" in rendered
+    assert "Source identity, snapshot hashes, and deterministic extraction: PASS" in rendered
     assert rendered.count("## Source policy and interpretation") == 1
     assert "## Structured Wikidata field coverage" in rendered
+
+
+def test_missing_article_sections_are_content_gaps_not_integrity_failures() -> None:
+    assert missing_content_categories({"plot": 0, "production": 2}) == ["plot"]
+    assert missing_content_categories({"plot": 1, "production": 2}) == []
 
 
 def test_catalog_pilot_audit_reports_source_hash_mismatch(tmp_path: Path) -> None:
