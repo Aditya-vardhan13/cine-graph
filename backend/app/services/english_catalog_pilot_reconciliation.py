@@ -59,7 +59,9 @@ def reconcile_english_pilot_captures(
     for label, manifest, audit in bundles:
         if manifest.get("schema") != "cinegraph.catalog-pilot-capture/v1":
             raise EnglishPilotReconciliationError(f"{label}: unsupported capture manifest schema.")
-        if (audit.get("schema") != "cinegraph.catalog-pilot-audit/v2"
+        if (audit.get("schema") not in {
+                "cinegraph.catalog-pilot-audit/v2", "cinegraph.catalog-pilot-audit/v3",
+            }
                 or audit.get("selection_sha256") != manifest.get("selection_sha256")
                 or audit.get("identity_and_capture_pass") is not True
                 or audit.get("audited_films") != audit.get("requested_films")
@@ -99,6 +101,7 @@ def reconcile_english_pilot_captures(
                 "categories": audit_row["categories"],
                 "wikidata_metadata": audit_row["wikidata_metadata"],
                 "missing_content_categories": audit_row["missing_content_categories"],
+                "passage_length_flags": audit_row.get("passage_length_flags", []),
             }
         batch_summaries.append({
             "label": label,
@@ -106,6 +109,9 @@ def reconcile_english_pilot_captures(
             "selection_sha256": manifest["selection_sha256"],
             "selection_hash_matches_pilot": manifest["selection_sha256"] == pilot_sha256,
             "passages": audit["total_passages"],
+            "passages_under_80_chars": audit.get("passages_under_80_chars", 0),
+            "passages_over_2500_chars": audit.get("passages_over_2500_chars", 0),
+            "passage_length_flags": audit.get("passage_length_flags", []),
             "raw_capture_bytes": audit["total_raw_capture_bytes"],
             "citation_marker_passages": audit["passages_with_citation_markers"],
             "wikidata_robots_sha256": audit.get("wikidata_robots_sha256"),
@@ -141,7 +147,7 @@ def reconcile_english_pilot_captures(
     total_passages = sum(batch["passages"] for batch in batch_summaries)
     total_cited = sum(batch["citation_marker_passages"] for batch in batch_summaries)
     return {
-        "schema": "cinegraph.english-catalog-pilot-capture-reconciliation/v1",
+        "schema": "cinegraph.english-catalog-pilot-capture-reconciliation/v2",
         "pilot_sha256": pilot_sha256,
         "expected_films": expected_count,
         "captured_films": len(selected),
@@ -149,6 +155,11 @@ def reconcile_english_pilot_captures(
         "all_sources_passed_integrity_audit": True,
         "batches": batch_summaries,
         "passages": total_passages,
+        "passages_under_80_chars": sum(batch["passages_under_80_chars"] for batch in batch_summaries),
+        "passages_over_2500_chars": sum(batch["passages_over_2500_chars"] for batch in batch_summaries),
+        "passage_length_flags": [
+            flag for row in selected.values() for flag in row["passage_length_flags"]
+        ],
         "passages_with_citation_markers": total_cited,
         "passage_citation_marker_coverage": round(total_cited / total_passages, 4) if total_passages else 0,
         "content_coverage": coverage,
@@ -226,6 +237,28 @@ def render_reconciliation_markdown(report: dict[str, Any]) -> str:
         if key.endswith("_films_with_values"):
             field = key.removesuffix("_films_with_values")
             lines.append(f"| {field.replace('_', ' ')} | {metadata[key]} | {metadata[f'{field}_statements']} |")
+    length_flags = report["passage_length_flags"]
+    lines.extend([
+        "",
+        "## Passage length review flags",
+        "",
+        f"{report['passages_under_80_chars']} passages are under 80 characters; "
+        f"{report['passages_over_2500_chars']} are over 2,500. These are review cues, not extraction failures; "
+        "where available, the table identifies retained source sections by locator and hash without reproducing article prose. "
+        "Historical v2 audits retain counts but have no per-passage locator flags.",
+    ])
+    if length_flags:
+        lines.extend([
+            "",
+            "| Film | QID | Section | Ordinal | Characters | Flag | Content SHA-256 |",
+            "| --- | --- | --- | ---: | ---: | --- | --- |",
+        ])
+        for flag in length_flags:
+            lines.append(
+                f"| {flag['title']} ({flag['year']}) | `{flag['qid']}` | {flag['section_title']} "
+                f"(`{flag['section_locator']}`) | {flag['ordinal']} | {flag['character_count']} | "
+                f"{flag['kind']} | `{flag['content_sha256']}` |"
+            )
     lines.extend([
         "",
         f"Cast credits: {report['cast_credits_with_character_qualifier']:,} with explicit character qualifiers; {report['cast_credits_without_character_qualifier']:,} without.",

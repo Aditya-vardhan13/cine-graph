@@ -250,7 +250,7 @@ def test_catalog_pilot_audit_reverifies_bytes_identity_and_parser_output(tmp_pat
     report = audit_capture_bundle(tmp_path)
 
     assert report["identity_and_capture_pass"] is True, report["failures"]
-    assert report["schema"] == "cinegraph.catalog-pilot-audit/v2"
+    assert report["schema"] == "cinegraph.catalog-pilot-audit/v3"
     assert report["total_passages"] == 3
     assert report["exact_duplicate_passages"] == 0
     assert report["wikidata_metadata_coverage"]["director"] == {
@@ -258,6 +258,11 @@ def test_catalog_pilot_audit_reverifies_bytes_identity_and_parser_output(tmp_pat
     }
     assert report["cast_credit_statements"] == 2
     assert report["cast_credits_with_character_qualifier"] == 1
+    assert report["passage_length_flags"] == [
+        flag for film in report["films"] for flag in film["passage_length_flags"]
+    ]
+    assert all({"section_locator", "ordinal", "character_count", "content_sha256", "kind"} <= flag.keys()
+               for flag in report["passage_length_flags"])
     assert section_categories({"Plot": 1, "Production / Development": 1})["production"] == 1
     assert section_categories({"Synopsis": 1, "Synopsis / Act I": 4})["plot"] == 5
     assert section_categories({"Story": 2})["plot"] == 2
@@ -265,6 +270,8 @@ def test_catalog_pilot_audit_reverifies_bytes_identity_and_parser_output(tmp_pat
     assert "Source identity, snapshot hashes, and deterministic extraction: PASS" in rendered
     assert rendered.count("## Source policy and interpretation") == 1
     assert "## Structured Wikidata field coverage" in rendered
+    if report["passage_length_flags"]:
+        assert "## Passage length review flags" in rendered
 
 
 def test_missing_article_sections_are_content_gaps_not_integrity_failures() -> None:

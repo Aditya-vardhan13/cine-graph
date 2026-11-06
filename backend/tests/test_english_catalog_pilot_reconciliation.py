@@ -42,7 +42,7 @@ def _bundle(rank: int, *, selection_hash: str, missing_plot: bool = False) -> tu
                    "wikipedia_sha256": "w" * 64, "wikidata_sha256": "d" * 64}],
     }
     audit = {
-        "schema": "cinegraph.catalog-pilot-audit/v2",
+        "schema": "cinegraph.catalog-pilot-audit/v3",
         "selection_sha256": selection_hash,
         "identity_and_capture_pass": True,
         "audited_films": 1,
@@ -51,10 +51,22 @@ def _bundle(rank: int, *, selection_hash: str, missing_plot: bool = False) -> tu
                    "wikipedia_revision": rank, "wikidata_revision": rank,
                    "passage_count": 4, "categories": categories,
                    "wikidata_metadata": metadata,
-                   "missing_content_categories": ["plot"] if missing_plot else []}],
+                   "missing_content_categories": ["plot"] if missing_plot else [],
+                   "passage_length_flags": [{
+                       "title": title, "year": year, "qid": qid,
+                       "section_locator": "Plot", "section_title": "Plot", "ordinal": 1,
+                       "character_count": 64, "content_sha256": "a" * 64, "kind": "short",
+                   }]}],
         "total_passages": 4,
         "total_raw_capture_bytes": 1000,
         "passages_with_citation_markers": 3,
+        "passages_under_80_chars": 1,
+        "passages_over_2500_chars": 0,
+        "passage_length_flags": [{
+            "title": title, "year": year, "qid": qid,
+            "section_locator": "Plot", "section_title": "Plot", "ordinal": 1,
+            "character_count": 64, "content_sha256": "a" * 64, "kind": "short",
+        }],
     }
     return f"rank {rank}", capture, audit
 
@@ -73,7 +85,26 @@ def test_reconciles_distinct_manifest_hashes_only_with_exact_pilot_rows() -> Non
     assert report["wikidata_metadata"]["cast_statements"] == 4
     assert report["cast_credits_with_character_qualifier"] == 2
     assert report["content_coverage"]["plot"]["films_missing_section"] == 0
+    assert report["passages_under_80_chars"] == 2
+    assert len(report["passage_length_flags"]) == 2
     assert "exact row reconciliation used" in render_reconciliation_markdown(report)
+    rendered = render_reconciliation_markdown(report)
+    assert "Passage length review flags" in rendered
+    assert "`" + "a" * 64 + "`" in rendered
+
+
+def test_accepts_historical_v2_audit_batches() -> None:
+    first = _bundle(1, selection_hash="p" * 64)
+    second = _bundle(2, selection_hash="p" * 64)
+    first[2]["schema"] = "cinegraph.catalog-pilot-audit/v2"
+    second[2]["schema"] = "cinegraph.catalog-pilot-audit/v2"
+
+    report = reconcile_english_pilot_captures(
+        _pilot(), [first, second], pilot_sha256="p" * 64,
+    )
+
+    assert report["captured_films"] == 2
+    assert report["passages_under_80_chars"] == 2
 
 
 def test_reports_missing_plot_as_a_content_gap_not_capture_failure() -> None:

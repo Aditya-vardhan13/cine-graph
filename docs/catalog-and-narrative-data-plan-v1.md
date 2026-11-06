@@ -2994,3 +2994,29 @@ remain local and out of Git.
   `data/evaluation/catalog-intake/english100-rank11-100-v1/capture-audit-v4.md`.
   Full offline backend suite: **415 passed, 102 integration tests deselected**.
   This correction is independent of the still-unavailable PostgreSQL/API gate.
+
+### Follow-up — make passage-length review flags traceable (7 November 2026)
+
+- The v2 capture audit counted passages under 80 characters and over 2,500,
+  but it did not identify their source section or ordinal. Added audit schema v3
+  with passage-free review flags containing film/QID, normalized section
+  locator/title, ordinal, character count, flag kind and content SHA-256. The
+  audit Markdown and combined reconciliation render those locators and hashes;
+  they never copy passage prose, and no short/long passage is automatically
+  discarded. The reconciler now emits v2 and accepts historical v2 capture
+  audits as well as v3.
+- Re-audited the retained first-ten and ranks 11–100 captures from immutable
+  local bytes: **10/10** and **90/90** identities/integrity, respectively;
+  combined **100/100**, **3,694 passages**, **6 under 80 characters**, and
+  **2 over 2,500 characters**. The six short flags resolve to identifiable
+  quote/cast/plot/release/award passages; the two long flags are coherent
+  production/reception passages suitable for downstream chunking. These are
+  inspection outcomes, not semantic-quality or ingestion approval. The local
+  versioned reports are `first10-v1/capture-audit-v11.md` and
+  `english100-rank11-100-v1/capture-audit-v5.md`; snapshots and prose remain
+  ignored local data.
+- Focused capture/reconciliation tests: **22 passed**. Full offline backend:
+  **416 passed, 102 integration tests deselected**. The isolated PostgreSQL
+  integration gate remains unavailable due to the previously documented
+  Docker/containerd I/O failure; this report-only change does not claim to
+  close it. No database, raw source, vector, container or volume was changed.

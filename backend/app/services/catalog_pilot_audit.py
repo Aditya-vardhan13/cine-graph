@@ -145,6 +145,7 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
     total_cited_passages = 0
     short_passages = 0
     long_passages = 0
+    passage_length_flags: list[dict[str, Any]] = []
     wikidata_field_films: Counter[str] = Counter()
     wikidata_field_statements: Counter[str] = Counter()
     release_date_precision: Counter[str] = Counter()
@@ -220,7 +221,7 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
             section_counts: Counter[str] = Counter()
             citation_count = 0
             char_lengths: list[int] = []
-            local_hashes: list[str] = []
+            film_length_flags: list[dict[str, Any]] = []
             for passage in passages:
                 content = passage.get("content", "")
                 content_hash = sha256(content.encode("utf-8")).hexdigest()
@@ -240,8 +241,22 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
                 section_counts[parsed.section_title] += 1
                 citation_count += bool(parsed.citation_markers)
                 char_lengths.append(len(parsed.content))
-                local_hashes.append(parsed.content_hash)
                 passage_hashes[parsed.content_hash] += 1
+                length = len(parsed.content)
+                if length < 80 or length > 2500:
+                    flag = {
+                        "title": title,
+                        "year": film["year"],
+                        "qid": qid,
+                        "section_locator": parsed.section_locator,
+                        "section_title": parsed.section_title,
+                        "ordinal": parsed.ordinal,
+                        "character_count": length,
+                        "content_sha256": parsed.content_hash,
+                        "kind": "short" if length < 80 else "long",
+                    }
+                    film_length_flags.append(flag)
+                    passage_length_flags.append(flag)
             categories = section_categories(dict(section_counts))
             missing_categories = missing_content_categories(categories)
             if missing_categories:
@@ -267,6 +282,7 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
                 "categories": categories,
                 "missing_content_categories": missing_categories,
                 "sections": dict(sorted(section_counts.items())),
+                "passage_length_flags": film_length_flags,
             })
         except (CatalogPilotAuditError, CatalogPilotCaptureError, KeyError, OSError, ValueError, TypeError) as exc:
             errors.append(f"{title} ({qid}): {type(exc).__name__}: {exc}")
@@ -274,7 +290,7 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
     duplicate_passages = sum(count - 1 for count in passage_hashes.values() if count > 1)
     requested = len(manifest.get("films", []))
     return {
-        "schema": "cinegraph.catalog-pilot-audit/v2",
+        "schema": "cinegraph.catalog-pilot-audit/v3",
         "selection_sha256": manifest.get("selection_sha256"),
         "run_status": manifest.get("run_status"),
         "requested_films": requested,
@@ -292,6 +308,7 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
         "passage_citation_marker_coverage": round(total_cited_passages / total_passages, 4) if total_passages else 0,
         "passages_under_80_chars": short_passages,
         "passages_over_2500_chars": long_passages,
+        "passage_length_flags": passage_length_flags,
         "wikidata_metadata_coverage": {
             field: {
                 "films_with_value": wikidata_field_films[field],
@@ -332,6 +349,7 @@ def render_audit_markdown(report: dict[str, Any]) -> str:
         f"Extracted passages: {report['total_passages']:,} ({report['unique_passage_texts']:,} unique; {report['exact_duplicate_passages']} exact duplicates)",
         f"Passages with source citation markers: {report['passages_with_citation_markers']:,} ({report['passage_citation_marker_coverage']:.1%})",
         f"Passages under 80 characters / over 2,500 characters: {report['passages_under_80_chars']} / {report['passages_over_2500_chars']}",
+        "Length flags identify source section/ordinal and content hash; they do not include passage text or imply extraction failure.",
         "",
         "| Film | QID | Wikidata rev. | Wikipedia rev. | Bytes (JSON + HTML) | Passages | Sections | Plot | Production | Reception | Themes/analysis | Legacy |",
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
@@ -344,6 +362,23 @@ def render_audit_markdown(report: dict[str, Any]) -> str:
             f"{film['passage_count']} | {film['section_count']} | {categories['plot']} | "
             f"{categories['production']} | {categories['reception']} | {categories['themes_analysis']} | {categories['legacy']} |"
         )
+    length_flags = report.get("passage_length_flags", [])
+    if length_flags:
+        lines.extend([
+            "",
+            "## Passage length review flags",
+            "",
+            "These are inspection cues only. Short sections can be valid metadata or quotations; long sections may need downstream chunking, but are not dropped here.",
+            "",
+            "| Film | QID | Section | Ordinal | Characters | Flag | Content SHA-256 |",
+            "| --- | --- | --- | ---: | ---: | --- | --- |",
+        ])
+        for flag in length_flags:
+            lines.append(
+                f"| {flag['title']} ({flag['year']}) | `{flag['qid']}` | {flag['section_title']} "
+                f"(`{flag['section_locator']}`) | {flag['ordinal']} | {flag['character_count']} | "
+                f"{flag['kind']} | `{flag['content_sha256']}` |"
+            )
     coverage = report["content_coverage"]
     lines.extend([
         "",
