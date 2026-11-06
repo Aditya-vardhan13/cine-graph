@@ -1494,10 +1494,15 @@ remain local and out of Git.
   pure snapshot-integrity tests; Python compilation and `git diff --check`
   passed. The Conda environment needed the existing local
   `data/vendor/mwparserfromhell` fallback on `PYTHONPATH`. PostgreSQL
-  integration passed (**1 passed**) against `cinegraph_test`; the test created
-  and used an isolated schema. The full integration suite was not rerun. No
-  working-corpus data, source snapshots, or evaluation artifacts were changed.
-  Next: rerun the database-backed integrity report with explicit
-  host-to-container mappings, then continue rights/support review and
-  question-conditioned retrieval evaluation; no rights decisions or 100-film
-  expansion were made.
+  integration then passed (**87 passed, 1 skipped**) against `cinegraph_test`;
+  this includes the snapshot-auditor case, which created and used an isolated
+  schema. The read-only mapped-path audit over the working database verified
+  4,467 Crossref, 1,488 IMDb, 544 OpenAlex and 518 TMDb snapshots. It classified
+  1,000 English Wikipedia and 905 Wikidata snapshots as `unmapped`; their
+  recorded URIs point under `/private/tmp`, outside the explicit project and
+  container roots. This does not establish whether those files still exist on
+  the host, and they were not inspected. The report found no `missing`, hash-
+  mismatch or size-mismatch files among the mapped roots. No working-corpus
+  data, source snapshots, or evaluation artifacts were changed. The next gate
+  remains rights/support review and question-conditioned retrieval evaluation;
+  no rights decisions or 100-film expansion were made.
