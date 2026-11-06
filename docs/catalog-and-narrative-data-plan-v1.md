@@ -2775,3 +2775,219 @@ remain local and out of Git.
   skipped**; the focused rights, scope SQL and readiness tests pass **17/17**.
   Python compilation and `git diff --check` pass. No working corpus, snapshot,
   chunk or vector was modified.
+
+### Follow-up — cast-review delivery and isolated database gate (7 November 2026)
+
+- Continued the cast-credit correction path with an append-only review decision
+  table, a source-bound local operator queue, and projection into the existing
+  `Assertion`/`AssertionEvidence` model. Approval revalidates the retained
+  Wikipedia snapshot checksum, exact passage locator and text, CC BY-SA
+  attribution, canonical film/person IDs, and the pinned Wikidata identity and
+  film-cast statement evidence. Reject/defer stays source-only unless an
+  existing assertion is supported only by this candidate; independent support
+  is preserved. No second graph/fact table was added.
+- The local review page presents the exact quote and source revision, actor
+  identity cross-check, statement locators, hashes and rationale before a
+  decision. The film profile consumes credits through the existing sourced
+  credit read model. Strengthened the PostgreSQL test to assert that an
+  approved actor-character credit appears in that UI-facing read model with
+  its source URL. This test is written but cannot yet be executed.
+- Offline validation: full backend suite **421 passed, 86 skipped**; frontend
+  tests **5/5**, TypeScript and production build pass; changed Python modules
+  compile; Alembic renders the full migration chain through `20261107_21`.
+  These checks do not prove schema execution, persistence behavior, or the
+  browser flow against a live seeded API.
+- Rechecked only the isolated integration stack. The API container's health
+  endpoint returns `ok`, but inspection shows the `cinegraph_test` database
+  container is stopped (`running=false`, exit code 133). Its existing
+  container cannot start because Docker reports an I/O error reading its
+  container `hosts` file; Compose also fails reading the pgvector image blob.
+  Port 5433 is not listening. No migration, seed or test DB query ran, and the
+  working catalog database was not accessed. Do not treat the API health
+  response as proof that the integration service is usable.
+- The cast-review migration/API/UI and its PostgreSQL tests remain local and
+  uncommitted pending the real database and API contract gate. The local rights
+  boundary commit `334609b` is also not pushed until that PostgreSQL test can
+  run. User-local `.agents/` and `.codex/` remain untouched and unstaged.
+
+### Follow-up — bind each cast draft to its exact candidate row (7 November 2026)
+
+- Strengthened the offline 100-film coverage checker beyond equal per-film
+  counts: every review-only statement draft must now match one exact
+  same-film candidate across actor/film IDs, actor and character labels,
+  article revision/hash, passage locator/hash and excerpt, Wikidata person
+  snapshot and cast-statement locators, and label-only character suggestions.
+  Text fields use the same surrounding-whitespace trim as the statement
+  builder; other values remain exact. A regression case proves that a
+  syntactically valid, content-addressed draft with a different role is
+  rejected even when the candidate and statement manifests are re-bound.
+- Revalidated the retained first-ten and ranks-11–100 inputs against the
+  frozen English-100 manifest. All **1,546/1,546** candidate/draft bindings
+  match; the 100-film summary remains 2,044 candidates, 458 unresolved source
+  names and 52 quarantined spans. The regenerated v5 JSON and review sheet are
+  byte-identical to v4 (same SHA-256), confirming that the stricter validator
+  did not alter the retained review queue. Outputs remain local under ignored
+  `data/evaluation/`; no source facts or corpus rows were written.
+- The complete offline backend suite passes **422 tests**, with **86
+  PostgreSQL/API integration cases skipped**. This does not validate the
+  pending cast-review migration, API persistence or browser flow; those still
+  require the isolated `cinegraph_test` stack. `git diff --check` is clean.
+
+### Follow-up — expose both Wikidata cast-evidence chains in review (7 November 2026)
+
+- The local cast-review queue now returns the captured film-side Wikidata
+  `P161` source metadata and individual statement references in addition to
+  the actor identity snapshot. The operator page links both exact captured
+  revisions and displays their hashes/locators next to the retained Wikipedia
+  passage. This makes the cross-check available to a reviewer without
+  conflating cast membership with evidence of an actor-character pairing.
+- Added integration assertions for the film QID, revision and P161 reference
+  payload. The test is written but still awaits the isolated PostgreSQL/API
+  gate. Frontend tests pass **5/5**, TypeScript check and production build pass;
+  full offline backend suite passes **422 tests**, with **86 integration tests
+  skipped**. The integration runner still fails before startup on Docker's
+  pgvector image-blob I/O error, so no live queue response or browser flow is
+  claimed as verified.
+- Added `*.tsbuildinfo` to `.gitignore` after the TypeScript check generated a
+  local compiler cache; removed that generated artifact from the worktree.
+
+### Follow-up — verify cast cross-checks from retained Wikidata bytes (7 November 2026)
+
+- Audited the approval boundary after exposing both cited Wikidata evidence
+  chains in the review page. The draft validator checked QIDs, revision/hash
+  shapes, P161 locator strings and internal cross-references, but approval did
+  not prove that those exact Wikidata snapshots still existed or that the
+  captured film bytes actually contained the cited P161 actor statement.
+- Approval and queue eligibility now resolve an exact successful CC0 Wikidata
+  `SourceSnapshot` by source, QID, entity URL, EntityData capture URL, revision,
+  hash and attribution. They read the retained local bytes once, verify size
+  and SHA-256, confirm the entity/revision and actor label, then confirm every
+  cited `claims.P161[n]` locator names the candidate actor. No live request is
+  made. The queue reports missing or inconsistent cross-check bytes as
+  `source_evidence_invalid` and disables approval; the write path repeats the
+  same validation before recording a decision or projecting an `Assertion`.
+- Added pure policy cases for exact P161 membership, absent locators,
+  non-value statements, malformed locators and a different actor. Updated the
+  PostgreSQL integration fixture to retain small local Wikidata EntityData
+  payloads and added a regression case proving a missing film snapshot blocks
+  both approval and operational assertion creation.
+- Verification: offline backend suite **415 passed, 102 integration tests
+  deselected**; Python compilation and `git diff --check` pass. Frontend tests
+  **5/5**, TypeScript check and production build passed earlier in this same
+  work session (no frontend files changed afterward).
+- Attempted `backend/scripts/run_integration_tests.sh` with the isolated
+  `cinegraph_test` stack. Docker failed before Compose startup while reading a
+  local containerd image blob (`input/output error`); migrations, fixture seed
+  and integration queries did not run. No working-corpus database or retained
+  film data was accessed. The database/API gate is still outstanding, so this
+  change remains local and uncommitted.
+
+### Follow-up — browser-check the cast-review first-use flow (7 November 2026)
+
+- Added a Playwright check for the cast-review desk's first-use state: page
+  heading, operator email field, explanation that Wikidata identity/cast
+  membership are cross-checks rather than character-credit proof, and return
+  navigation. Constrained the E2E Next.js server to `127.0.0.1` rather than
+  binding all interfaces. The focused test passed **1/1** in the already
+  installed Google Chrome; no browser download, API call or DB write was used.
+- Re-ran frontend unit tests (**5/5**), TypeScript and production build; all
+  pass. Re-ran the offline English-100 source replay; the captured inputs still
+  validate to combined digest
+  `835bf314ff069248e3a24af9a30133fd916b13a39a10a77e30dede6d1bb2408f`.
+  This certifies retained byte/identity consistency only, not rights approval,
+  database ingestion or semantic quality.
+- The existing `cinegraph_test` DB and API containers report healthy status and
+  the API health route responds, but the DB has no host port mapping and
+  container exec fails with the same containerd blob `input/output error`.
+  Compose cannot inspect/rebuild the migration image for that reason. The
+  running API image predates these local changes; no latest-code database/API
+  or full browser integration test has run. No migration, seed, working-corpus
+  query or corpus mutation occurred.
+- Rechecked the current gates: offline backend **415 passed, 102 integration
+  tests deselected**; frontend unit tests **5/5**, `tsc --noEmit`, and the
+  production build pass. `git diff --check` is clean. Docker Desktop 4.86 still
+  reports the isolated DB container healthy and the stale API container up,
+  but `docker image ls` fails while reading containerd blob
+  `b049884f3a932945e6d8b7e67068f158e0550134729c07fed01ae82d13d5dd7a`
+  (`input/output error`). No host PostgreSQL/pgvector installation is
+  available as a separate test path. These are offline/UI-build results only;
+  schema execution, cast-review persistence and current-code API behavior
+  remain unverified. No container, volume, or working-corpus database was
+  modified.
+
+### Follow-up — recheck offline and isolated database gates (7 November 2026)
+
+- Re-ran the full offline backend suite against the current worktree with the
+  repository's retained `mwparserfromhell` dependency on `PYTHONPATH`:
+  **415 passed, 102 integration tests deselected**. Focused cast review and
+  cast-candidate coverage policy tests pass **13/13**. Frontend unit tests pass
+  **5/5**, `npx tsc --noEmit` passes, and `npm run build` completes with the
+  current admin cast-review routes included.
+- Re-attempted `backend/scripts/run_integration_tests.sh` against its explicitly
+  isolated `cinegraph_test` compose project. The Docker daemon is reachable,
+  but Compose cannot read the cached `pgvector/pgvector:pg16` image blob
+  (`sha256:a3625087…`, input/output error) before starting the test stack. The
+  currently running default `aarambham` API and database both report
+  unhealthy; they were not restarted, queried, or used for tests. No test
+  migration, fixture seed, or database query ran.
+- This confirms the earlier local-only checks but does not close the database
+  gate: cast-review persistence, migration execution, API contract behavior,
+  and the current-code browser flow remain unverified. All work remains local;
+  no source/corpus data or Docker volumes were changed.
+
+### Follow-up — reproduce English-100 cast source audits (7 November 2026)
+
+- Rebuilt the cast-candidate coverage from the retained first-ten and ranks
+  11–100 source reports, exact-input statement manifests and frozen English-100
+  pilot. The validator accepted all 100 identity/source bindings, and the
+  generated JSON and passage-free review sheet are byte-identical to the
+  existing v5 artifacts (SHA-256 `f0e2198341a28329c4c1f3f4944c54e46cefa372e1ae8d69dbb066b21fedd6e8`
+  and `dd1db1429439caa50c610375922dad8decc06c7899bca909484073c51d5d05cb`).
+  Totals remain 2,044 extracted candidate rows, 1,546 exact actor-identity
+  candidates still requiring review, 458 unresolved names, 52 quarantined
+  spans and 324 label-only character suggestions. No candidate was promoted.
+- Rebuilt the crosswalk from exact retained Wikipedia passage derivatives,
+  Wikidata film/person captures, candidate reports and captured English
+  labels. The JSON and Markdown are byte-identical to the existing v1 report.
+  It finds 521 direct `P453` character qualifiers across 509 candidate actors;
+  324 have exact English-label agreement. All 521 remain `review_required`;
+  a Wikidata qualifier and label match are corroboration, not independent
+  proof that the article credits that performer with that character.
+- Re-ran the cast-review desk's empty-state Playwright test in the installed
+  Google Chrome: **1 passed**. It checks that the page explains the evidence
+  boundary before an operator enters an email; it does not load candidates,
+  exercise authorization or verify API/database behavior. The first attempt
+  could not bind localhost in the sandbox, and the default Playwright browser
+  binary is absent, so the successful run explicitly reused installed Chrome.
+- Rechecked the Docker discrepancy directly: although `compose ps` displayed
+  the stale database container as healthy, `docker inspect` reports it exited
+  with code 133 and an I/O error reading its `hosts` file; port 5433 is closed.
+  The old test API's `/health` response is not a DB health check. No containers
+  were restarted, and no test or working-corpus database was queried.
+- Attempted an additive `docker pull pgvector/pgvector:pg16` to refresh the
+  test image without removing containers or volumes. Docker failed before
+  downloading layers because its containerd metadata database (`meta.db`)
+  itself returns an input/output error. No further Docker storage repair,
+  restart, prune or volume operation was attempted; database execution remains
+  blocked on Docker Desktop storage recovery.
+
+### Follow-up — count synopsis headings as plot evidence (7 November 2026)
+
+- A fresh replay of the retained English-100 capture audit found that
+  *Hamilton* (`Q84323848`) had 9 extracted `Synopsis`, `Synopsis / Act I`, and
+  `Synopsis / Act II` passages, but `catalog_pilot_audit.section_categories`
+  classified plot only when the heading literally contained “plot.” The
+  shared passage coverage policy already recognizes “synopsis” and “story.”
+- Aligned the pilot audit with that existing policy and added regression tests
+  for `Synopsis`, nested `Synopsis / Act I`, and `Story` headings. Re-audited
+  both exact retained capture batches: first 10 passed **10/10**, ranks 11–100
+  passed **90/90**; both now report **0 plot gaps** and **0 production gaps**.
+  The resulting English-100 heading inventory is **100/100 plot-section
+  present**; this is source-heading availability, not semantic adequacy or
+  answer support. No raw source, identity, assertion, passage or vector was
+  changed.
+- Saved new local-only audit versions at
+  `data/evaluation/catalog-intake/first10-v1/capture-audit-v10.md` and
+  `data/evaluation/catalog-intake/english100-rank11-100-v1/capture-audit-v4.md`.
+  Full offline backend suite: **415 passed, 102 integration tests deselected**.
+  This correction is independent of the still-unavailable PostgreSQL/API gate.

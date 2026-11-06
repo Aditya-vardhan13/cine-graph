@@ -89,7 +89,9 @@ def section_categories(section_counts: dict[str, int]) -> dict[str, int]:
     categories = {"plot": 0, "production": 0, "reception": 0, "themes_analysis": 0, "legacy": 0}
     for section, count in section_counts.items():
         normalized = section.casefold()
-        if "plot" in normalized:
+        # Match the shared passage-coverage policy: many well-structured film
+        # articles call their narrative section "Synopsis" or "Story".
+        if any(label in normalized for label in ("plot", "synopsis", "story")):
             categories["plot"] += count
         if "production" in normalized or "casting" in normalized:
             categories["production"] += count

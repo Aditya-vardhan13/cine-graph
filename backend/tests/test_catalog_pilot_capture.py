@@ -259,6 +259,8 @@ def test_catalog_pilot_audit_reverifies_bytes_identity_and_parser_output(tmp_pat
     assert report["cast_credit_statements"] == 2
     assert report["cast_credits_with_character_qualifier"] == 1
     assert section_categories({"Plot": 1, "Production / Development": 1})["production"] == 1
+    assert section_categories({"Synopsis": 1, "Synopsis / Act I": 4})["plot"] == 5
+    assert section_categories({"Story": 2})["plot"] == 2
     rendered = render_audit_markdown(report)
     assert "Source identity, snapshot hashes, and deterministic extraction: PASS" in rendered
     assert rendered.count("## Source policy and interpretation") == 1
