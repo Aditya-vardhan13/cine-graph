@@ -2290,3 +2290,36 @@ remain local and out of Git.
   were restarted or recreated, and neither the test nor working database was
   written. Safe next action remains recovery of the isolated test database,
   followed by replay and API/UI verification against that database only.
+
+### Follow-up — review-only cast source-statement bundle
+
+- Added `wikipedia_cast_source_statements.py` and an offline CLI that converts
+  the retained v7 candidate report into source-shaped `SourceAssertion` draft
+  records. It accepts only exact same-film Wikidata cast identity matches;
+  the 38 cross-film identity suggestions and 420 unresolved names are not
+  promoted to source statements. Character QID string matches remain an
+  explicitly labelled qualifier, not an accepted character identity.
+- The bundle records the article URL, revision, snapshot SHA-256, CC BY-SA 4.0
+  license/attribution, section locator, passage ordinal/hash, source phrase,
+  and Wikidata cast statement locator. It is content-addressed and bound to the
+  exact v7 report hash. All rows are `review_required`; the tool makes no
+  database, rights-decision, operational assertion, or embedding writes.
+- For the 1,823 existing candidates, **1,365** same-film identity records
+  passed the draft gate and **458** identity-only/unresolved records were
+  excluded. The local-only output is
+  `data/evaluation/catalog-intake/english100-rank11-100-v1/wikipedia-cast-source-statements-v1.json`
+  (SHA-256 `560403b94862e628823dbdae74d0f229fe639a9dc0b751834b3d478b0bd1c424`);
+  it is ignored by Git. A sample for *Heat* retains Robert De Niro → Neil
+  McCauley with its article and passage provenance, but remains a review
+  candidate rather than a verified credit.
+- Added 11 pure tests covering provenance, non-promotion, identity-only
+  exclusion, malformed fields, duplicate statements and schema rejection.
+  The focused test file passes **11/11**. The tool writes only inside the
+  ignored local evaluation directory. It does not yet persist
+  `SourceAssertion` rows: that requires the isolated PostgreSQL/API test gate,
+  which remains unavailable due the known Docker storage/database issue.
+- Next: restore `cinegraph_test` safely, add a real DB replay that joins each
+  draft to exactly one retained `SourceSnapshot` by source URL, revision and
+  content hash, then add an explicit reviewer decision path before projecting
+  any cast-character `Assertion`. Do not infer that the candidate bundle is
+  catalog completeness or publishable credit coverage.
