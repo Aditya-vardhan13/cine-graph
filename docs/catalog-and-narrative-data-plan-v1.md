@@ -2198,9 +2198,10 @@ remain local and out of Git.
   *The Lion King* as an unresolved actor name, and source-linked
   Shameik Moore → Miles Morales / Spider-Man from *Spider-Man: Into the
   Spider-Verse*. These examples are candidates, not approved credits.
-- The current local report is
+- The initial v4 local report was
   `data/evaluation/catalog-intake/english100-rank11-100-v1/wikipedia-cast-candidates-v4.json`;
-  it is ignored by Git with the capture data. The script verifies the capture
+  it is ignored by Git with the capture data and has since been superseded by
+  the identity-resolution follow-up below. The script verifies the capture
   and label manifests, Wikipedia CC BY-SA 4.0 attribution URL, snapshot and
   derivative hashes, parser/source revision binding and source locator before
   emitting candidates. A representative manual inspection of *The Lion King*,
@@ -2220,6 +2221,45 @@ remain local and out of Git.
   pass only approved mappings through the existing snapshot → source assertion
   → reviewed `Assertion` path. Do not treat the 90-film report as complete
   credit coverage or as evidence that the 1,000-film collection is vetted.
+
+### Follow-up — resolve captured person identity without inventing film credits
+
+- Added a deterministic offline identity pass over English labels and aliases
+  in the already retained Wikidata snapshots for people referenced as cast,
+  directors or writers in this same 90-film selection. It prefers a unique
+  exact English label, then a unique exact English alias; ambiguous or missing
+  matches remain unassigned. It does not use fuzzy matching, new requests or
+  character labels as person identities. Every match includes the exact
+  Wikidata EntityData URL, revision and snapshot hash.
+- Reprocessed the unchanged 90-film source capture. Of 466 source-only names in
+  v4, **38** now have a unique captured person identity (**25 label** matches,
+  **13 alias** matches); **420 remain unresolved**. For all 38, the selected
+  film-credit field `actor_qid` remains null: identifying a person from another
+  captured film is not proof that they played the source-named role in this
+  film. Existing same-film Wikidata cast references remain separately linked.
+- The current ignored local report is
+  `data/evaluation/catalog-intake/english100-rank11-100-v1/wikipedia-cast-candidates-v7.json`.
+  Its SHA-256 is
+  `ce6181526baaf575bf7fa829fd0b8861508720c5367342b098bd495c3275c686`.
+  It contains 1,823 review-only candidates (1,365 with same-film Wikidata cast
+  QIDs, 38 source-name identity suggestions, 420 unresolved names), 232
+  string-only Wikidata character-label matches, and 44 quarantined rows: 28
+  group roles, 8 empty role labels, one ordinal/company-name context, and 7
+  overlong actor-name spans. Quarantine is retained for human review; it is not
+  silently dropped. All candidate rows retain Wikipedia source URL, revision,
+  passage hash and CC BY-SA attribution. None is an approved credit.
+- Reviewed representative candidate and identity rows from *The Lion King*,
+  *Spider-Man: Into the Spider-Verse*, *Avengers: Endgame*, *WALL·E*, *Goodfellas*,
+  *The Dark Knight Rises*, and *Toy Story*. Exact-label and alias matches looked
+  plausible in these examples, but the pass remains a candidate generator,
+  not a complete manual credit audit. Some valid-looking multi-token actor
+  names are deliberately quarantined by the conservative span rule for review.
+- Focused extraction, capture-audit and identity-resolution tests passed
+  **21/21**. The source-only identity resolver is pure and uses retained labels;
+  no network, database, mock framework or operational fact write is involved.
+  The full backend non-integration suite passed **371 tests**, with **88
+  integration tests deselected**. The remaining integration/API/browser gates
+  for catalog publication are not satisfied by this offline report.
 
 ### Follow-up — rank 11–100 Wikidata credit-label capture audited
 

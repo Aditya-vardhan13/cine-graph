@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 
-ADAPTER_VERSION = "wikipedia-cast-explicit-as-candidates-v4"
+ADAPTER_VERSION = "wikipedia-cast-explicit-as-candidates-v7"
 CAST_SECTION_NAMES = {
     "cast", "cast-and-characters", "cast-and-crew", "cast-characters",
     "cast-members", "main-cast", "principal-cast", "voice-cast",
@@ -46,6 +46,85 @@ def _first_character_name(value: str) -> str:
 
 def _label_key(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip().casefold().strip("‘’\"“”")
+
+
+def resolve_source_actor_identities(
+    candidates: list[dict[str, Any]], people: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Attach exact captured Wikidata person-identity candidates, never credits.
+
+    A unique English label is preferred to an English alias. Ambiguous matches
+    retain all candidate QIDs; fuzzy or transliterated matching is deliberately
+    out of scope. This does not prove that a person was credited in the film.
+    """
+    labels: dict[str, list[dict[str, Any]]] = {}
+    aliases: dict[str, list[dict[str, Any]]] = {}
+    people_by_qid: dict[str, dict[str, Any]] = {}
+    for person in people:
+        qid, label = person.get("qid"), person.get("label")
+        if not isinstance(qid, str) or not isinstance(label, str) or not label.strip():
+            continue
+        row = {**person, "qid": qid, "label": label.strip()}
+        people_by_qid[qid] = row
+        labels.setdefault(_label_key(label), []).append(row)
+        for alias in person.get("aliases", []):
+            if isinstance(alias, str) and alias.strip():
+                aliases.setdefault(_label_key(alias), []).append(row)
+
+    resolved: list[dict[str, Any]] = []
+    for original in candidates:
+        candidate = dict(original)
+        if candidate.get("actor_qid"):
+            person = people_by_qid.get(candidate["actor_qid"])
+            candidate.update({
+                "actor_identity_qid": candidate["actor_qid"],
+                "actor_identity_label": person.get("label") if person else candidate.get("actor_label"),
+                "actor_identity_match": "same_film_wikidata_cast_target",
+                "identity_resolution": "same_film_wikidata_cast_target",
+            })
+            if person:
+                candidate["actor_identity_evidence"] = {
+                    "source_url": person.get("source_url"),
+                    "source_revision": person.get("source_revision"),
+                    "snapshot_sha256": person.get("snapshot_sha256"),
+                }
+            resolved.append(candidate)
+            continue
+        name_key = _label_key(str(candidate.get("actor_label_in_source", "")))
+        matches = labels.get(name_key, [])
+        match_type = "exact_unique_english_label"
+        if not matches:
+            matches = aliases.get(name_key, [])
+            match_type = "exact_unique_english_alias"
+        unique = {row["qid"]: row for row in matches}
+        if len(unique) == 1:
+            person = next(iter(unique.values()))
+            candidate.update({
+                "actor_identity_qid": person["qid"],
+                "actor_identity_label": person["label"],
+                "actor_identity_match": match_type,
+                "actor_identity_evidence": {
+                    "source_url": person.get("source_url"),
+                    "source_revision": person.get("source_revision"),
+                    "snapshot_sha256": person.get("snapshot_sha256"),
+                },
+                "identity_resolution": "matched_captured_person_identity_only",
+            })
+        elif len(unique) > 1:
+            candidate.update({
+                "actor_identity_qid": None,
+                "actor_identity_match": "ambiguous_exact_label_or_alias",
+                "candidate_actor_identity_qids": sorted(unique),
+                "identity_resolution": "ambiguous_captured_person_identity",
+            })
+        else:
+            candidate.update({
+                "actor_identity_qid": None,
+                "actor_identity_match": "no_exact_captured_person_label_or_alias",
+                "identity_resolution": "unresolved_source_name",
+            })
+        resolved.append(candidate)
+    return resolved
 
 
 def _passage_hash(passage: dict[str, Any]) -> str:
@@ -147,6 +226,15 @@ def extract_cast_candidates(
                     "reason": "group_role_not_individualized"})
                 continue
             if not known_match:
+                if re.search(r"\b\d+(?:st|nd|rd|th)[ \t]+$", prefix, flags=re.IGNORECASE):
+                    ambiguities.append({**common, "candidate_actor_qids": [],
+                                        "reason": "nonperson_ordinal_prefix"})
+                    continue
+                if (len(match.group("actor").split()) > 3
+                        and not re.search(r'["“][^"”]+["”]', match.group("actor"))):
+                    ambiguities.append({**common, "candidate_actor_qids": [],
+                                        "reason": "actor_name_span_overlong"})
+                    continue
                 if not character_name:
                     ambiguities.append({**common, "candidate_actor_qids": [],
                                         "reason": "empty_character_name"})

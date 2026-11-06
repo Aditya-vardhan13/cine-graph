@@ -10,7 +10,11 @@ from urllib.parse import urlparse
 
 from app.services.catalog_pilot_reextract import _write_immutable
 from app.services.credit_label_capture_audit import audit_credit_label_capture
-from app.services.wikipedia_cast_candidates import ADAPTER_VERSION, extract_cast_candidates
+from app.services.wikipedia_cast_candidates import (
+    ADAPTER_VERSION,
+    extract_cast_candidates,
+    resolve_source_actor_identities,
+)
 
 
 def _read_local_file(root: Path, relative: str) -> bytes:
@@ -77,6 +81,7 @@ def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[s
 
     targets_by_film: dict[str, list[dict[str, Any]]] = {}
     character_targets_by_actor: dict[tuple[str, str], list[dict[str, str]]] = {}
+    person_target_qids: set[str] = set()
     for target in credit_manifest.get("targets", []):
         qid = target.get("qid")
         if not isinstance(qid, str):
@@ -86,6 +91,7 @@ def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[s
             if film_qid not in film_by_qid:
                 raise ValueError(f"Credit target references uncaptured film {film_qid}")
             if role == "cast":
+                person_target_qids.add(qid)
                 labels = checkpoint["captured"].get(qid, {}).get("english_label")
                 if isinstance(labels, str) and labels.strip():
                     targets_by_film.setdefault(film_qid, []).append({
@@ -99,6 +105,33 @@ def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[s
                     character_targets_by_actor.setdefault((film_qid, person_qid), []).append(
                         {"qid": qid, "label": label}
                     )
+            elif role in {"director", "writer"}:
+                person_target_qids.add(qid)
+
+    captured_people: list[dict[str, Any]] = []
+    for person_qid in sorted(person_target_qids):
+        captured = checkpoint["captured"][person_qid]
+        label = captured.get("english_label")
+        if not isinstance(label, str) or not label.strip():
+            continue
+        source_bytes = _read_local_file(label_dir, captured["snapshot_path"])
+        entity_data = json.loads(source_bytes)
+        entities = entity_data.get("entities", {})
+        entity = entities.get(person_qid, {}) if isinstance(entities, dict) else {}
+        entity_aliases = entity.get("aliases", {}) if isinstance(entity, dict) else {}
+        english_aliases = entity_aliases.get("en", []) if isinstance(entity_aliases, dict) else []
+        aliases = [
+            value.get("value") for value in english_aliases
+            if isinstance(value, dict) and isinstance(value.get("value"), str)
+        ]
+        captured_people.append({
+            "qid": person_qid,
+            "label": label,
+            "aliases": aliases,
+            "source_url": captured.get("source_url"),
+            "source_revision": captured.get("source_revision"),
+            "snapshot_sha256": captured.get("sha256"),
+        })
 
     film_rows: list[dict[str, Any]] = []
     candidate_rows: list[dict[str, Any]] = []
@@ -134,7 +167,10 @@ def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[s
                 for actor in targets_by_film.get(qid, [])
             },
         )
-        for candidate in result["candidates"]:
+        identity_candidates = resolve_source_actor_identities(
+            result["candidates"], captured_people,
+        )
+        for candidate in identity_candidates:
             candidate_rows.append({
                 **candidate,
                 "selection_rank": film.get("selection_rank"),
@@ -158,7 +194,7 @@ def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[s
             "selection_rank": film.get("selection_rank"), "film_qid": qid,
             "title": film.get("title"), "year": film.get("year"),
             "cast_passages": result["cast_passage_count"],
-            "candidate_count": len(result["candidates"]),
+            "candidate_count": len(identity_candidates),
             "ambiguous_or_unmatched_count": len(result["ambiguities"]),
             "source_revision": film.get("wikipedia_revision"),
             "source_sha256": film.get("wikipedia_sha256"),
@@ -170,7 +206,7 @@ def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[s
         row["passage_ordinal"],
     ))
     return {
-        "schema": "cinegraph.wikipedia-cast-candidates/v4",
+        "schema": "cinegraph.wikipedia-cast-candidates/v7",
         "adapter_version": ADAPTER_VERSION,
         "selection_sha256": capture_manifest["selection_sha256"],
         "film_capture_manifest_sha256": hashlib.sha256(capture_bytes).hexdigest(),
@@ -185,6 +221,24 @@ def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[s
             "candidate_rows": len(candidate_rows),
             "ambiguous_or_unmatched_rows": len(ambiguity_rows),
             "wikidata_actor_candidates": sum(row["actor_qid"] is not None for row in candidate_rows),
+            "source_only_identity_matches": sum(
+                row.get("actor_identity_qid") is not None and row.get("actor_qid") is None
+                for row in candidate_rows
+            ),
+            "source_only_exact_label_matches": sum(
+                row.get("actor_qid") is None
+                and row.get("actor_identity_match") == "exact_unique_english_label"
+                for row in candidate_rows
+            ),
+            "source_only_exact_alias_matches": sum(
+                row.get("actor_qid") is None
+                and row.get("actor_identity_match") == "exact_unique_english_alias"
+                for row in candidate_rows
+            ),
+            "ambiguous_source_identity_candidates": sum(
+                row.get("identity_resolution") == "ambiguous_captured_person_identity"
+                for row in candidate_rows
+            ),
             "source_only_unresolved_candidates": sum(
                 row.get("identity_resolution") == "unresolved_source_name" for row in candidate_rows
             ),

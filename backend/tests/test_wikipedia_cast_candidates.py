@@ -2,7 +2,11 @@ import hashlib
 
 import pytest
 
-from app.services.wikipedia_cast_candidates import extract_cast_candidates, is_cast_section
+from app.services.wikipedia_cast_candidates import (
+    extract_cast_candidates,
+    is_cast_section,
+    resolve_source_actor_identities,
+)
 
 
 def _passage(locator: str, content: str, ordinal: int = 0) -> dict:
@@ -143,6 +147,100 @@ def test_quoted_actor_nickname_and_suffix_are_retained_as_source_name():
     assert result["candidates"][0]["actor_label_in_source"] == 'Marvin "Krondon" Jones III'
     assert result["candidates"][0]["character_name_in_source"] == "Tombstone"
     assert result["candidates"][0]["actor_qid"] is None
+
+
+def test_resolves_unique_exact_person_label_without_claiming_film_credit():
+    candidates = [{
+        "actor_qid": None,
+        "actor_label_in_source": "Unknown Actor",
+        "identity_resolution": "unresolved_source_name",
+        "review_status": "review_required",
+    }]
+    result = resolve_source_actor_identities(candidates, [{
+        "qid": "Q10", "label": "Unknown Actor", "aliases": [],
+        "source_url": "https://www.wikidata.org/wiki/Special:EntityData/Q10.json",
+        "source_revision": 10, "snapshot_sha256": "a" * 64,
+    }])
+    assert result[0]["actor_qid"] is None
+    assert result[0]["actor_identity_qid"] == "Q10"
+    assert result[0]["identity_resolution"] == "matched_captured_person_identity_only"
+    assert result[0]["actor_identity_match"] == "exact_unique_english_label"
+    assert result[0]["actor_identity_evidence"]["source_revision"] == 10
+
+
+def test_same_film_cast_target_has_identity_provenance_separate_from_role_text():
+    result = resolve_source_actor_identities(
+        [{"actor_qid": "Q10", "actor_label": "Known Actor", "character_name_in_source": "Hero"}],
+        [{"qid": "Q10", "label": "Known Actor", "aliases": [], "source_revision": 10}],
+    )
+    assert result[0]["actor_identity_qid"] == "Q10"
+    assert result[0]["identity_resolution"] == "same_film_wikidata_cast_target"
+    assert result[0]["actor_identity_match"] == "same_film_wikidata_cast_target"
+
+
+def test_resolves_unique_captured_english_alias_but_keeps_identity_only_scope():
+    result = resolve_source_actor_identities(
+        [{"actor_qid": None, "actor_label_in_source": "Stage Name"}],
+        [{"qid": "Q10", "label": "Canonical Name", "aliases": ["Stage Name"]}],
+    )
+    assert result[0]["actor_identity_qid"] == "Q10"
+    assert result[0]["actor_identity_match"] == "exact_unique_english_alias"
+    assert result[0]["actor_qid"] is None
+
+
+def test_ambiguous_person_labels_are_quarantined_without_arbitrary_qid():
+    result = resolve_source_actor_identities(
+        [{"actor_qid": None, "actor_label_in_source": "Alex Lee"}],
+        [
+            {"qid": "Q1", "label": "Alex Lee", "aliases": []},
+            {"qid": "Q2", "label": "Alex Lee", "aliases": []},
+        ],
+    )
+    assert result[0]["actor_identity_qid"] is None
+    assert result[0]["candidate_actor_identity_qids"] == ["Q1", "Q2"]
+    assert result[0]["identity_resolution"] == "ambiguous_captured_person_identity"
+
+
+def test_duplicate_aliases_are_quarantined_and_no_match_stays_unresolved():
+    result = resolve_source_actor_identities(
+        [
+            {"actor_qid": None, "actor_label_in_source": "Stage Name"},
+            {"actor_qid": None, "actor_label_in_source": "Missing Name"},
+        ],
+        [
+            {"qid": "Q1", "label": "First Person", "aliases": ["Stage Name"]},
+            {"qid": "Q2", "label": "Second Person", "aliases": ["Stage Name"]},
+        ],
+    )
+    assert result[0]["identity_resolution"] == "ambiguous_captured_person_identity"
+    assert result[0]["candidate_actor_identity_qids"] == ["Q1", "Q2"]
+    assert result[1]["identity_resolution"] == "unresolved_source_name"
+    assert result[1]["actor_identity_qid"] is None
+
+
+def test_ordinal_company_name_in_cast_prose_is_quarantined_not_treated_as_actor():
+    result = extract_cast_candidates(
+        film_qid="Q10",
+        passages=[_passage(
+            "cast",
+            "Known Actor as Hero. The schedule overlapped with 20th Century Fox as filming continued.",
+        )],
+        actors=[{"qid": "Q1", "label": "Known Actor"}],
+    )
+    assert [(row["actor_qid"], row["character_name_in_source"]) for row in result["candidates"]] == [
+        ("Q1", "Hero")
+    ]
+    assert any(row["reason"] == "nonperson_ordinal_prefix" for row in result["ambiguities"])
+
+
+def test_overlong_unquoted_source_actor_span_is_quarantined_for_review():
+    result = extract_cast_candidates(
+        film_qid="Q10",
+        passages=[_passage("cast", "Name One Name Two as Character One.")],
+        actors=[],
+    )
+    assert result["candidates"] == []
+    assert result["ambiguities"][0]["reason"] == "actor_name_span_overlong"
 
 
 def test_known_actor_in_group_role_is_also_quarantined():
