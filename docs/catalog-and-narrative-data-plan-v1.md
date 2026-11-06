@@ -1830,6 +1830,26 @@ remain local and out of Git.
   source bytes. Small synthetic tests cover field minimization, duplicate
   handling, malformed input and fingerprint drift.
 
+### Follow-up — read-only identity candidate audit for the full target
+
+- Added `backend/app/services/english_catalog_target_resolution.py` and
+  `scripts/audit_english_catalog_target.py`. The audit joins the frozen target
+  against one local readiness snapshot using exact normalized canonical
+  title/year first, then exact alias/year. It makes no fuzzy match, network
+  call, catalog write or identity decision; inputs and report remain local.
+- Against `catalog-readiness-v7.json`, the 1,000 candidates produce 781 unique
+  exact canonical title/year candidates, 1 ambiguous title/year candidate and
+  218 unmatched candidates. Of the 781 unique candidates, 684 point to records
+  labeled English and 97 point to another or unknown/multiple language state.
+  These are counts of candidate joins, not verified identity or evidence
+  quality. The ambiguous 2011 *The Girl with the Dragon Tattoo* row maps to
+  both the Swedish and US film records and requires human/source-ID resolution.
+- The local identity report is bound to exact target and readiness hashes and
+  revalidates deterministically. It is not committed and does not modify the
+  working database. Next, resolve unmatched/ambiguous titles with stable IDs
+  from permitted sources, confirm original language, then run the existing
+  source-capture and rights gates per resolved work.
+
 ### Follow-up — English pilot coverage sheet
 
 - Added `scripts/render_english_catalog_pilot_coverage.py`, which verifies the
