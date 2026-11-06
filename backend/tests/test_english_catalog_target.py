@@ -42,6 +42,13 @@ def test_target_manifest_is_bound_to_exact_input_bytes():
         validate_english_catalog_target(target, source + b"\n", expected_count=1)
 
 
+def test_same_title_in_different_years_is_not_collapsed_or_flagged_as_duplicate():
+    source = b"Series_Title,Released_Year\nDrishyam,2013\nDrishyam,2015\n"
+    manifest = build_english_catalog_target(source, expected_count=2)
+    assert [row["selection_rank"] for row in manifest["candidates"]] == [1, 2]
+    assert all(row["catalog_identity_status"] == "unresolved" for row in manifest["candidates"])
+
+
 @pytest.mark.parametrize("source, message", [
     (b"Series_Title,Released_Year\nFilm,2001\n", "at least 2"),
     (b"Name,Year\nFilm,2001\n", "missing required"),

@@ -1850,6 +1850,27 @@ remain local and out of Git.
   from permitted sources, confirm original language, then run the existing
   source-capture and rights gates per resolved work.
 
+### Follow-up — use the local IMDb index only as a restricted identity-review aid
+
+- Added `backend/app/services/english_catalog_imdb_review.py` and
+  `scripts/review_english_catalog_target_imdb.py`, reusing the existing local
+  title index to search only the 219 unmatched/ambiguous target rows. The
+  script is offline, year-bounded (±1 year), caps results at eight per title,
+  and cross-checks IMDb title IDs against catalog `resolved_imdb_ids`. It does
+  not fetch or write source data, alter the target manifest, merge catalog
+  entities, or approve product use.
+- The local report found 189 unique exact title/year IMDb-ID-to-catalog
+  crosslink candidates, 3 unique exact IMDb title/year candidates without a
+  catalog crosslink, and 27 rows without an exact IMDb title/year candidate.
+  All 219 remain explicitly `review_required`; the 189 are strong leads, not
+  reviewed identity decisions. The ID joins depend on existing catalog
+  assertions and should be verified from retained source evidence before any
+  operational merge.
+- This remains a local, non-commercial research aid only. IMDb's terms do not
+  authorize carrying this index or its fields into a paid product. Output is
+  ignored under `data/evaluation/`, bound to target/readiness/audit/index
+  hashes, and can be regenerated and validated deterministically.
+
 ### Follow-up — English pilot coverage sheet
 
 - Added `scripts/render_english_catalog_pilot_coverage.py`, which verifies the
