@@ -6,7 +6,9 @@ import pytest
 from app.services.english_pilot_raw_replay import (
     EnglishPilotReplayError,
     _capture_path,
+    _validate_capture_manifest_shape,
     _validate_capture_policy,
+    _validate_pilot_shape,
 )
 from app.services.wikidata_raw import RawWikidataError, validate_capture_hashes
 
@@ -43,6 +45,27 @@ def test_capture_policy_rejects_unapproved_route_or_rate(change: dict[str, objec
     policy.update(change)
     with pytest.raises(EnglishPilotReplayError, match="less restrictive"):
         _validate_capture_policy(policy, batch_name="fixture")
+
+
+def test_frozen_pilot_shape_requires_unique_rows_with_explicit_ids() -> None:
+    rows = [{"selection_rank": rank, "catalog_film_id": f"film-{rank}", "wikidata_id": f"Q{rank}"}
+            for rank in range(1, 101)]
+    assert _validate_pilot_shape({"films": rows}) == rows
+    malformed = [{"selection_rank": rank, "catalog_film_id": f"film-{rank}", "wikidata_id": f"Q{rank}"}
+                 for rank in range(1, 100)] + [None]
+    with pytest.raises(EnglishPilotReplayError, match="malformed film row"):
+        _validate_pilot_shape({"films": malformed})
+    with pytest.raises(EnglishPilotReplayError, match="unique and contiguous"):
+        _validate_pilot_shape({"films": [*rows[:-1], {**rows[-1], "selection_rank": 99}]})
+
+
+def test_capture_manifest_shape_rejects_unstructured_json() -> None:
+    valid = {"schema": "cinegraph.catalog-pilot-capture/v1", "films": [{"qid": "Q1"}]}
+    _validate_capture_manifest_shape(valid, batch_name="fixture")
+    for malformed in ([], {"schema": "wrong", "films": []},
+                      {"schema": "cinegraph.catalog-pilot-capture/v1", "films": [None]}):
+        with pytest.raises(EnglishPilotReplayError, match="invalid structure"):
+            _validate_capture_manifest_shape(malformed, batch_name="fixture")
 
 
 def test_capture_path_resolves_only_inside_its_batch(tmp_path: Path) -> None:

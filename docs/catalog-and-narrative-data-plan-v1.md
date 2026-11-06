@@ -2006,6 +2006,8 @@ remain local and out of Git.
   database writes occurred.
 - Tightened capture-policy numeric validation so boolean, NaN and infinite
   request intervals cannot be accepted as a valid rate-limit record. The
-  focused replay suite now passes **13/13** and the full non-integration suite
-  passes **337 tests**. A fresh 100-capture dry run still validates all
-  **21,744,082** Wikidata payload bytes with the same combined input digest.
+  validator also rejects malformed pilot/capture JSON shapes with explicit
+  replay errors before any database preflight. The focused replay suite now
+  passes **15/15** and the full non-integration suite passes **339 tests**. A
+  fresh 100-capture dry run still validates all **21,744,082** Wikidata payload
+  bytes with the same combined input digest.

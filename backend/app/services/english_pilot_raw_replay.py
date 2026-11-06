@@ -84,6 +84,37 @@ def _validate_capture_policy(policy: Any, *, batch_name: str) -> None:
         raise EnglishPilotReplayError(f"{batch_name}: capture policy is missing or less restrictive than required.")
 
 
+def _validate_pilot_shape(pilot: Any) -> list[dict[str, Any]]:
+    if (not isinstance(pilot, dict) or not isinstance(pilot.get("films"), list)
+            or len(pilot["films"]) != 100):
+        raise EnglishPilotReplayError("Frozen English pilot must contain exactly 100 film rows.")
+    rows = pilot["films"]
+    if any(not isinstance(row, dict) for row in rows):
+        raise EnglishPilotReplayError("Frozen English pilot contains a malformed film row.")
+    try:
+        ranks = [row["selection_rank"] for row in rows]
+        if any(not isinstance(rank, int) or isinstance(rank, bool) for rank in ranks):
+            raise ValueError("selection ranks must be integers")
+        if sorted(ranks) != list(range(1, 101)):
+            raise ValueError("selection ranks must be unique and contiguous from 1 to 100")
+        if any(not isinstance(row.get("catalog_film_id"), str) or not row["catalog_film_id"].strip()
+               or not isinstance(row.get("wikidata_id"), str) or not row["wikidata_id"].strip()
+               for row in rows):
+            raise ValueError("every film must have a catalog ID and Wikidata QID")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise EnglishPilotReplayError(f"Frozen English pilot rows are invalid: {exc}.") from exc
+    return rows
+
+
+def _validate_capture_manifest_shape(manifest: Any, *, batch_name: str) -> None:
+    if (not isinstance(manifest, dict)
+            or manifest.get("schema") != "cinegraph.catalog-pilot-capture/v1"
+            or not isinstance(manifest.get("films"), list)
+            or not manifest["films"]
+            or any(not isinstance(row, dict) for row in manifest["films"])):
+        raise EnglishPilotReplayError(f"{batch_name}: capture manifest has an invalid structure.")
+
+
 def load_english_pilot_replay(
     project_root: Path,
     *,
@@ -103,23 +134,9 @@ def load_english_pilot_replay(
     pilot_bytes = pilot_file.read_bytes()
     try:
         pilot = json.loads(pilot_bytes)
-    except json.JSONDecodeError as exc:
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise EnglishPilotReplayError("English pilot manifest is not valid JSON.") from exc
-    if (not isinstance(pilot, dict) or not isinstance(pilot.get("films"), list)
-            or len(pilot["films"]) != 100):
-        raise EnglishPilotReplayError("Frozen English pilot must contain exactly 100 film rows.")
-    try:
-        ranks = [row["selection_rank"] for row in pilot["films"]]
-        if any(not isinstance(rank, int) or isinstance(rank, bool) for rank in ranks):
-            raise ValueError("selection ranks must be integers")
-        if sorted(ranks) != list(range(1, 101)):
-            raise ValueError("selection ranks must be unique and contiguous from 1 to 100")
-        if any(not isinstance(row.get("catalog_film_id"), str)
-               or not isinstance(row.get("wikidata_id"), str)
-               for row in pilot["films"]):
-            raise ValueError("every film must have a catalog ID and Wikidata QID")
-    except (KeyError, TypeError, ValueError) as exc:
-        raise EnglishPilotReplayError(f"Frozen English pilot rows are invalid: {exc}.") from exc
+    _validate_pilot_shape(pilot)
 
     bundle_inputs: list[tuple[str, dict[str, Any], dict[str, Any]]] = []
     manifests: list[tuple[Path, bytes, dict[str, Any]]] = []
@@ -130,8 +147,12 @@ def load_english_pilot_replay(
         manifest_bytes = manifest_file.read_bytes()
         try:
             manifest = json.loads(manifest_bytes)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise EnglishPilotReplayError(f"Capture manifest is not valid JSON for {batch.name}.") from exc
+        _validate_capture_manifest_shape(manifest, batch_name=batch.name)
+        try:
             audit = audit_capture_bundle(batch)
-        except (json.JSONDecodeError, ValueError, RuntimeError) as exc:
+        except (ValueError, RuntimeError) as exc:
             raise EnglishPilotReplayError(f"Capture audit failed for {batch.name}: {exc}") from exc
         _validate_capture_policy(manifest.get("capture_policy"), batch_name=batch.name)
         manifests.append((batch, manifest_bytes, manifest))
