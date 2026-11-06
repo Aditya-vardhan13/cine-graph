@@ -90,6 +90,15 @@ def test_review_api_records_per_snapshot_versions_and_latest_decision_wins():
         assert item["latest_decision"] is None
         assert item["films"] == ["Review Queue Film"]
         assert item["samples"][0]["section"] == "plot"
+        filtered = client.get("/api/v1/admin/rights/queue?film_q=Review%20Queue%20Film&review_state=unreviewed",
+                              headers=headers)
+        assert filtered.status_code == 200
+        assert filtered.json()["film_q"] == "Review Queue Film"
+        assert filtered.json()["review_state"] == "unreviewed"
+        assert filtered.json()["total"] == 2
+        assert client.get("/api/v1/admin/rights/queue?film_q=missing", headers=headers).json()["total"] == 0
+        assert client.get("/api/v1/admin/rights/queue?film_q=%25", headers=headers).json()["total"] == 0
+        assert client.get("/api/v1/admin/rights/queue?review_state=unknown", headers=headers).status_code == 422
         first_page = client.get("/api/v1/admin/rights/queue?limit=1&offset=0", headers=headers).json()
         second_page = client.get("/api/v1/admin/rights/queue?limit=1&offset=1", headers=headers).json()
         assert first_page["total"] == second_page["total"] == 2
@@ -113,6 +122,12 @@ def test_review_api_records_per_snapshot_versions_and_latest_decision_wins():
         other_revision = next(row for row in after_one_approval
                               if row["snapshot_id"] == str(second_snapshot_id))
         assert other_revision["latest_decision"] is None
+        approved_filter = client.get("/api/v1/admin/rights/queue?review_state=approved", headers=headers).json()
+        assert approved_filter["total"] == 1
+        assert approved_filter["items"][0]["snapshot_id"] == str(snapshot_id)
+        unreviewed_filter = client.get("/api/v1/admin/rights/queue?review_state=unreviewed", headers=headers).json()
+        assert unreviewed_filter["total"] == 1
+        assert unreviewed_filter["items"][0]["snapshot_id"] == str(second_snapshot_id)
 
         denied = client.post(f"/api/v1/admin/rights/{snapshot_id}", headers=headers, json={
             "decision": "denied", "decision_notes": "New review found scope uncertain; exclude it.",
@@ -125,6 +140,9 @@ def test_review_api_records_per_snapshot_versions_and_latest_decision_wins():
                        if row["snapshot_id"] == str(snapshot_id))["latest_decision"]
         assert current["decision"] == "denied"
         assert current["version"] == 2
+        denied_filter = client.get("/api/v1/admin/rights/queue?review_state=denied", headers=headers).json()
+        assert denied_filter["total"] == 1
+        assert denied_filter["items"][0]["snapshot_id"] == str(snapshot_id)
 
     with Session(engine) as db:
         assert db.scalar(select(func.count()).select_from(NarrativeUseDecision).where(

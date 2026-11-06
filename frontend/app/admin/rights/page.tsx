@@ -18,6 +18,9 @@ export default function RightsReviewPage() {
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
+  const [filmQuery, setFilmQuery] = useState("");
+  const [appliedFilmQuery, setAppliedFilmQuery] = useState("");
+  const [reviewState, setReviewState] = useState("all");
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [basis, setBasis] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
@@ -26,7 +29,9 @@ export default function RightsReviewPage() {
   const refresh = useCallback(async () => {
     if (!email.trim()) { setItems([]); setTotal(0); return; }
     try {
-      const response = await fetch(`${endpoint}/queue?limit=100&offset=${offset}`, {
+      const params = new URLSearchParams({ limit: "100", offset: String(offset), review_state: reviewState });
+      if (appliedFilmQuery) params.set("film_q", appliedFilmQuery);
+      const response = await fetch(`${endpoint}/queue?${params}`, {
         headers: { "x-operator-email": email.trim() }, cache: "no-store",
       });
       const body = await response.json();
@@ -35,7 +40,7 @@ export default function RightsReviewPage() {
       setTotal(body.total ?? 0);
       setMessage("");
     } catch { setMessage("Could not reach the local API"); }
-  }, [email, offset]);
+  }, [appliedFilmQuery, email, offset, reviewState]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -73,8 +78,18 @@ export default function RightsReviewPage() {
       <p>Local pilot only. This operator log is not legal advice: an approval should be grounded in rights that cover the intended indexing and model-input use, not merely public visibility or attribution.</p>
     </section>
     {message && <p className="rights-message" role="status">{message}</p>}
+    <form className="rights-filters" onSubmit={event => { event.preventDefault(); setOffset(0); setAppliedFilmQuery(filmQuery.trim()); }}>
+      <label>Film title<input value={filmQuery} onChange={event => setFilmQuery(event.target.value)} placeholder="Filter by a film in the source snapshot" /></label>
+      <label>Review state<select value={reviewState} onChange={event => { setReviewState(event.target.value); setOffset(0); }}>
+        <option value="all">All decisions</option><option value="unreviewed">Unreviewed</option>
+        <option value="approved">Approved</option><option value="denied">Denied</option>
+        <option value="review_required">Deferred</option>
+      </select></label>
+      <button type="submit">Apply title filter</button>
+      {(appliedFilmQuery || reviewState !== "all") && <button type="button" onClick={() => { setFilmQuery(""); setAppliedFilmQuery(""); setReviewState("all"); setOffset(0); }}>Clear filters</button>}
+    </form>
     <div className="rights-summary">
-      {total === 0 ? "0" : `${offset + 1}–${Math.min(offset + items.length, total)}`} of {total} source snapshots · purpose: semantic indexing and model input
+      {total === 0 ? "0" : `${offset + 1}–${Math.min(offset + items.length, total)}`} of {total} matching source snapshots · purpose: semantic indexing and model input
     </div>
     <section className="rights-list" aria-label="Source snapshots awaiting or with review">
       {!email.trim() ? <p className="rights-empty">Enter the configured local operator email to load the queue.</p> :

@@ -6,9 +6,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.admin_intake import require_operator
 from app.db import get_db
@@ -53,20 +53,48 @@ def _decision_out(row: NarrativeUseDecision | None) -> dict | None:
 def review_queue(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0, le=1_000_000),
+    film_q: str | None = Query(default=None, min_length=1, max_length=120),
+    review_state: str = Query(default="all", pattern="^(all|unreviewed|approved|denied|review_required)$"),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List distinct narrative snapshots with source metadata and review context."""
-    total = db.scalar(
-        select(func.count(func.distinct(SourceSnapshot.id)))
-        .join(NarrativePassage, NarrativePassage.source_snapshot_id == SourceSnapshot.id)
-        .where(SourceSnapshot.fetch_status == "success")
-    ) or 0
+    """List narrative snapshots with optional film and latest-decision filters."""
+    normalized_film_q = (film_q or "").strip()
+    latest_version = (
+        select(
+            NarrativeUseDecision.source_snapshot_id.label("snapshot_id"),
+            func.max(NarrativeUseDecision.decision_version).label("version"),
+        )
+        .where(NarrativeUseDecision.use_case == SEMANTIC_MODEL_USE)
+        .group_by(NarrativeUseDecision.source_snapshot_id)
+        .subquery()
+    )
+    latest_decision = aliased(NarrativeUseDecision)
+    passages_for_snapshot = select(1).select_from(NarrativePassage).join(
+        CanonicalEntity, CanonicalEntity.id == NarrativePassage.subject_entity_id,
+    ).where(NarrativePassage.source_snapshot_id == SourceSnapshot.id)
+    if normalized_film_q:
+        escaped_query = normalized_film_q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        passages_for_snapshot = passages_for_snapshot.where(
+            CanonicalEntity.canonical_label.ilike(f"%{escaped_query}%", escape="\\"),
+        )
+    filtered = (
+        select(SourceSnapshot.id.label("id"), SourceSnapshot.retrieved_at.label("latest_at"))
+        .outerjoin(latest_version, latest_version.c.snapshot_id == SourceSnapshot.id)
+        .outerjoin(latest_decision, and_(
+            latest_decision.source_snapshot_id == SourceSnapshot.id,
+            latest_decision.decision_version == latest_version.c.version,
+            latest_decision.use_case == SEMANTIC_MODEL_USE,
+        ))
+        .where(SourceSnapshot.fetch_status == "success", passages_for_snapshot.exists())
+    )
+    if review_state == "unreviewed":
+        filtered = filtered.where(latest_decision.id.is_(None))
+    elif review_state != "all":
+        filtered = filtered.where(latest_decision.decision == review_state)
+    total = db.scalar(select(func.count()).select_from(filtered.subquery())) or 0
     candidate_ids = (
-        select(SourceSnapshot.id.label("id"), func.max(SourceSnapshot.retrieved_at).label("latest_at"))
-        .join(NarrativePassage, NarrativePassage.source_snapshot_id == SourceSnapshot.id)
-        .where(SourceSnapshot.fetch_status == "success")
-        .group_by(SourceSnapshot.id)
-        .order_by(func.max(SourceSnapshot.retrieved_at).desc(), SourceSnapshot.id)
+        filtered
+        .order_by(SourceSnapshot.retrieved_at.desc(), SourceSnapshot.id)
         .offset(offset)
         .limit(limit)
         .subquery()
@@ -75,13 +103,14 @@ def review_queue(
         select(SourceSnapshot, DataSource.name)
         .join(SourceObject, SourceObject.id == SourceSnapshot.source_object_id)
         .join(DataSource, DataSource.id == SourceObject.source_id)
-        .where(SourceSnapshot.id.in_(select(candidate_ids.c.id)))
-        .order_by(SourceSnapshot.retrieved_at.desc())
+        .join(candidate_ids, candidate_ids.c.id == SourceSnapshot.id)
+        .order_by(candidate_ids.c.latest_at.desc(), SourceSnapshot.id)
     ).all()
     ids = {snapshot.id for snapshot, _source_name in snapshots}
     if not ids:
         return {"use_case": SEMANTIC_MODEL_USE, "items": [],
-                "total": total, "offset": offset, "limit": limit}
+                "total": total, "offset": offset, "limit": limit,
+                "film_q": normalized_film_q, "review_state": review_state}
 
     passage_rows = db.execute(
         select(
@@ -121,7 +150,8 @@ def review_queue(
             "latest_decision": _decision_out(decisions.get(snapshot.id)),
         })
     return {"use_case": SEMANTIC_MODEL_USE, "items": items,
-            "total": total, "offset": offset, "limit": limit}
+            "total": total, "offset": offset, "limit": limit,
+            "film_q": normalized_film_q, "review_state": review_state}
 
 
 @router.post("/{snapshot_id}", dependencies=[Depends(require_operator)])

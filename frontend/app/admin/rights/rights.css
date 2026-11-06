@@ -10,6 +10,11 @@
 .rights-access input, .rights-form input, .rights-form textarea { width: 100%; box-sizing: border-box; border: 1px solid #41404b; border-radius: 9px; background: #0c0c11; color: #f4f2f7; padding: 11px 12px; font: inherit; }
 .rights-access p { margin: 0; font-size: 12px; }
 .rights-message { padding: 12px 14px; border: 1px solid #49405d; border-radius: 10px; color: #d4c8ff; }
+.rights-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 220px auto auto; gap: 12px; align-items: end; margin: 20px 0; }
+.rights-filters label { display: grid; gap: 7px; color: #cfccd8; font-size: 13px; }
+.rights-filters input, .rights-filters select { width: 100%; box-sizing: border-box; border: 1px solid #41404b; border-radius: 9px; background: #0c0c11; color: #f4f2f7; padding: 11px 12px; font: inherit; }
+.rights-filters button { min-height: 42px; border: 1px solid #494653; border-radius: 9px; padding: 9px 13px; background: #22212a; color: #eeecf3; cursor: pointer; }
+.rights-filters button[type="submit"] { border-color: #806bc1; background: #5c4b91; }
 .rights-summary { margin: 24px 0 12px; color: #aaa8b5; font-size: 13px; }
 .rights-list { display: grid; gap: 16px; }
 .rights-empty { padding: 28px; color: #aaa8b5; text-align: center; }
@@ -39,4 +44,5 @@
 .rights-pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 24px; color: #aaa8b5; font-size: 13px; }
 .rights-pagination button { border: 1px solid #494653; border-radius: 9px; padding: 9px 13px; background: #22212a; color: #eeecf3; cursor: pointer; }
 .rights-pagination button:disabled { opacity: .45; cursor: not-allowed; }
-@media (max-width: 650px) { .rights-shell { width: min(100% - 24px, 1120px); padding-top: 28px; } .rights-card { padding: 16px; } .rights-card-head { display: grid; } }
+@media (max-width: 760px) { .rights-filters { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 650px) { .rights-shell { width: min(100% - 24px, 1120px); padding-top: 28px; } .rights-card { padding: 16px; } .rights-card-head { display: grid; } .rights-filters { grid-template-columns: 1fr; } }

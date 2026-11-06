@@ -19,6 +19,9 @@ export default defineConfig({
     timeout: 30_000,
     env: {
       API_INTERNAL_URL: process.env.CINEGRAPH_E2E_API_URL ?? "http://127.0.0.1:18001/api/v1",
+      CINEGRAPH_LOCAL_ADMIN_MODE: "1",
+      CINEGRAPH_BIND_ADDRESS: "127.0.0.1",
+      CINEGRAPH_ADMIN_EMAIL: "adityavk1310@gmail.com",
       CINEGRAPH_NEXT_DIST_DIR: ".next-playwright",
     },
   },

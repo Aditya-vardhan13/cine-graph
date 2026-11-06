@@ -1536,3 +1536,25 @@ remain local and out of Git.
   build succeeded; Python audit and whitespace checks passed. No corpus facts,
   snapshots, passages or vectors were edited. The
   broader 100-film quality, rights and enrichment gates remain open.
+
+### Follow-up — filter the snapshot-scoped rights queue
+
+- The local review desk previously paginated all narrative snapshots but could
+  not narrow the queue to a film or its latest review state. Added server-side
+  film-title and state filters (`unreviewed`, `approved`, `denied`,
+  `review_required`), with counts and pagination scoped to the filtered result.
+  Matching is literal (SQL wildcard characters in a title are escaped), and
+  state is derived from the latest append-only decision for the semantic-model
+  use case.
+- Added responsive controls to the operator page and kept the review boundary
+  intact: this change adds no approval, changes no source/license metadata, and
+  does not index or embed any passage.
+- The Playwright test server now supplies explicit loopback-only local-admin
+  settings for its guarded proxy. The former browser failure was an unset
+  test-server environment (503), not absent Dark Knight fixture data.
+- Verification: focused real-PostgreSQL rights API integration assertions
+  cover matching, empty results, literal wildcard handling, invalid states,
+  and state transitions. Isolated API suite: **87 passed, 1 skipped** on
+  `cinegraph_test`; complete Playwright suite: **10 passed**. These are test
+  fixture results only; production/local-corpus rights decisions remain for
+  the operator and legal review.
