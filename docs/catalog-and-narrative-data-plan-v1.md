@@ -1412,7 +1412,7 @@ remain local and out of Git.
   Applied the reviewed additive migrations through `20261106_20`; no source,
   passage, chunk or vector rows were modified. The local rights ledger is
   present and empty. A subsequent read-only report over all **2,586** films
-  found **3,037** distinct narrative snapshots, all with recorded
+  found **3,037** distinct film-linked narrative snapshots, all with recorded
   license/attribution fields, **0** decisions and therefore **0** semantically
   eligible snapshots or vectors. There are **48,352** historically stored
   vectors; these are not currently available to retrieval under the policy.
@@ -1435,3 +1435,14 @@ remain local and out of Git.
   explicitly local-only, not production authentication. Docker frontend image
   build was separately blocked by a Docker Hub `node:22-alpine` metadata
   timeout; local Next build succeeded instead.
+- Extended the rights queue with a total count, bounded offset pagination and
+  deterministic ordering, and added previous/next controls so the operator
+  can reach beyond the first 100 snapshots. A real PostgreSQL API test verifies
+  two pages contain every snapshot exactly once. Verification: full non-
+  integration suite **290 passed**; focused PostgreSQL paging test **1 passed**;
+  full isolated API integration suite **86 passed, 1 skipped**; frontend unit
+  suite **5 passed**; Next production build succeeded; Playwright **8 passed**.
+  The integration stack retained its non-local admin denial check. No new
+  source approvals were made. The local live queue totals **3,039** snapshots:
+  **3,037** linked to film records plus **2** narrative snapshots without a
+  Film link. API reads returned 100 items at both offsets 0 and 100.

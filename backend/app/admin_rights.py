@@ -50,14 +50,24 @@ def _decision_out(row: NarrativeUseDecision | None) -> dict | None:
 
 
 @router.get("/queue", dependencies=[Depends(require_operator)])
-def review_queue(limit: int = Query(default=50, ge=1, le=200), db: Session = Depends(get_db)) -> dict:
+def review_queue(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0, le=1_000_000),
+    db: Session = Depends(get_db),
+) -> dict:
     """List distinct narrative snapshots with source metadata and review context."""
+    total = db.scalar(
+        select(func.count(func.distinct(SourceSnapshot.id)))
+        .join(NarrativePassage, NarrativePassage.source_snapshot_id == SourceSnapshot.id)
+        .where(SourceSnapshot.fetch_status == "success")
+    ) or 0
     candidate_ids = (
         select(SourceSnapshot.id.label("id"), func.max(SourceSnapshot.retrieved_at).label("latest_at"))
         .join(NarrativePassage, NarrativePassage.source_snapshot_id == SourceSnapshot.id)
         .where(SourceSnapshot.fetch_status == "success")
         .group_by(SourceSnapshot.id)
-        .order_by(func.max(SourceSnapshot.retrieved_at).desc())
+        .order_by(func.max(SourceSnapshot.retrieved_at).desc(), SourceSnapshot.id)
+        .offset(offset)
         .limit(limit)
         .subquery()
     )
@@ -70,7 +80,8 @@ def review_queue(limit: int = Query(default=50, ge=1, le=200), db: Session = Dep
     ).all()
     ids = {snapshot.id for snapshot, _source_name in snapshots}
     if not ids:
-        return {"use_case": SEMANTIC_MODEL_USE, "items": []}
+        return {"use_case": SEMANTIC_MODEL_USE, "items": [],
+                "total": total, "offset": offset, "limit": limit}
 
     passage_rows = db.execute(
         select(
@@ -109,7 +120,8 @@ def review_queue(limit: int = Query(default=50, ge=1, le=200), db: Session = Dep
             "samples": context.get("samples", []),
             "latest_decision": _decision_out(decisions.get(snapshot.id)),
         })
-    return {"use_case": SEMANTIC_MODEL_USE, "items": items}
+    return {"use_case": SEMANTIC_MODEL_USE, "items": items,
+            "total": total, "offset": offset, "limit": limit}
 
 
 @router.post("/{snapshot_id}", dependencies=[Depends(require_operator)])

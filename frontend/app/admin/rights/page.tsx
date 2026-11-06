@@ -16,23 +16,26 @@ const endpoint = "/api/admin/rights";
 export default function RightsReviewPage() {
   const [email, setEmail] = useState("");
   const [items, setItems] = useState<ReviewItem[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [basis, setBasis] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!email.trim()) { setItems([]); return; }
+    if (!email.trim()) { setItems([]); setTotal(0); return; }
     try {
-      const response = await fetch(`${endpoint}/queue?limit=100`, {
+      const response = await fetch(`${endpoint}/queue?limit=100&offset=${offset}`, {
         headers: { "x-operator-email": email.trim() }, cache: "no-store",
       });
       const body = await response.json();
       if (!response.ok) { setMessage(body.detail ?? "Could not load review queue"); return; }
       setItems(body.items ?? []);
+      setTotal(body.total ?? 0);
       setMessage("");
     } catch { setMessage("Could not reach the local API"); }
-  }, [email]);
+  }, [email, offset]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -65,12 +68,14 @@ export default function RightsReviewPage() {
     </header>
     <section className="rights-access">
       <label htmlFor="rights-email">Operator email</label>
-      <input id="rights-email" type="email" value={email} onChange={event => setEmail(event.target.value)}
+      <input id="rights-email" type="email" value={email} onChange={event => { setEmail(event.target.value); setOffset(0); }}
         autoComplete="email" placeholder="adityavk1310@gmail.com" />
       <p>Local pilot only. This operator log is not legal advice: an approval should be grounded in rights that cover the intended indexing and model-input use, not merely public visibility or attribution.</p>
     </section>
     {message && <p className="rights-message" role="status">{message}</p>}
-    <div className="rights-summary">{items.length} source snapshot{items.length === 1 ? "" : "s"} · purpose: semantic indexing and model input</div>
+    <div className="rights-summary">
+      {total === 0 ? "0" : `${offset + 1}–${Math.min(offset + items.length, total)}`} of {total} source snapshots · purpose: semantic indexing and model input
+    </div>
     <section className="rights-list" aria-label="Source snapshots awaiting or with review">
       {!email.trim() ? <p className="rights-empty">Enter the configured local operator email to load the queue.</p> :
         items.length === 0 ? <p className="rights-empty">No narrative snapshots found in the current queue.</p> : items.map(item => {
@@ -111,5 +116,10 @@ export default function RightsReviewPage() {
           </article>;
         })}
     </section>
+    {email.trim() && total > 0 && <nav className="rights-pagination" aria-label="Rights review pages">
+      <button type="button" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 100))}>← Previous</button>
+      <span>Page {Math.floor(offset / 100) + 1} of {Math.ceil(total / 100)}</span>
+      <button type="button" disabled={offset + items.length >= total} onClick={() => setOffset(offset + 100)}>Next →</button>
+    </nav>}
   </main>;
 }

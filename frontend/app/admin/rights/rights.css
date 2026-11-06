@@ -36,4 +36,7 @@
 .rights-actions button:first-child { border-color: #806bc1; background: #5c4b91; }
 .rights-actions button:last-child { color: #ffb9b9; }
 .rights-actions button:disabled { opacity: .55; cursor: wait; }
+.rights-pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 24px; color: #aaa8b5; font-size: 13px; }
+.rights-pagination button { border: 1px solid #494653; border-radius: 9px; padding: 9px 13px; background: #22212a; color: #eeecf3; cursor: pointer; }
+.rights-pagination button:disabled { opacity: .45; cursor: not-allowed; }
 @media (max-width: 650px) { .rights-shell { width: min(100% - 24px, 1120px); padding-top: 28px; } .rights-card { padding: 16px; } .rights-card-head { display: grid; } }

@@ -83,11 +83,20 @@ def test_review_api_records_per_snapshot_versions_and_latest_decision_wins():
                           headers={"x-operator-email": "someone-else@example.com"}).status_code == 401
         queue = client.get("/api/v1/admin/rights/queue", headers=headers)
         assert queue.status_code == 200
+        assert queue.json()["total"] == 2
+        assert queue.json()["offset"] == 0
         item = next(row for row in queue.json()["items"] if row["snapshot_id"] == str(snapshot_id))
         assert item["snapshot_id"] == str(snapshot_id)
         assert item["latest_decision"] is None
         assert item["films"] == ["Review Queue Film"]
         assert item["samples"][0]["section"] == "plot"
+        first_page = client.get("/api/v1/admin/rights/queue?limit=1&offset=0", headers=headers).json()
+        second_page = client.get("/api/v1/admin/rights/queue?limit=1&offset=1", headers=headers).json()
+        assert first_page["total"] == second_page["total"] == 2
+        first_id = first_page["items"][0]["snapshot_id"]
+        second_id = second_page["items"][0]["snapshot_id"]
+        assert first_id != second_id
+        assert {first_id, second_id} == {str(snapshot_id), str(second_snapshot_id)}
 
         missing_basis = client.post(f"/api/v1/admin/rights/{snapshot_id}", headers=headers,
                                     json={"decision": "approved", "decision_notes": "Reviewed scope."})
