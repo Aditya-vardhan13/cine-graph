@@ -2177,6 +2177,50 @@ remain local and out of Git.
   be reached from the host and Docker cannot recreate its test image. The
   offline replay stays green; no database or source artifact was modified.
 
+### Follow-up — derive review-only cast and character candidates
+
+- Added an offline adapter for explicit `Actor as Character` phrases in
+  cast-labelled sections of retained English Wikipedia passage derivatives.
+  Exact actor labels already captured from Wikidata may be linked to their
+  QID. Other names remain `unresolved_source_name` with no actor QID. Group
+  roles and empty role labels are quarantined. Every row remains
+  `review_required`; the report has `operational_fact_write: false` and does
+  not write to the database, fetch the web, approve semantic use or create
+  embeddings.
+- Ran the adapter across the retained rank 11–100 capture (90 films). All 90
+  have a cast-labelled passage and at least one explicit candidate phrase.
+  The report contains **1,831 candidates**: **1,365** have a captured Wikidata
+  actor QID and **466** are source-only unresolved names. **232** candidate
+  role labels also match a captured Wikidata character label after
+  case/whitespace normalization; this is a string match, not proof of the
+  actor-character assignment. **36** rows were quarantined (28 group-role and
+  8 empty-role cases). Example rows include Matthew Broderick → Simba from
+  *The Lion King* as an unresolved actor name, and source-linked
+  Shameik Moore → Miles Morales / Spider-Man from *Spider-Man: Into the
+  Spider-Verse*. These examples are candidates, not approved credits.
+- The current local report is
+  `data/evaluation/catalog-intake/english100-rank11-100-v1/wikipedia-cast-candidates-v4.json`;
+  it is ignored by Git with the capture data. The script verifies the capture
+  and label manifests, Wikipedia CC BY-SA 4.0 attribution URL, snapshot and
+  derivative hashes, parser/source revision binding and source locator before
+  emitting candidates. A representative manual inspection of *The Lion King*,
+  *Spider-Man: Into the Spider-Verse*, *Avengers: Endgame* and *WALL·E* found
+  explicit names and roles retained with their cast-section provenance; absent
+  Wikidata actor IDs remain unresolved rather than guessed.
+- Added focused parser and integrity tests, including duplicate labels,
+  multiline separation, middle initials, quoted nicknames, group roles and
+  tampered content. Focused tests passed **13/13** before the final nickname
+  refinement; the final focused cast suite passed **11/11**. The full backend
+  non-integration suite passed **364 tests**, with **88 integration tests
+  deselected**. This checks the offline adapter only; DB/API/browser publication
+  and reviewed credit correctness remain open gates.
+- No catalog rows, snapshots, vectors or rights decisions were changed. Next:
+  resolve source-only people against permitted retained identity sources,
+  review actor-character candidates (especially alternate/voice roles), then
+  pass only approved mappings through the existing snapshot → source assertion
+  → reviewed `Assertion` path. Do not treat the 90-film report as complete
+  credit coverage or as evidence that the 1,000-film collection is vetted.
+
 ### Follow-up — rank 11–100 Wikidata credit-label capture audited
 
 - Completed the resumable EntityData capture for all **2,467** person and
