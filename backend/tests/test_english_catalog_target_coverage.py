@@ -65,3 +65,18 @@ def test_target_coverage_rejects_incomplete_identity_audit():
             {"candidate_count": 1, "candidates": [{"selection_rank": 1}]},
             {"candidates": []}, {"candidates": []}, {"films": []},
         )
+
+
+def test_target_coverage_rejects_duplicate_identity_rank_and_readiness_id():
+    target = {"candidate_count": 1, "candidates": [{"selection_rank": 1}]}
+    identity = {"candidates": [
+        {"selection_rank": 1, "catalog_candidates": []},
+        {"selection_rank": 1, "catalog_candidates": []},
+    ]}
+    with pytest.raises(ValueError, match="repeats selection rank"):
+        build_english_catalog_target_coverage(target, identity, {"candidates": []}, {"films": []})
+
+    identity = {"candidates": [{"selection_rank": 1, "catalog_candidates": []}]}
+    readiness = {"films": [{"film_id": "f1"}, {"film_id": "f1"}]}
+    with pytest.raises(ValueError, match="repeats film_id"):
+        build_english_catalog_target_coverage(target, identity, {"candidates": []}, readiness)

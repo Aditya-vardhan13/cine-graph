@@ -14,11 +14,38 @@ def build_english_catalog_target_coverage(
     readiness_rows = readiness.get("films")
     if not isinstance(readiness_rows, list):
         raise ValueError("Readiness report must contain a films array")
-    readiness_by_id = {row.get("film_id"): row for row in readiness_rows if isinstance(row, dict)}
-    identity_by_rank = {row["selection_rank"]: row for row in identity.get("candidates", [])}
-    imdb_by_rank = {row["selection_rank"]: row for row in imdb_review.get("candidates", [])}
-    if set(identity_by_rank) != set(range(1, target["candidate_count"] + 1)):
+    readiness_by_id: dict[str, dict[str, Any]] = {}
+    for row in readiness_rows:
+        if not isinstance(row, dict) or not isinstance(row.get("film_id"), str):
+            raise ValueError("Readiness rows must have a string film_id")
+        if row["film_id"] in readiness_by_id:
+            raise ValueError(f"Readiness report repeats film_id {row['film_id']}")
+        readiness_by_id[row["film_id"]] = row
+
+    def ranked_rows(report: dict[str, Any], label: str) -> dict[int, dict[str, Any]]:
+        rows = report.get("candidates")
+        if not isinstance(rows, list):
+            raise ValueError(f"{label} report must contain a candidates array")
+        result: dict[int, dict[str, Any]] = {}
+        for row in rows:
+            if not isinstance(row, dict) or not isinstance(row.get("selection_rank"), int):
+                raise ValueError(f"{label} rows must have an integer selection_rank")
+            rank = row["selection_rank"]
+            if rank in result:
+                raise ValueError(f"{label} report repeats selection rank {rank}")
+            result[rank] = row
+        return result
+
+    target_ranks = [row.get("selection_rank") for row in target.get("candidates", [])]
+    expected_ranks = list(range(1, target["candidate_count"] + 1))
+    if target_ranks != expected_ranks:
+        raise ValueError("Target rows must have unique contiguous selection ranks")
+    identity_by_rank = ranked_rows(identity, "Identity")
+    imdb_by_rank = ranked_rows(imdb_review, "IMDb review")
+    if set(identity_by_rank) != set(expected_ranks):
         raise ValueError("Identity audit does not cover every target rank")
+    if not set(imdb_by_rank).issubset(set(expected_ranks)):
+        raise ValueError("IMDb review contains a rank outside the target")
 
     items: list[dict[str, Any]] = []
     mapping_states: Counter[str] = Counter()
