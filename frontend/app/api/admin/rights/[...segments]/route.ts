@@ -13,10 +13,9 @@ async function forward(request: NextRequest, context: Context): Promise<NextResp
   const path = allowedPath(segments);
   if (!path) return NextResponse.json({ detail: "Unknown rights review route" }, { status: 404 });
   const operatorEmail = process.env.CINEGRAPH_ADMIN_EMAIL;
-  const internalToken = process.env.ADMIN_INTAKE_TOKEN;
   if (process.env.CINEGRAPH_LOCAL_ADMIN_MODE !== "1" ||
       process.env.CINEGRAPH_BIND_ADDRESS !== "127.0.0.1" ||
-      !operatorEmail || !internalToken || internalToken.length < 24) {
+      !operatorEmail) {
     return NextResponse.json({ detail: "Local rights review is unavailable" }, { status: 503 });
   }
   if (request.headers.get("x-operator-email")?.trim().toLowerCase() !== operatorEmail.toLowerCase()) {
@@ -31,7 +30,6 @@ async function forward(request: NextRequest, context: Context): Promise<NextResp
     const response = await fetch(`${base}/admin/rights/${path}${request.nextUrl.search}`, {
       method: request.method,
       headers: {
-        authorization: `Bearer ${internalToken}`,
         ...(request.method === "POST" ? { "content-type": "application/json" } : {}),
         "x-operator-email": operatorEmail,
       },

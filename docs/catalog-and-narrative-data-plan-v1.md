@@ -1425,3 +1425,13 @@ remain local and out of Git.
   returning zero eligible vectors rather than querying a nonexistent table.
   This was exercised first against the pre-migration schema and then against
   the migrated local database.
+- The production Next build and frontend unit tests pass after the admin proxy
+  fix. The local Docker API is healthy, and `GET /admin/rights` plus the
+  proxied rights queue both returned HTTP 200 using the configured operator
+  email. This exposed a dead `ADMIN_INTAKE_TOKEN` requirement in both admin
+  proxies: Compose does not configure that token and the API does not validate
+  its bearer value. Removed the unused check/header while retaining local-mode,
+  loopback-bind and exact operator-email checks at the proxy and API. This is
+  explicitly local-only, not production authentication. Docker frontend image
+  build was separately blocked by a Docker Hub `node:22-alpine` metadata
+  timeout; local Next build succeeded instead.
