@@ -144,6 +144,43 @@ class SourceSnapshot(Base):
     assertions: Mapped[list[SourceAssertion]] = relationship(back_populates="snapshot", cascade="all, delete-orphan")
 
 
+class NarrativeUseDecision(Base):
+    """Append-only operator decision for a snapshot and a named model-use purpose."""
+
+    __tablename__ = "narrative_use_decisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_snapshot_id", "use_case", "decision_version",
+            name="uq_narrative_use_decision_version",
+        ),
+        CheckConstraint(
+            "use_case IN ('semantic_index_and_model_input')",
+            name="ck_narrative_use_decision_use_case",
+        ),
+        CheckConstraint(
+            "decision IN ('approved', 'denied', 'review_required')",
+            name="ck_narrative_use_decision_status",
+        ),
+        CheckConstraint(
+            "decision != 'approved' OR (decision_basis_url IS NOT NULL "
+            "AND decision_basis_url LIKE 'https://%' "
+            "AND length(trim(decision_notes)) >= 8)",
+            name="ck_narrative_use_decision_approval_basis",
+        ),
+        CheckConstraint("decision_version > 0", name="ck_narrative_use_decision_version_positive"),
+        Index("ix_narrative_use_decision_latest", "source_snapshot_id", "use_case", "decision_version"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_snapshot_id: Mapped[UUID] = mapped_column(ForeignKey("source_snapshots.id"), nullable=False)
+    use_case: Mapped[str] = mapped_column(String(60), nullable=False)
+    decision: Mapped[str] = mapped_column(String(30), nullable=False)
+    decision_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    decision_basis_url: Mapped[str | None] = mapped_column(String(1000))
+    decision_notes: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewer: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class RawIngestionRunSnapshot(Base):
     """Associates a replayed run with both newly created and reused immutable snapshots."""
 

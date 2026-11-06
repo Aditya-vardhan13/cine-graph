@@ -12,6 +12,7 @@ from app.models import (
     EvidenceChunk,
     LanguageEdition,
     NarrativePassage,
+    NarrativeUseDecision,
     RawIngestionRun,
     ReferenceCollection,
     ReferenceCollectionMembership,
@@ -143,7 +144,15 @@ def test_article_snapshot_and_passages_keep_revision_provenance(tmp_path) -> Non
         assert blocked_report["passages_rights_blocked"] == 3
         # Attribution allows source-linked display, but does not implicitly
         # approve semantic indexing or model-input use.
-        source.rights_status = "semantic_use_approved"
+        db.add(NarrativeUseDecision(
+            source_snapshot_id=snapshot_id,
+            use_case="semantic_index_and_model_input",
+            decision="approved",
+            decision_version=1,
+            decision_basis_url="https://creativecommons.org/licenses/by-sa/4.0/",
+            decision_notes="Explicit integration-test decision for the retained HTML fixture.",
+            reviewer="integration-test",
+        ))
         db.commit()
         build_evidence_chunks(
             db, collection_code=collection.code,

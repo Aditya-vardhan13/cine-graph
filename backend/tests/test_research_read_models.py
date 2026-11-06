@@ -13,7 +13,7 @@ from app.db import Base
 from app.models import (
     Assertion, CanonicalEntity, DataSource, EmbeddingIndexRun, EmbeddingModel,
     EvidenceChunk, EvidenceChunkRun, EvidenceEmbedding, LanguageEdition,
-    NarrativePassage, ReferenceCollection, ReferenceCollectionMembership, SourceObject, SourceSnapshot,
+    NarrativePassage, NarrativeUseDecision, ReferenceCollection, ReferenceCollectionMembership, SourceObject, SourceSnapshot,
     ResearchAnswer, ResearchAnswerEvidence,
 )
 from app.schemas import CorpusQualityOut, ResearchFilmOut
@@ -45,7 +45,7 @@ def research_db():
     with Session(engine) as db:
         db.add(LanguageEdition(code="en", display_name="English", script="Latin", enabled=True))
         source = DataSource(name="English Wikipedia", url="https://en.wikipedia.org/", source_type="wiki",
-                            license="CC BY-SA 4.0", rights_status="semantic_use_approved")
+                            license="CC BY-SA 4.0", rights_status="attributed_reuse")
         metadata_source = DataSource(name="Wikidata", url="https://www.wikidata.org/", source_type="metadata",
                                      license="CC0 1.0", rights_status="open")
         film = CanonicalEntity(canonical_label="Her (2013 film)", entity_kind="film", wikidata_id="Q788822")
@@ -69,6 +69,13 @@ def research_db():
                                   parser_version="retained-fixture-v1")
         db.add(snapshot)
         db.flush()
+        db.add(NarrativeUseDecision(
+            source_snapshot_id=snapshot.id, use_case="semantic_index_and_model_input",
+            decision="approved", decision_version=1,
+            decision_basis_url="https://creativecommons.org/licenses/by-sa/4.0/",
+            decision_notes="Retained test fixture approval for the explicitly source-attributed excerpt.",
+            reviewer="fixture-reviewer",
+        ))
         db.add(NarrativePassage(subject_entity_id=film.id, source_snapshot_id=snapshot.id,
                                 section_locator="plot", section_title="Plot", ordinal=0,
                                 content=passage["content"], content_hash=digest,
@@ -426,6 +433,12 @@ def test_preprocessing_selects_only_one_source_version(research_db):
     )
     db.add(recovered)
     db.flush()
+    db.add(NarrativeUseDecision(
+        source_snapshot_id=recovered.id, use_case="semantic_index_and_model_input",
+        decision="approved", decision_version=1,
+        decision_basis_url="https://creativecommons.org/licenses/by-sa/4.0/",
+        decision_notes="Explicit test approval for this distinct recovered snapshot.", reviewer="fixture-reviewer",
+    ))
     db.add(NarrativePassage(
         subject_entity_id=old_passage.subject_entity_id, source_snapshot_id=recovered.id,
         section_locator="plot", section_title="Plot", ordinal=0,
@@ -457,6 +470,12 @@ def test_new_source_revision_creates_new_run_without_mutating_prior_evidence(res
     )
     db.add(newer)
     db.flush()
+    db.add(NarrativeUseDecision(
+        source_snapshot_id=newer.id, use_case="semantic_index_and_model_input",
+        decision="approved", decision_version=1,
+        decision_basis_url="https://creativecommons.org/licenses/by-sa/4.0/",
+        decision_notes="Explicit test approval for this distinct later revision.", reviewer="fixture-reviewer",
+    ))
     db.add(NarrativePassage(
         subject_entity_id=first_chunks[0].subject_entity_id, source_snapshot_id=newer.id,
         section_locator="plot", section_title="Plot", ordinal=0,

@@ -212,6 +212,16 @@ production or reception present; rights eligible/review needed; source
 snapshot available/checksum failure; indexed/not indexed. These states are
 not a substitute for reviewing the meaning of content.
 
+Narrative model-use eligibility is recorded per immutable `SourceSnapshot` and
+per named purpose, not as a source-wide switch. The append-only decision ledger
+retains version, reviewer, rationale and a basis URL. Only the latest explicit
+`approved` decision for `semantic_index_and_model_input`, together with the
+snapshot's supported license and attribution, can feed chunking, embeddings,
+retrieval or model context. Missing decisions default to excluded; a later
+denial or deferral revokes eligibility without deleting previous review
+history. The local operator UI records a review decision; it is not a legal
+determination or authentication system for public deployment.
+
 Quarantine ambiguous IDs, invalid source data, broken snapshot checksums,
 conflicting claims and unclear rights. Do not discard them silently. A review
 can approve, reject or defer an item and must preserve the reason and source.
@@ -1353,3 +1363,34 @@ remain local and out of Git.
   a reuse-rights decision. Independent per-credit review, broader source
   support and rights decisions, and the frozen question-led retrieval
   evaluation are still required before the next catalog expansion gate.
+
+### Follow-up — snapshot-scoped narrative-use review
+
+- Replaced the source-wide semantic-use gate with an append-only
+  `NarrativeUseDecision` ledger keyed by immutable snapshot, purpose and
+  decision version. A database trigger rejects updates/deletes, and a database
+  constraint requires an approval basis URL and rationale. Ingestion
+  chunking, the offline RAG-corpus exporter, and every embedding/retrieval/
+  model-input query require the latest decision to be explicitly approved; no
+  pre-existing source-wide flag is migrated into an implicit approval. Changing
+  the decision changes the preprocessing manifest, and a later denial removes
+  already-created chunks
+  from eligible retrieval without destroying their lineage.
+- Added a local review queue showing source/revision/license/hash, linked film
+  labels, section samples and the latest decision. Approval requires a retained
+  attribution URL, an HTTPS basis URL and an operator rationale; the interface
+  explicitly says this is a recorded operator decision, not legal advice.
+  Decisions can be revised only by appending a new version.
+- The default catalog's existing Wikipedia snapshots have no new per-snapshot
+  approvals, so this change deliberately excludes them from semantic use until
+  reviewed in the local operator desk. This is a safety/rights workflow, not a
+  content-quality or product-readiness claim.
+- Verification: focused policy/preprocessing tests **14 passed**; full offline
+  regression suite **289 passed**; isolated PostgreSQL/API integration suite
+  **86 passed, 1 skipped**; frontend production build succeeded; Playwright
+  **8 passed**. The integration checks cover schema migration, review queue,
+  authorization rejection, per-revision independence, versioning, database
+  append-only enforcement and retrieval revocation. Raw data, vectors and the
+  working corpus were not changed. This milestone does not complete the
+  catalog plan: source/field quality, broader rights review, retrieval quality
+  evaluation and the 100/1,000-title expansion gates remain open.

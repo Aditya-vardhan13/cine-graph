@@ -24,15 +24,14 @@ from sqlalchemy.orm import Session, aliased
 
 from app.db import SessionLocal
 from app.models import (
-    DataSource,
     EvidenceChunk,
     EvidenceChunkRun,
     NarrativePassage,
     ReferenceCollection,
     ReferenceCollectionMembership,
-    SourceObject,
     SourceSnapshot,
 )
+from app.services.narrative_use_decisions import latest_decisions
 from app.services.source_rights_policy import can_use_narrative_semantically
 
 
@@ -347,32 +346,17 @@ def build_evidence_chunks(
         if any(len(versions) > 1 for versions in per_snapshot_versions.values()):
             raise ValueError("A source snapshot has multiple extraction versions; select one in ChunkConfiguration.")
     snapshot_ids = {snapshot.id for _, snapshot in selected}
-    source_pairs = db.execute(
-        select(SourceSnapshot.id, SourceObject.source_id)
-        .join(SourceObject, SourceObject.id == SourceSnapshot.source_object_id)
-        .where(SourceSnapshot.id.in_(snapshot_ids))
-    ).all() if snapshot_ids else []
-    source_ids = {source_id for _, source_id in source_pairs}
-    sources = {}
-    if source_ids:
-        sources = {
-            source.id: source
-            for source in db.scalars(
-                select(DataSource)
-                .where(DataSource.id.in_(source_ids))
-                .execution_options(populate_existing=True)
-            )
-        }
-    source_by_snapshot = dict(source_pairs)
-    passages = [
-        (passage, snapshot, sources.get(source_by_snapshot.get(snapshot.id)))
-        for passage, snapshot in selected
-    ]
+    decisions = latest_decisions(db, snapshot_ids)
+    passages = [(passage, snapshot) for passage, snapshot in selected]
     rights_manifest = hashlib.sha256()
-    for passage, snapshot, source in passages:
+    for passage, snapshot in passages:
+        decision = decisions.get(snapshot.id)
         rights_manifest.update(
             f"{passage.id}:{snapshot.id}:{snapshot.license}:"
-            f"{snapshot.attribution_url or ''}:{source.rights_status if source else 'missing'}\n".encode("utf-8")
+            f"{snapshot.attribution_url or ''}:{decision.decision_version if decision else 0}:"
+            f"{decision.decision if decision else 'review_required'}:"
+            f"{decision.decision_basis_url if decision else ''}:"
+            f"{decision.decision_notes if decision else ''}\n".encode("utf-8")
         )
     configuration, configuration_hash = _input_configuration(
         config, selected, rights_manifest.hexdigest(),
@@ -395,12 +379,15 @@ def build_evidence_chunks(
 
     created = reused = excluded = passages_eligible = passages_rights_blocked = 0
     try:
-        for passage, snapshot, source in passages:
+        for passage, snapshot in passages:
             license_name = snapshot.license
             attribution_url = snapshot.attribution_url
             if (license_name not in ALLOWED_NARRATIVE_LICENSES or not attribution_url
-                    or source is None
-                    or not can_use_narrative_semantically(rights_status=source.rights_status)):
+                    or not can_use_narrative_semantically(
+                        decision=decisions[snapshot.id].decision if snapshot.id in decisions else None,
+                        basis_url=decisions[snapshot.id].decision_basis_url if snapshot.id in decisions else None,
+                        notes=decisions[snapshot.id].decision_notes if snapshot.id in decisions else None,
+                    )):
                 passages_rights_blocked += 1
                 continue
             passages_eligible += 1
@@ -511,18 +498,16 @@ def evidence_chunk_quality_report(
         selected = [(passage, snapshot) for passage, snapshot in selected
                     if passage.extraction_version == config.extraction_version]
     snapshot_ids = {snapshot.id for _, snapshot in selected}
-    source_pairs = db.execute(
-        select(SourceSnapshot.id, SourceObject.source_id, DataSource.rights_status)
-        .join(SourceObject, SourceObject.id == SourceSnapshot.source_object_id)
-        .join(DataSource, DataSource.id == SourceObject.source_id)
-        .where(SourceSnapshot.id.in_(snapshot_ids))
-    ).all() if snapshot_ids else []
-    rights_by_snapshot = {snapshot_id: status for snapshot_id, _source_id, status in source_pairs}
+    decisions = latest_decisions(db, snapshot_ids)
     rights_manifest = hashlib.sha256()
     for passage, snapshot in selected:
+        decision = decisions.get(snapshot.id)
         rights_manifest.update(
             f"{passage.id}:{snapshot.id}:{snapshot.license}:"
-            f"{snapshot.attribution_url or ''}:{rights_by_snapshot.get(snapshot.id, 'missing')}\n".encode("utf-8")
+            f"{snapshot.attribution_url or ''}:{decision.decision_version if decision else 0}:"
+            f"{decision.decision if decision else 'review_required'}:"
+            f"{decision.decision_basis_url if decision else ''}:"
+            f"{decision.decision_notes if decision else ''}\n".encode("utf-8")
         )
     _, configuration_hash = _input_configuration(config, selected, rights_manifest.hexdigest())
     run = db.scalar(select(EvidenceChunkRun).where(

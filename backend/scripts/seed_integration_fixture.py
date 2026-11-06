@@ -26,6 +26,7 @@ from app.models import (
     IngestionBatch,
     LanguageEdition,
     NarrativePassage,
+    NarrativeUseDecision,
     Person,
     ReferenceCollection,
     ReferenceCollectionMembership,
@@ -215,7 +216,7 @@ def seed() -> None:
             url="https://en.wikipedia.org/",
             source_type="recorded_test_fixture",
             license="CC BY-SA 4.0",
-            rights_status="semantic_use_approved",
+            rights_status="attributed_reuse",
             notes="Attributable local prose fixture; no external request.",
         )
         collection = ReferenceCollection(
@@ -262,6 +263,18 @@ def seed() -> None:
         )
         db.add_all([snapshot, begins_snapshot])
         db.flush()
+        db.add_all([
+            NarrativeUseDecision(
+                source_snapshot_id=item.id,
+                use_case="semantic_index_and_model_input",
+                decision="approved",
+                decision_version=1,
+                decision_basis_url="https://creativecommons.org/licenses/by-sa/4.0/",
+                decision_notes="Explicit retained-fixture decision for integration tests only.",
+                reviewer="fixture-seed",
+            )
+            for item in (snapshot, begins_snapshot)
+        ])
         passage_text = (
             "Batman, Gordon, and Harvey Dent work together to dismantle Gotham's organised crime. "
             "The Joker turns that campaign into escalating public tests of law, trust, and personal moral limits. "

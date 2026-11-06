@@ -4,16 +4,17 @@ DISPLAYABLE_RIGHTS_STATUSES = frozenset({
     "open",
     "attributed_reuse",
     "attribution_required",
+    # Legacy source-wide label: tolerated for old source metadata display only.
+    # It is never consulted for semantic/model-use eligibility anymore.
+    "semantic_use_approved",
 })
 LOCAL_NONCOMMERCIAL_STATUS = "local_noncommercial_only"
 
 # Semantic retrieval, embedding and model-input use is deliberately separate
-# from displaying a source-linked metadata assertion.  CC BY-SA article prose
-# is reusable subject to attribution/share-alike obligations, but this app has
-# not completed the product-specific review for indexing, excerpting and
-# downstream model use.  A per-asset explicit approval is required before a
-# narrative source can enter those paths.
-NARRATIVE_SEMANTIC_USE_STATUSES = frozenset({"semantic_use_approved"})
+# from displaying a source-linked metadata assertion. Eligibility requires a
+# versioned decision for the specific immutable snapshot and purpose; source-
+# wide metadata cannot authorize every current and future asset at once.
+NARRATIVE_USE_DECISIONS = frozenset({"approved"})
 
 
 def displayable_rights_statuses(*, include_noncommercial: bool = False) -> tuple[str, ...]:
@@ -34,6 +35,12 @@ def can_display_source(*, rights_status: str, include_noncommercial: bool = Fals
     return rights_status in displayable_rights_statuses(include_noncommercial=include_noncommercial)
 
 
-def can_use_narrative_semantically(*, rights_status: str) -> bool:
-    """Require explicit per-source approval before embedding/retrieval use."""
-    return rights_status in NARRATIVE_SEMANTIC_USE_STATUSES
+def can_use_narrative_semantically(
+    *, decision: str | None, basis_url: str | None, notes: str | None,
+) -> bool:
+    """Require an explicit, auditable latest per-snapshot purpose approval."""
+    return bool(
+        decision in NARRATIVE_USE_DECISIONS
+        and basis_url and basis_url.strip()
+        and notes and len(notes.strip()) >= 8
+    )

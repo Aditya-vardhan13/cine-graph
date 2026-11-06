@@ -9,11 +9,12 @@ import httpx
 import pytest
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.models import (
     Assertion, AssertionEvidence, CanonicalEntity, DataSource, EmbeddingIndexRun, EmbeddingModel,
-    EvidenceChunk, EvidenceChunkRun, EvidenceEmbedding, Film, ReferenceCollection, ReferenceCollectionMembership,
+    EvidenceChunk, EvidenceChunkRun, EvidenceEmbedding, Film, NarrativeUseDecision, ReferenceCollection, ReferenceCollectionMembership,
     SourceAssertion, SourceObject, SourceSnapshot,
 )
 from app.migrations import alembic_config
@@ -22,6 +23,7 @@ from app.services.embedding_index import _ordered_chunks_and_contents
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.retrieval_scope import resolve_retrieval_scope
 from app.services.research_credits import sourced_credit_groups
+from app.services.narrative_use_decisions import next_decision_version
 from app.services.story_synthesis import synthesize_story_brief
 
 API_URL = os.environ.get("CINEGRAPH_INTEGRATION_API_URL", "http://127.0.0.1:18001")
@@ -95,6 +97,42 @@ def test_health_and_catalogue_are_served_from_real_postgresql() -> None:
         assert connection.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm')")) is True
         assert connection.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')")) is True
         assert connection.scalar(text("SELECT to_regclass('public.ix_films_canonical_title_trgm')")) == "ix_films_canonical_title_trgm"
+
+
+def test_narrative_use_decisions_are_database_enforced_append_only() -> None:
+    engine = create_engine(DATABASE_URL)
+    with engine.connect() as connection:
+        decision_id = connection.scalar(text(
+            "SELECT id FROM narrative_use_decisions ORDER BY created_at LIMIT 1"
+        ))
+        assert decision_id is not None
+        connection.commit()
+        with pytest.raises(DBAPIError, match="append-only"):
+            connection.execute(text(
+                "UPDATE narrative_use_decisions SET decision_notes = 'silently changed' WHERE id = :id"
+            ), {"id": decision_id})
+        connection.rollback()
+    engine.dispose()
+
+
+def test_narrative_approval_requires_https_basis_and_rationale_at_database_level() -> None:
+    engine = create_engine(DATABASE_URL)
+    with Session(engine) as db:
+        prior = db.execute(text(
+            "SELECT source_snapshot_id, max(decision_version) "
+            "FROM narrative_use_decisions GROUP BY source_snapshot_id LIMIT 1"
+        )).one()
+        with pytest.raises(DBAPIError, match="ck_narrative_use_decision_approval_basis"):
+            db.execute(text(
+                "INSERT INTO narrative_use_decisions "
+                "(id, source_snapshot_id, use_case, decision, decision_version, decision_basis_url, "
+                "decision_notes, reviewer) VALUES (:id, :snapshot_id, 'semantic_index_and_model_input', "
+                "'approved', :version, 'http://example.test/policy', 'Basis uses a disallowed scheme', 'integration-test')"
+            ), {"id": uuid4(), "snapshot_id": prior.source_snapshot_id,
+                "version": prior.max + 1})
+            db.commit()
+        db.rollback()
+    engine.dispose()
 
 
 def test_film_api_keeps_credit_and_label_sources_separate() -> None:
@@ -213,25 +251,42 @@ def test_attributed_wikipedia_passages_are_not_semantically_retrievable_without_
             DataSource.name == "Integration Wikipedia narrative fixture",
         ))
         assert source is not None
-        original_status = source.rights_status
-        source.rights_status = "attributed_reuse"
+        snapshot = db.scalar(select(SourceSnapshot).join(
+            SourceObject, SourceObject.id == SourceSnapshot.source_object_id,
+        ).where(SourceObject.source_id == source.id, SourceObject.external_id == "The_Dark_Knight"))
+        assert snapshot is not None
+        version = next_decision_version(db, snapshot.id)
+        db.add(NarrativeUseDecision(
+            source_snapshot_id=snapshot.id, use_case="semantic_index_and_model_input",
+            decision="denied", decision_version=version,
+            decision_notes="Integration regression verifies a later denial revokes prior eligibility.",
+            reviewer="integration-test",
+        ))
         db.commit()
         existing_chunk_run = db.scalar(select(EvidenceChunkRun).where(
             EvidenceChunkRun.collection_code == "integration-narrative-v1",
             EvidenceChunkRun.status == "complete",
         ).order_by(EvidenceChunkRun.completed_at.desc()).limit(1))
         assert existing_chunk_run is not None
-        assert _ordered_chunks_and_contents(db, existing_chunk_run) == ([], [])
-        scope = resolve_retrieval_scope(db, collection_code="integration-narrative-v1")
         entity_id = db.scalar(select(CanonicalEntity.id).where(CanonicalEntity.wikidata_id == "Q163872"))
         assert entity_id is not None
+        chunks, _contents = _ordered_chunks_and_contents(db, existing_chunk_run)
+        assert chunks
+        assert all(chunk.subject_entity_id != entity_id for chunk in chunks)
+        scope = resolve_retrieval_scope(db, collection_code="integration-narrative-v1")
         lexical = retrieve_narrative_candidates(
             db, subject_entity_id=entity_id, question_id="story.writer_focus",
             question_text="Batman conflict and choice", method=NarrativeRetrievalMethod.LEXICAL,
             limit=3, candidate_limit=10, scope=scope,
         )
         assert lexical.evidence == ()
-        source.rights_status = original_status
+        db.add(NarrativeUseDecision(
+            source_snapshot_id=snapshot.id, use_case="semantic_index_and_model_input",
+            decision="approved", decision_version=next_decision_version(db, snapshot.id),
+            decision_basis_url="https://creativecommons.org/licenses/by-sa/4.0/",
+            decision_notes="Restore fixture eligibility for subsequent integration checks.",
+            reviewer="integration-test",
+        ))
         db.commit()
         assert _ordered_chunks_and_contents(db, existing_chunk_run)[0]
         approved = retrieve_narrative_candidates(

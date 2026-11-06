@@ -135,6 +135,7 @@ export default function IntakePage() {
   return <main className="intake-shell">
     <div className="intake-head"><span className="intake-kicker">CineGraph · Local operator desk</span>
       <h1>Add films to the research corpus</h1>
+      <a href="/admin/rights">Review narrative-use permissions →</a>
       <p>Find exact titles in the local IMDb index, select several, and submit once. Each film moves through attributable source ingestion; uncertain matches stop for review.</p>
     </div>
     <section className="intake-panel" aria-label="Operator access">

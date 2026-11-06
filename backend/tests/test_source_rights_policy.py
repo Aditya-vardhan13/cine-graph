@@ -21,12 +21,25 @@ def test_noncommercial_metadata_requires_explicit_local_opt_in():
     assert can_display_source(rights_status="local_noncommercial_only", include_noncommercial=True)
     assert displayable_rights_statuses(include_noncommercial=True) == (
         "attributed_reuse", "attribution_required", "local_noncommercial_only", "open",
+        "semantic_use_approved",
     )
 
 
-def test_semantic_use_requires_explicit_source_approval_separate_from_display_rights():
+def test_semantic_use_requires_explicit_snapshot_decision_separate_from_display_rights():
     assert can_display_source(rights_status="attributed_reuse")
-    assert not can_use_narrative_semantically(rights_status="attributed_reuse")
-    assert not can_use_narrative_semantically(rights_status="local_noncommercial_only")
-    assert not can_use_narrative_semantically(rights_status="review_required")
-    assert can_use_narrative_semantically(rights_status="semantic_use_approved")
+    assert not can_use_narrative_semantically(decision=None, basis_url=None, notes=None)
+    assert not can_use_narrative_semantically(
+        decision="review_required", basis_url="https://example.test/policy", notes="Reviewed scope.",
+    )
+    assert not can_use_narrative_semantically(
+        decision="denied", basis_url="https://example.test/policy", notes="Reviewed scope.",
+    )
+    assert not can_use_narrative_semantically(
+        decision="approved", basis_url=None, notes="Reviewed scope.",
+    )
+    assert not can_use_narrative_semantically(
+        decision="approved", basis_url="https://example.test/policy", notes="short",
+    )
+    assert can_use_narrative_semantically(
+        decision="approved", basis_url="https://example.test/policy", notes="Reviewed intended use.",
+    )

@@ -12,6 +12,7 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.orm import Session
 
 from app.models import CanonicalEntity, EvidenceChunk, EvidenceChunkRun, NarrativePassage, SourceSnapshot
+from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
 
 
 def bind_corpus(*, collection: str, run_id: str, documents: list[dict], cases: list[dict]) -> dict:
@@ -49,7 +50,9 @@ def export_corpus(db: Session, *, manifest: dict, run_id: UUID, pair_count: int)
         .join(SourceSnapshot, SourceSnapshot.id == EvidenceChunk.source_snapshot_id)
         .join(CanonicalEntity, CanonicalEntity.id == EvidenceChunk.subject_entity_id)
         .where(EvidenceChunk.preprocessing_run_id == run_id,
-               EvidenceChunk.quality_status == "eligible", CanonicalEntity.wikidata_id.in_(qids)))
+               EvidenceChunk.quality_status == "eligible",
+               EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
+               CanonicalEntity.wikidata_id.in_(qids)))
     rows = list(rows)
     for chunk, parent, snapshot, _qid, _title in rows:
         if (parent.source_snapshot_id != snapshot.id or
