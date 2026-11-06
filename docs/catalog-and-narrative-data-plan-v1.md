@@ -2714,3 +2714,31 @@ remain local and out of Git.
   validator and its pure unit tests. It has not been pushed. The review schema,
   API, UI and their PostgreSQL tests remain separate and uncommitted pending
   the isolated database gate.
+
+### Follow-up — publish offline cast coverage audits and recheck the DB gate (7 November 2026)
+
+- Added and tested a reusable crosswalk/coverage audit slice that binds
+  Wikipedia actor-role candidates to exact retained passages and Wikidata
+  `P161`/`P453` statements, and refuses mismatched source manifests. Its
+  focused deterministic tests pass **15/15**; the complete backend
+  non-integration suite passes **406 tests** with **99 integration cases
+  deselected**. No retained corpus or source assertions were modified.
+- Committed as `2a37d6b` (`Add source-bound cast coverage audits`) and pushed
+  to `origin/main`, together with the already committed offline audit/source
+  history. The uncommitted database review migration, API and UI were excluded.
+- Rechecked the isolated database gate. Compose cannot inspect its pgvector
+  image because Docker Desktop reports a containerd blob-store I/O error; a
+  direct probe reports the existing `cinegraph-integration-db-test-1` is not
+  running, and isolated PostgreSQL tests fail to connect to `127.0.0.1:5433`
+  (`connection refused`). Thus the nine cast-review/replay integration cases
+  remain unverified; these are infrastructure connection failures, not
+  passing application tests. The working catalog database was not accessed.
+- Frontend unit tests pass **5/5**, TypeScript and production build pass.
+  `npm run lint` is currently invalid because its script invokes the removed
+  `next lint` command; replace it with the supported project lint command when
+  linting is restored. `git diff --check` passes.
+- Current evidence still shows zero of 200 narrative snapshots approved for
+  semantic indexing and zero of 7,466 stored vectors eligible under the
+  snapshot-purpose gate. This blocks any claim that the existing embeddings
+  are currently cleared for product retrieval; rights decisions must be
+  explicitly reviewed and recorded.
