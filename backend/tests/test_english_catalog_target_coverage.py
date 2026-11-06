@@ -54,8 +54,19 @@ def test_target_coverage_keeps_all_mapping_states_and_field_denominators():
     assert report["mapped_candidate_category_counts"]["plot"] == 1
     assert report["mapped_candidate_counts"]["with_any_eligible_embedding"] == 1
     assert report["mapped_candidate_counts"]["with_resolved_character_assertion"] == 0
+    assert report["pipeline_stage_counts"] == {
+        "catalog_identity_candidate_resolved": 2,
+        "narrative_evidence_ready": 1,
+        "requested": 4,
+        "review_required": 4,
+        "semantically_indexed": 1,
+    }
+    assert report["films"][0]["pipeline_stages"]["semantically_indexed"] is True
+    assert "identity_candidate_requires_review" in report["films"][0]["review_required_reasons"]
+    assert "source_rights_review_required" in report["films"][1]["review_required_reasons"]
     markdown = render_english_catalog_target_coverage(report)
     assert "not certified as an English-only set" in markdown
+    assert "Unique catalog identity candidate resolved (unreviewed)" in markdown
     assert "2 mapped candidates" in markdown
 
 

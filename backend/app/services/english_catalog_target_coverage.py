@@ -50,6 +50,7 @@ def build_english_catalog_target_coverage(
     items: list[dict[str, Any]] = []
     mapping_states: Counter[str] = Counter()
     languages: Counter[str] = Counter()
+    stage_counts: Counter[str] = Counter()
     for source in target["candidates"]:
         rank = source["selection_rank"]
         identity_row = identity_by_rank[rank]
@@ -118,6 +119,44 @@ def build_english_catalog_target_coverage(
             item = {"selection_rank": rank, "title": source["title"],
                     "year_candidate": source["release_year_candidate"],
                     "mapping_status": "no_catalog_candidate", "mapping_basis": mapping_basis}
+
+        is_candidate = item["mapping_status"] == "candidate_review_required"
+        is_evidence_ready = bool(
+            is_candidate
+            and item["semantic_rights_eligible_snapshot_count"] > 0
+            and item["narrative_categories"]
+        )
+        is_indexed = bool(
+            is_candidate and item["semantically_eligible_embedding_vector_count"] > 0
+        )
+        review_reasons: list[str] = []
+        if not is_candidate:
+            review_reasons.append(item["mapping_status"])
+        else:
+            review_reasons.append("identity_candidate_requires_review")
+            if item["catalog_language"] in {"und", "mul"}:
+                review_reasons.append("language_unresolved")
+            elif item["catalog_language"] != "en":
+                review_reasons.append("non_english_candidate")
+            if item["source_snapshot_count"] == 0:
+                review_reasons.append("narrative_source_missing")
+            elif item["semantic_rights_eligible_snapshot_count"] == 0:
+                review_reasons.append("source_rights_review_required")
+            if not item["narrative_categories"]:
+                review_reasons.append("narrative_sections_missing")
+            if item["semantically_eligible_embedding_vector_count"] == 0:
+                review_reasons.append("eligible_evidence_not_indexed")
+        item["pipeline_stages"] = {
+            "requested": True,
+            "catalog_identity_candidate_resolved": is_candidate,
+            "narrative_evidence_ready": is_evidence_ready,
+            "semantically_indexed": is_indexed,
+            "review_required": bool(review_reasons),
+        }
+        item["review_required_reasons"] = review_reasons
+        for stage, reached in item["pipeline_stages"].items():
+            if reached:
+                stage_counts[stage] += 1
         mapping_states[item["mapping_status"]] += 1
         items.append(item)
 
@@ -127,9 +166,10 @@ def build_english_catalog_target_coverage(
         for category in ("plot", "production", "reception", "themes", "legacy", "writing_craft")
     }
     return {
-        "schema": "cinegraph.english-catalog-target-coverage/v1",
+        "schema": "cinegraph.english-catalog-target-coverage/v2",
         "target_count": len(items),
         "catalog_candidate_mappings": len(mapped),
+        "pipeline_stage_counts": dict(sorted(stage_counts.items())),
         "mapping_status_counts": dict(sorted(mapping_states.items())),
         "mapped_candidate_language_counts": dict(sorted(languages.items())),
         "mapped_candidate_category_counts": category_counts,
@@ -170,6 +210,18 @@ def render_english_catalog_target_coverage(report: dict[str, Any]) -> str:
         f"- Unique catalog candidate mappings: **{mapped_count}**",
         f"- Mapping states: {report['mapping_status_counts']}",
         f"- Language labels among mapped candidates: {report['mapped_candidate_language_counts']}",
+        "",
+        "## Intake pipeline gates",
+        "",
+        "These are explicit counts of reached gates, not mutually exclusive statuses. A unique catalog mapping remains an identity candidate until reviewed.",
+        "",
+        "| Gate | Films | Denominator |",
+        "| --- | ---: | ---: |",
+        f"| Requested | {report['pipeline_stage_counts'].get('requested', 0)} | {report['target_count']} candidates |",
+        f"| Unique catalog identity candidate resolved (unreviewed) | {report['pipeline_stage_counts'].get('catalog_identity_candidate_resolved', 0)} | {report['target_count']} candidates |",
+        f"| Narrative evidence ready for semantic use | {report['pipeline_stage_counts'].get('narrative_evidence_ready', 0)} | {report['target_count']} candidates |",
+        f"| Semantically indexed | {report['pipeline_stage_counts'].get('semantically_indexed', 0)} | {report['target_count']} candidates |",
+        f"| Review required | {report['pipeline_stage_counts'].get('review_required', 0)} | {report['target_count']} candidates |",
         "",
         "| Coverage indicator | Films | Denominator |",
         "| --- | ---: | ---: |",

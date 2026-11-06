@@ -1901,6 +1901,15 @@ remain local and out of Git.
 - The report is a coverage diagnosis only. Before calling this the English
   1,000, resolve all language-unknown candidates and either choose a separately
   justified English-only denominator or explicitly keep the target global.
+- Coverage report v3 now records per-title, non-exclusive pipeline gates and
+  review reasons in addition to field counts: `requested`, unique
+  `catalog_identity_candidate_resolved` (still unreviewed),
+  `narrative_evidence_ready`, `semantically_indexed`, and `review_required`.
+  On the current local inputs these counts are **1,000 / 969 / 0 / 0 / 1,000**.
+  The report distinguishes candidate identity from verified identity and
+  rights-cleared evidence from stored vectors; 0 evidence-ready and 0 indexed
+  is not misreported as a retrieval failure. The generated v3 Markdown/JSON
+  remain ignored local artifacts.
 
 - The coverage join now rejects duplicate selection ranks, duplicate readiness
   film IDs and out-of-target IMDb-review ranks rather than silently letting a

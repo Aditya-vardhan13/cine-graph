@@ -18,8 +18,8 @@ def main() -> None:
     parser.add_argument("--identity-audit", type=Path, default=Path("data/evaluation/catalog-target-english1000-identity-audit-v1.json"))
     parser.add_argument("--imdb-review", type=Path, default=Path("data/evaluation/catalog-target-english1000-imdb-review-v1.json"))
     parser.add_argument("--readiness", type=Path, default=Path("data/evaluation/catalog-readiness-v7.json"))
-    parser.add_argument("--output", type=Path, default=Path("data/evaluation/catalog-target-english1000-coverage-v2.json"))
-    parser.add_argument("--markdown", type=Path, default=Path("data/evaluation/catalog-target-english1000-coverage-v2.md"))
+    parser.add_argument("--output", type=Path, default=Path("data/evaluation/catalog-target-english1000-coverage-v3.json"))
+    parser.add_argument("--markdown", type=Path, default=Path("data/evaluation/catalog-target-english1000-coverage-v3.md"))
     parser.add_argument("--validate", action="store_true")
     args = parser.parse_args()
 
