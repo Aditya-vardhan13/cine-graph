@@ -1,4 +1,5 @@
 from pathlib import Path
+import math
 
 import pytest
 
@@ -22,7 +23,11 @@ def test_capture_policy_requires_sequential_robots_checked_entitydata() -> None:
 
 @pytest.mark.parametrize("change", [
     {"concurrency": 2},
+    {"concurrency": True},
     {"minimum_interval_seconds": 0.5},
+    {"minimum_interval_seconds": math.nan},
+    {"minimum_interval_seconds": math.inf},
+    {"minimum_interval_seconds": True},
     {"robots_required": False},
     {"stop_on_denial_or_rate_limit": False},
     {"wikidata_route": "query service"},

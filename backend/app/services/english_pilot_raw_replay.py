@@ -10,6 +10,7 @@ import argparse
 from dataclasses import dataclass
 from hashlib import sha256
 import json
+import math
 import os
 from pathlib import Path
 from typing import Any
@@ -68,10 +69,15 @@ def _capture_path(batch: Path, relative: Any, *, qid: str) -> Path:
 
 
 def _validate_capture_policy(policy: Any, *, batch_name: str) -> None:
-    if (not isinstance(policy, dict)
-            or policy.get("concurrency") != 1
-            or not isinstance(policy.get("minimum_interval_seconds"), (int, float))
-            or policy["minimum_interval_seconds"] < 1.0
+    if not isinstance(policy, dict):
+        raise EnglishPilotReplayError(f"{batch_name}: capture policy is missing or less restrictive than required.")
+    interval = policy.get("minimum_interval_seconds")
+    if (type(policy.get("concurrency")) is not int
+            or policy["concurrency"] != 1
+            or isinstance(interval, bool)
+            or not isinstance(interval, (int, float))
+            or not math.isfinite(interval)
+            or interval < 1.0
             or policy.get("robots_required") is not True
             or policy.get("stop_on_denial_or_rate_limit") is not True
             or policy.get("wikidata_route") != "known-QID Special:EntityData JSON only"):

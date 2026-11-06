@@ -2004,3 +2004,8 @@ remain local and out of Git.
   failed to connect (`127.0.0.1:5433` refused) before executing assertions.
   This leaves the replay persistence behavior unverified, not failed. No
   database writes occurred.
+- Tightened capture-policy numeric validation so boolean, NaN and infinite
+  request intervals cannot be accepted as a valid rate-limit record. The
+  focused replay suite now passes **13/13** and the full non-integration suite
+  passes **337 tests**. A fresh 100-capture dry run still validates all
+  **21,744,082** Wikidata payload bytes with the same combined input digest.
