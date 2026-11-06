@@ -1900,3 +1900,37 @@ remain local and out of Git.
   frontend unit tests **5/5** and production build pass. The local JSON includes
   hashes and detailed per-film counts and remains ignored; no source prose/raw
   payload was added to Git.
+
+### Follow-up — local corpus storage unavailable; ingestion remains stopped
+
+- Rechecked Compose status before attempting any data write. The `db` and `api`
+  containers are running but unhealthy. Docker health checks fail with
+  `input/output error`; a read-only PostgreSQL connection fails because the
+  server cannot open `global/pg_filenode.map`. Reading the database container
+  log and Docker's image-usage summary also fails on containerd blob/log
+  `input/output error`. This points to Docker Desktop storage trouble, not a
+  source-capture or application-level validation failure.
+- Host disk inspection showed only **4.3 GB free**. Project-local ignored data
+  occupies about **17 GB**, mostly model weights, local environments and
+  evaluation artifacts. The large directories are referenced by current
+  experiment documentation/scripts; none were deleted. No Docker restart,
+  prune, volume recreation, migration, or corpus write was attempted, to avoid
+  risking the persistent working database.
+- The host Conda settings currently fall back to SQLite when no
+  `DATABASE_URL` is loaded. A read-only probe initially hit that fallback and
+  was stopped; it did not query or write the catalog. Future local pipeline
+  commands must explicitly load/check their database target before running.
+- The 100-film source captures and reconciliation remain complete as local QA
+  artifacts, but have **not** been ingested or indexed. Narrative semantic-use
+  approval is still 0/200 snapshots. Therefore the 100-film enrichment and
+  retrieval-quality gates remain open; the capture count must not be reported
+  as dataset readiness.
+- The pending original-language evidence UI change passes frontend unit tests
+  (**5/5**) and a production build/type check. Its browser contract remains
+  unverified because the isolated PostgreSQL/API stack cannot run against the
+  current Docker storage state. The language fixture change and UI work remain
+  local and uncommitted pending that gate.
+- Safe next action: recover Docker Desktop storage / restore an existing local
+  database backup, then verify the schema and run the isolated `cinegraph_test`
+  suite before retrying any corpus integration. Do not remove or recreate the
+  PostgreSQL volume without a verified backup.
