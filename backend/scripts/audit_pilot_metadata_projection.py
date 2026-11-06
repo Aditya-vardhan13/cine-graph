@@ -30,7 +30,27 @@ from app.services.research_catalog import research_films_from_entities
 from app.services.snapshot_integrity import verify_snapshot_file
 
 
-def source_evidence_by_assertion(db: Session, entity_ids: list[UUID]) -> dict[UUID, list[dict]]:
+def parse_path_mappings(values: list[str]) -> tuple[tuple[Path, Path], ...]:
+    mappings: list[tuple[Path, Path]] = []
+    for value in values:
+        source_text, separator, mounted_text = value.partition("=")
+        if not separator or not source_text or not mounted_text:
+            raise ValueError("--path-map must use PERSISTED_ROOT=VISIBLE_ROOT")
+        source_root, mounted_root = Path(source_text), Path(mounted_text)
+        if not source_root.is_absolute() or not mounted_root.is_absolute():
+            raise ValueError("both --path-map roots must be absolute paths")
+        if any(source_root == prior_source for prior_source, _ in mappings):
+            raise ValueError("duplicate persisted root in --path-map")
+        mappings.append((source_root, mounted_root))
+    return tuple(mappings)
+
+
+def source_evidence_by_assertion(
+    db: Session,
+    entity_ids: list[UUID],
+    *,
+    root_mappings: tuple[tuple[Path, Path], ...] = (),
+) -> dict[UUID, list[dict]]:
     """Return retained raw assertion and snapshot lineage for selected facts."""
     rows = db.execute(
         select(
@@ -79,6 +99,7 @@ def source_evidence_by_assertion(db: Session, entity_ids: list[UUID]) -> dict[UU
             if snapshot_id not in snapshot_integrity:
                 snapshot_integrity[snapshot_id] = verify_snapshot_file(
                     snapshot_storage_uri, snapshot_hash, snapshot_byte_size,
+                    root_mappings=root_mappings,
                 )
             integrity_status = snapshot_integrity[snapshot_id]
         grouped[assertion_id].append({
@@ -107,12 +128,44 @@ def source_evidence_by_assertion(db: Session, entity_ids: list[UUID]) -> dict[UU
     return grouped
 
 
+def snapshot_integrity_summary(films: list[dict]) -> dict[str, object]:
+    """Count each retained snapshot once, not once per linked assertion."""
+    statuses_by_snapshot: dict[str, str] = {}
+    unlinked_evidence_count = 0
+    for film in films:
+        for predicate in ("release_events", "runtimes"):
+            for assertion in film["source_assertions"][predicate]:
+                for evidence in assertion["source_evidence"]:
+                    snapshot_id = evidence.get("snapshot_id")
+                    if not snapshot_id:
+                        unlinked_evidence_count += 1
+                        continue
+                    status = evidence["snapshot_integrity_status"]
+                    previous = statuses_by_snapshot.setdefault(snapshot_id, status)
+                    if previous != status:
+                        raise ValueError(f"Snapshot {snapshot_id} has inconsistent integrity statuses")
+    return {
+        "unique_snapshot_status_counts": dict(sorted(Counter(statuses_by_snapshot.values()).items())),
+        "evidence_references_without_snapshot": unlinked_evidence_count,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database-url", required=True)
     parser.add_argument("--pilot", type=Path, default=Path("data/evaluation/catalog-pilot-top100-v5.json"))
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--path-map", action="append", default=[], metavar="PERSISTED_ROOT=VISIBLE_ROOT",
+        help=("Audit-only mapping from a persisted absolute file URI root to a visible local/mounted root; "
+              "may be supplied more than once. Unmatched roots are reported as unmapped."),
+    )
     args = parser.parse_args()
+
+    try:
+        root_mappings = parse_path_mappings(args.path_map)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     local_evaluation = (Path.cwd() / "data/evaluation").resolve()
     if not args.pilot.resolve().is_relative_to(local_evaluation):
@@ -178,7 +231,9 @@ def main() -> None:
                 )
                 .order_by(Assertion.subject_entity_id, Assertion.predicate, Assertion.id)
             ).all()
-            source_evidence_rows = source_evidence_by_assertion(db, [entity.id for entity in entities])
+            source_evidence_rows = source_evidence_by_assertion(
+                db, [entity.id for entity in entities], root_mappings=root_mappings,
+            )
     finally:
         engine.dispose()
 
@@ -254,7 +309,7 @@ def main() -> None:
         })
 
     report = {
-        "version": "pilot-metadata-projection-audit-v3",
+        "version": "pilot-metadata-projection-audit-v4",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "database_read_only": True,
         "pilot_sha256": hashlib.sha256(pilot_bytes).hexdigest(),
@@ -278,13 +333,7 @@ def main() -> None:
                 for option in item["default_display_research_projection"]["runtime_options"]
             }),
         },
-        "snapshot_integrity_status_counts": dict(sorted(Counter(
-            evidence["snapshot_integrity_status"]
-            for item in results
-            for predicate in ("release_events", "runtimes")
-            for assertion in item["source_assertions"][predicate]
-            for evidence in assertion["source_evidence"]
-        ).items())),
+        "snapshot_integrity": snapshot_integrity_summary(results),
         "films": results,
         "caution": "This compares local projections and recorded assertions; it does not establish factual accuracy, human review, or commercial reuse rights.",
     }

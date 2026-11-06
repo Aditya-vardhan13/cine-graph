@@ -1,5 +1,6 @@
 import hashlib
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from sqlalchemy.orm import Session
@@ -14,8 +15,35 @@ from app.models import (
     SourceObject,
     SourceSnapshot,
 )
-from scripts.audit_pilot_metadata_projection import source_evidence_by_assertion
+from scripts.audit_pilot_metadata_projection import (
+    parse_path_mappings,
+    snapshot_integrity_summary,
+    source_evidence_by_assertion,
+)
 from tests.postgres_test_db import isolated_postgres_engine
+
+
+def test_metadata_audit_path_maps_are_absolute_and_unique() -> None:
+    assert parse_path_mappings(["/persisted=/mounted"]) == (
+        (Path("/persisted"), Path("/mounted")),
+    )
+    with pytest.raises(ValueError, match="absolute"):
+        parse_path_mappings(["relative=/mounted"])
+    with pytest.raises(ValueError, match="duplicate"):
+        parse_path_mappings(["/persisted=/one", "/persisted=/two"])
+
+
+def test_metadata_audit_counts_unique_snapshots_not_evidence_references() -> None:
+    evidence = {"snapshot_id": "snapshot-1", "snapshot_integrity_status": "verified"}
+    films = [{"source_assertions": {
+        "release_events": [{"source_evidence": [evidence]}],
+        "runtimes": [{"source_evidence": [evidence, {"snapshot_id": None}]}],
+    }}]
+
+    assert snapshot_integrity_summary(films) == {
+        "unique_snapshot_status_counts": {"verified": 1},
+        "evidence_references_without_snapshot": 1,
+    }
 
 
 @pytest.mark.integration
@@ -24,8 +52,11 @@ def test_metadata_audit_follows_assertion_to_raw_value_and_snapshot(tmp_path) ->
     Base.metadata.create_all(engine)
     payload = b'{"statement":"runtime"}'
     digest = hashlib.sha256(payload).hexdigest()
-    snapshot_path = tmp_path / "snapshot.json"
-    snapshot_path.write_bytes(payload)
+    persisted_root = tmp_path / "persisted"
+    visible_root = tmp_path / "mounted"
+    visible_root.mkdir()
+    snapshot_path = persisted_root / "snapshot.json"
+    (visible_root / snapshot_path.name).write_bytes(payload)
     with Session(engine) as db:
         source = DataSource(
             name="Metadata audit fixture",
@@ -89,7 +120,9 @@ def test_metadata_audit_follows_assertion_to_raw_value_and_snapshot(tmp_path) ->
         db.add(evidence)
         db.flush()
 
-        result = source_evidence_by_assertion(db, [entity.id])
+        result = source_evidence_by_assertion(
+            db, [entity.id], root_mappings=((persisted_root, visible_root),),
+        )
 
         assert set(result) == {assertion.id}
         assert result[assertion.id] == [{

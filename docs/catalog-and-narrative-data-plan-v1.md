@@ -1602,3 +1602,52 @@ remain local and out of Git.
   and full Playwright suite **10 passed**. Working-corpus writes were limited
   to the described Wikidata CC0 label snapshots/assertions; no narrative
   snapshot decisions, embeddings, or vectors were written.
+
+### Follow-up — refreshed pilot baseline and namespace-safe metadata audit
+
+- Revalidated the frozen selection against its exact CSV/readiness/IMDb-review
+  hashes: **100 unique candidate records**, 77 exact title/year matches and
+  23 identity crosslinks explicitly scoped to pilot membership. The latter
+  are not catalog merges or permission to reuse IMDb fields.
+- Generated fresh local-only reports from read-only transactions against the
+  working catalog: `catalog-readiness-v7.json` (2,586 films) and
+  `catalog-pilot-metadata-audit-v11.json` (the frozen 100). The readiness
+  projection finds section headings for plot in **99/100**, production in
+  **96/100**, reception in **100/100**, and themes/analysis in **46/100**.
+  These are section-presence signals, not proof that a passage is sufficiently
+  detailed or useful. All 100 have resolved director and cast assertions;
+  43 have at least one resolved character assertion, which does not establish
+  a complete or default-display-eligible actor/character mapping. One film,
+  *Hamilton*, has no plot-labelled passage.
+- The 100-film set has **208** narrative source snapshots with license and
+  attribution recorded, but **zero** explicit use decisions and **zero**
+  snapshots eligible for semantic indexing. It has **7,270** stored vectors,
+  but **zero** vectors currently eligible under the rights gate. These counts
+  explain why existing vector volume is not usable retrieval coverage. No
+  review decisions or vectors were added by this audit.
+- The fresh date/runtime projection repeats the unresolved field-level gaps:
+  81 legacy profile dates are empty; 3 match the earliest recorded event, 2
+  match an earliest-year event whose ordering is unknown, 13 match another
+  territory event, and 1 same-year date has no exact event match. Runtime
+  evidence provides 117 displayable options for 99 films (16 version-scoped);
+  17 films still require value/version resolution and one has only restricted
+  runtime evidence. The report exposes evidence and qualifiers without
+  selecting a preferred edition.
+- Corrected `audit_pilot_metadata_projection.py` to accept explicit,
+  component-bounded snapshot path mappings and to count distinct snapshot IDs
+  rather than duplicate assertion-evidence references. The v11 audit mapped
+  only the mounted, read-only Docker raw-snapshot volume: **194 unique
+  snapshots verified**, **14 unmapped**, **0 missing**, **0** evidence rows
+  without a source snapshot. “Unmapped” means the historical path was outside
+  this container's authorized mounts; it does not assert that host bytes are
+  absent. The earlier no-map interim report was discarded; its Docker-local
+  `missing` counts were not valid host-integrity findings.
+- Verification: focused projection/path-map tests **3 passed**, including the
+  PostgreSQL case against `cinegraph_test`; full non-integration backend suite
+  **297 passed, 88 deselected**; full isolated API/PostgreSQL integration
+  suite **87 passed, 1 skipped** against `cinegraph_test`; the manifest
+  validator still confirms all three input hashes and 100 unique candidate
+  IDs. Reports and source data remain local/ignored.
+  The next gate is source- and purpose-specific review of the 208 narrative
+  assets plus a sampled content/identity review; this audit does not authorize
+  semantic indexing or certify the 100-film set as complete.
