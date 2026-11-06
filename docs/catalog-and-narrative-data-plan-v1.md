@@ -2749,3 +2749,29 @@ remain local and out of Git.
   `Bruce Wayne`, and `James "Jim" Gordon` versus `Jim Gordon`). All 9 remain
   `review_required`; the crosswalk remains corroboration for a human, not a
   claim that the film's complete cast/character mapping has been verified.
+
+### Follow-up — unify narrative-use eligibility checks (7 November 2026)
+
+- Audited the end-to-end snapshot-purpose gate. Preprocessing already rejected
+  missing approval, unsupported license and absent attribution, and the shared
+  query required the latest approved decision with a basis URL and rationale.
+  However, the query used by retrieval, comparisons, indexing and synthesis did
+  not itself recheck snapshot license or attribution URL shape. That left the
+  read boundary relying on chunks having been created only by today's
+  preprocessor.
+- Centralized the pure policy so approval, eligible license, HTTPS attribution,
+  HTTPS basis URL and rationale are checked together by both preprocessing and
+  the intake readiness preview. Extended the shared PostgreSQL retrieval scope
+  to recheck the snapshot license and HTTPS host shape for both attribution and
+  decision basis on every read; this protects older or manually materialized
+  chunks as well as newly built chunks. Updated the offline catalog readiness
+  reporter to use the same policy.
+- Added pure policy cases and a PostgreSQL integration fixture covering one
+  eligible item and six fail-closed cases, including a later denial, a
+  hostless HTTPS basis and credential-bearing URLs. The PostgreSQL test is
+  written but remains unexecuted because this environment cannot access the
+  Docker socket for the isolated test database. The complete backend suite
+  passes **421 tests**, with **86 integration/environment-dependent tests
+  skipped**; the focused rights, scope SQL and readiness tests pass **17/17**.
+  Python compilation and `git diff --check` pass. No working corpus, snapshot,
+  chunk or vector was modified.

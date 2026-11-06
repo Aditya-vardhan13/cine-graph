@@ -21,7 +21,7 @@ from app.services.imdb_dataset import IMDB_ID, ImdbDataset
 from app.services.narrative_use_decisions import SEMANTIC_MODEL_USE, latest_decisions
 from app.services.research_catalog import research_films_from_entities
 from app.services.source_rights_policy import (
-    NARRATIVE_SEMANTIC_LICENSES, can_use_narrative_semantically,
+    can_use_narrative_semantically,
 )
 from app.services.wikipedia_article_html import ArticlePageUrlError, validate_article_url
 
@@ -180,12 +180,13 @@ def preview_job(job_id: UUID, db: Session = Depends(get_db)) -> dict:
             use_counts["denied"] += 1
         else:
             use_counts["pending"] += 1
-        if (snapshot.license in NARRATIVE_SEMANTIC_LICENSES and snapshot.attribution_url
-                and can_use_narrative_semantically(
-                    decision=decision_status,
-                    basis_url=decision.decision_basis_url if decision else None,
-                    notes=decision.decision_notes if decision else None,
-                )):
+        if can_use_narrative_semantically(
+            decision=decision_status,
+            basis_url=decision.decision_basis_url if decision else None,
+            notes=decision.decision_notes if decision else None,
+            license_name=snapshot.license,
+            attribution_url=snapshot.attribution_url,
+        ):
             use_counts["eligible_for_semantic_processing"] += 1
     for passage, snapshot in rows:
         section = passage.section_locator.split("/", 1)[0].strip()

@@ -4,6 +4,7 @@ from sqlalchemy.orm import aliased
 
 from app.models import EvidenceChunk, NarrativeUseDecision, SourceSnapshot
 from app.services.narrative_use_decisions import SEMANTIC_MODEL_USE
+from app.services.source_rights_policy import NARRATIVE_SEMANTIC_LICENSES
 
 
 def semantically_approved_chunk_ids():
@@ -22,6 +23,13 @@ def semantically_approved_chunk_ids():
             latest_decision.use_case == SEMANTIC_MODEL_USE,
             latest_decision.decision_version == latest_version,
             latest_decision.decision == "approved",
+            SourceSnapshot.license.in_(tuple(NARRATIVE_SEMANTIC_LICENSES)),
+            func.lower(SourceSnapshot.attribution_url).op("~")(
+                r"^https://[^/?#[:space:]@]+([/?#]|$)"
+            ),
+            func.lower(latest_decision.decision_basis_url).op("~")(
+                r"^https://[^/?#[:space:]@]+([/?#]|$)"
+            ),
             latest_decision.decision_basis_url.is_not(None),
             func.length(func.trim(latest_decision.decision_basis_url)) > 0,
             func.length(func.trim(latest_decision.decision_notes)) >= 8,

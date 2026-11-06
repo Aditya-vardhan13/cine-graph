@@ -28,22 +28,34 @@ def test_noncommercial_metadata_requires_explicit_local_opt_in():
 
 def test_semantic_use_requires_explicit_snapshot_decision_separate_from_display_rights():
     assert can_display_source(rights_status="attributed_reuse")
-    assert not can_use_narrative_semantically(decision=None, basis_url=None, notes=None)
+    approved_fields = {
+        "decision": "approved", "basis_url": "https://example.test/policy",
+        "notes": "Reviewed intended use.", "license_name": "CC BY-SA 4.0",
+        "attribution_url": "https://example.test/source",
+    }
     assert not can_use_narrative_semantically(
-        decision="review_required", basis_url="https://example.test/policy", notes="Reviewed scope.",
+        decision=None, basis_url=None, notes=None, license_name="CC BY-SA 4.0",
+        attribution_url="https://example.test/source",
     )
     assert not can_use_narrative_semantically(
-        decision="denied", basis_url="https://example.test/policy", notes="Reviewed scope.",
+        **(approved_fields | {"decision": "review_required"}),
     )
     assert not can_use_narrative_semantically(
-        decision="approved", basis_url=None, notes="Reviewed scope.",
+        **(approved_fields | {"decision": "denied"}),
     )
     assert not can_use_narrative_semantically(
-        decision="approved", basis_url="https://example.test/policy", notes="short",
+        **(approved_fields | {"basis_url": None}),
     )
-    assert can_use_narrative_semantically(
-        decision="approved", basis_url="https://example.test/policy", notes="Reviewed intended use.",
+    assert not can_use_narrative_semantically(
+        **(approved_fields | {"notes": "short"}),
     )
+    assert not can_use_narrative_semantically(
+        **(approved_fields | {"license_name": "CC BY-NC 4.0"}),
+    )
+    assert not can_use_narrative_semantically(**(approved_fields | {"attribution_url": None}))
+    assert not can_use_narrative_semantically(**(approved_fields | {"attribution_url": "http://example.test/source"}))
+    assert not can_use_narrative_semantically(**(approved_fields | {"basis_url": "https:///missing-host"}))
+    assert can_use_narrative_semantically(**approved_fields)
 
 
 def test_narrative_semantic_license_allowlist_is_shared_and_explicit():

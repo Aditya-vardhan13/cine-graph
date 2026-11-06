@@ -39,7 +39,6 @@ from app.services.source_rights_policy import (
 
 CHUNKER_VERSION = "spacy-sentencizer-evidence-v5-citation-positions"
 NORMALIZATION_VERSION = "unicode-nfc-whitespace-v1"
-ALLOWED_NARRATIVE_LICENSES = NARRATIVE_SEMANTIC_LICENSES
 WORD = re.compile(r"\b[\w'-]+\b", re.UNICODE)
 
 
@@ -382,14 +381,14 @@ def build_evidence_chunks(
     created = reused = excluded = passages_eligible = passages_rights_blocked = 0
     try:
         for passage, snapshot in passages:
-            license_name = snapshot.license
-            attribution_url = snapshot.attribution_url
-            if (license_name not in ALLOWED_NARRATIVE_LICENSES or not attribution_url
-                    or not can_use_narrative_semantically(
-                        decision=decisions[snapshot.id].decision if snapshot.id in decisions else None,
-                        basis_url=decisions[snapshot.id].decision_basis_url if snapshot.id in decisions else None,
-                        notes=decisions[snapshot.id].decision_notes if snapshot.id in decisions else None,
-                    )):
+            decision = decisions.get(snapshot.id)
+            if not can_use_narrative_semantically(
+                decision=decision.decision if decision else None,
+                basis_url=decision.decision_basis_url if decision else None,
+                notes=decision.decision_notes if decision else None,
+                license_name=snapshot.license,
+                attribution_url=snapshot.attribution_url,
+            ):
                 passages_rights_blocked += 1
                 continue
             passages_eligible += 1

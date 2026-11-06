@@ -37,12 +37,13 @@ def _narrative_use_coverage(snapshots, decisions):
             continue
         counts["with_decision"] += 1
         counts[decision.decision] += 1
-        if (license_name == "CC BY-SA 4.0" and attribution_url
-                and can_use_narrative_semantically(
-                    decision=decision.decision,
-                    basis_url=decision.decision_basis_url,
-                    notes=decision.decision_notes,
-                )):
+        if can_use_narrative_semantically(
+            decision=decision.decision,
+            basis_url=decision.decision_basis_url,
+            notes=decision.decision_notes,
+            license_name=license_name,
+            attribution_url=attribution_url,
+        ):
             counts["eligible"] += 1
             eligible_ids.add(snapshot_id)
     return counts, eligible_ids

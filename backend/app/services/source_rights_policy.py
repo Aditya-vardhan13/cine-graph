@@ -1,4 +1,5 @@
 """Pure eligibility rules for displaying source-derived structured metadata."""
+from urllib.parse import urlparse
 
 DISPLAYABLE_RIGHTS_STATUSES = frozenset({
     "open",
@@ -38,10 +39,27 @@ def can_display_source(*, rights_status: str, include_noncommercial: bool = Fals
 
 def can_use_narrative_semantically(
     *, decision: str | None, basis_url: str | None, notes: str | None,
+    license_name: str | None, attribution_url: str | None,
 ) -> bool:
-    """Require an explicit, auditable latest per-snapshot purpose approval."""
+    """Require rights, attribution and an auditable per-snapshot purpose approval."""
+    def is_https_url(value: str | None) -> bool:
+        if not value or not value.strip():
+            return False
+        try:
+            parsed = urlparse(value.strip())
+            return (
+                parsed.scheme.casefold() == "https"
+                and bool(parsed.hostname)
+                and not parsed.username
+                and not parsed.password
+            )
+        except ValueError:
+            return False
+
     return bool(
         decision in NARRATIVE_USE_DECISIONS
-        and basis_url and basis_url.strip()
+        and license_name in NARRATIVE_SEMANTIC_LICENSES
+        and is_https_url(attribution_url)
+        and is_https_url(basis_url)
         and notes and len(notes.strip()) >= 8
     )
