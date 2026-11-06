@@ -43,13 +43,57 @@ def _read_manifest(path: Path) -> tuple[dict[str, Any], bytes]:
     return value, payload
 
 
-def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[str, Any]:
+def _bind_extraction_manifest(
+    capture_manifest: dict[str, Any], extraction_manifest: dict[str, Any],
+) -> list[dict[str, Any]]:
+    if extraction_manifest.get("schema") != "cinegraph.catalog-pilot-extraction/v1":
+        raise ValueError("Unexpected pilot extraction manifest schema")
+    if extraction_manifest.get("selection_sha256") != capture_manifest.get("selection_sha256"):
+        raise ValueError("Capture and passage extraction manifests have different selections")
+    capture_films = capture_manifest.get("films")
+    extraction_films = extraction_manifest.get("films")
+    if not isinstance(capture_films, list) or not isinstance(extraction_films, list):
+        raise ValueError("Capture/extraction manifest has no films list")
+    by_qid = {row.get("qid"): row for row in extraction_films if isinstance(row, dict)}
+    if len(by_qid) != len(extraction_films) or set(by_qid) != {
+        row.get("qid") for row in capture_films if isinstance(row, dict)
+    }:
+        raise ValueError("Capture and passage extraction film identities differ")
+    bound = []
+    for film in capture_films:
+        if not isinstance(film, dict):
+            raise ValueError("Capture manifest contains a malformed film row")
+        extraction = by_qid[film["qid"]]
+        if (extraction.get("source_snapshot_sha256") != film.get("wikipedia_sha256")
+                or extraction.get("source_revision") != film.get("wikipedia_revision")
+                or extraction.get("canonical_url") != film.get("wikipedia_attribution_url")
+                or extraction.get("parser_version") != "enwiki-article-html-extraction-v6"
+                or not isinstance(extraction.get("passage_derivative_path"), str)
+                or not isinstance(extraction.get("passage_derivative_sha256"), str)):
+            raise ValueError(f"Passage extraction is not bound to the captured article: {film.get('qid')}")
+        bound.append({
+            **film,
+            "passage_derivative_path": extraction["passage_derivative_path"],
+            "passage_derivative_sha256": extraction["passage_derivative_sha256"],
+            "parser_version": extraction["parser_version"],
+        })
+    return bound
+
+
+def prepare(
+    bundle: Path, credit_manifest_path: Path, label_dir: Path,
+    extraction_manifest_path: Path | None = None,
+) -> dict[str, Any]:
     if bundle.is_symlink() or label_dir.is_symlink():
         raise ValueError("Capture bundle roots must not be symlinks")
     bundle = bundle.resolve(strict=True)
     capture_manifest_path = bundle / "capture-manifest.json"
     capture_manifest, capture_bytes = _read_manifest(capture_manifest_path)
     credit_manifest, credit_bytes = _read_manifest(credit_manifest_path)
+    extraction_manifest = None
+    extraction_bytes = None
+    if extraction_manifest_path is not None:
+        extraction_manifest, extraction_bytes = _read_manifest(extraction_manifest_path)
     if capture_manifest.get("schema") != "cinegraph.catalog-pilot-capture/v1":
         raise ValueError("Unexpected catalog-pilot capture manifest schema")
     if credit_manifest.get("schema") != "cinegraph.credit-target-manifest/v1":
@@ -75,6 +119,8 @@ def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[s
     captured_films = capture_manifest.get("films")
     if not isinstance(captured_films, list):
         raise ValueError("Film capture manifest has no films list")
+    if extraction_manifest is not None:
+        captured_films = _bind_extraction_manifest(capture_manifest, extraction_manifest)
     film_by_qid = {row.get("qid"): row for row in captured_films if isinstance(row, dict)}
     if len(film_by_qid) != len(captured_films):
         raise ValueError("Film capture manifest contains duplicate or malformed QIDs")
@@ -153,11 +199,14 @@ def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[s
         if derivative_hash != film.get("passage_derivative_sha256"):
             raise ValueError(f"Passage derivative hash mismatch for {qid}")
         derivative = json.loads(payload)
-        if (derivative.get("schema") != "cinegraph.wikipedia-passage-extraction/6"
-                or derivative.get("parser_version") != "enwiki-article-html-extraction-v6"
-                or derivative.get("source_revision") != film.get("wikipedia_revision")
-                or derivative.get("source_snapshot_sha256") != film.get("wikipedia_sha256")):
-            raise ValueError(f"Passage derivative source binding mismatch for {qid}")
+        binding = {
+            "schema": derivative.get("schema") == "cinegraph.wikipedia-passage-extraction/v6",
+            "parser_version": derivative.get("parser_version") == "enwiki-article-html-extraction-v6",
+            "revision": derivative.get("source_revision") == film.get("wikipedia_revision"),
+            "snapshot_sha256": derivative.get("source_snapshot_sha256") == film.get("wikipedia_sha256"),
+        }
+        if not all(binding.values()):
+            raise ValueError(f"Passage derivative source binding mismatch for {qid}: {binding}")
         result = extract_cast_candidates(
             film_qid=qid,
             passages=derivative.get("passages", []),
@@ -212,6 +261,7 @@ def prepare(bundle: Path, credit_manifest_path: Path, label_dir: Path) -> dict[s
         "film_capture_manifest_sha256": hashlib.sha256(capture_bytes).hexdigest(),
         "credit_target_manifest_sha256": hashlib.sha256(credit_bytes).hexdigest(),
         "credit_label_checkpoint_sha256": hashlib.sha256(checkpoint_bytes).hexdigest(),
+        "passage_extraction_manifest_sha256": hashlib.sha256(extraction_bytes).hexdigest() if extraction_bytes else None,
         "source_license_note": "Wikipedia text is attributed CC BY-SA 4.0 source material; assess each use separately.",
         "operational_fact_write": False,
         "summary": {
@@ -258,8 +308,10 @@ def main() -> None:
     parser.add_argument("credit_manifest", type=Path, help="Audited credit-target manifest JSON")
     parser.add_argument("credit_label_dir", type=Path, help="Complete local Wikidata label capture directory")
     parser.add_argument("output", type=Path, help="New ignored local JSON report path; existing files are not overwritten")
+    parser.add_argument("--extraction-manifest", type=Path,
+                        help="Versioned passage extraction manifest to bind against the captured revisions")
     args = parser.parse_args()
-    result = prepare(args.bundle, args.credit_manifest, args.credit_label_dir)
+    result = prepare(args.bundle, args.credit_manifest, args.credit_label_dir, args.extraction_manifest)
     payload = (json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
     _write_immutable(args.output, payload)
     print(json.dumps(result["summary"], sort_keys=True))
