@@ -2176,3 +2176,33 @@ remain local and out of Git.
   hash, but remains unexecuted because the isolated PostgreSQL service cannot
   be reached from the host and Docker cannot recreate its test image. The
   offline replay stays green; no database or source artifact was modified.
+
+### Follow-up — rank 11–100 Wikidata credit-label capture audited
+
+- Completed the resumable EntityData capture for all **2,467** person and
+  character QIDs selected from the retained rank 11–100 film snapshots. The
+  capture is sequential and robots-checked; all rows record the same robots
+  fingerprint, exact source URL/revision, retrieval time and snapshot hash.
+  The local immutable snapshot bundle is **148,693,789 bytes** and remains
+  ignored by Git.
+- The offline audit verified all 2,467 snapshot hashes, manifest membership,
+  QIDs, source revisions and URLs. It found **2,443 English labels** and **24
+  QIDs without an English label**; those are explicitly unresolved. The target
+  manifest has **2,213 cast**, **487 character**, **99 director** and **199
+  writer** references. Across the 90 films, at least one English-named cast
+  candidate is available for **82**, and at least one English-named character
+  candidate for **55**. These are label coverage counts, not independently
+  reviewed credit correctness or completeness.
+- The audit report is retained locally at
+  `data/evaluation/catalog-intake/english100-rank11-100-v1/credit-labels-v1/audit-v1.json`;
+  no raw payload or audit bundle is committed. The focused capture/manifest
+  suite passed **10 tests**, and the complete backend non-integration suite
+  passed **353 tests** (88 integration tests deselected).
+- Replay into `cinegraph_test` remains unverified. At inspection the dedicated
+  test database container was exited/unhealthy and had no published host port;
+  the working catalog database and API still reported container health-check
+  `input/output error`. The existing integration API health endpoint answered
+  `ok`, but that does not establish a reachable test database. No containers
+  were restarted or recreated, and neither the test nor working database was
+  written. Safe next action remains recovery of the isolated test database,
+  followed by replay and API/UI verification against that database only.
