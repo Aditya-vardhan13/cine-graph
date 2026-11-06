@@ -14,15 +14,16 @@ can be submitted at once. Duplicate submissions reuse their existing job.
    ingest python -m app.services.imdb_dataset`. If an index already exists,
    add popularity ranking for suggestions with the same command plus
    `--ratings-only`.
-3. Generate a long random service key (for example, `openssl rand -hex 32`)
-   and place `CINEGRAPH_ADMIN_TOKEN=<key>` in a local `.env` file. Never commit
-   or share it. This key is held by the local web server and API, not entered
-   in the browser. The admin API refuses requests if it is absent or shorter
-   than 24 characters. Set `CINEGRAPH_ADMIN_EMAIL=adityavk1310@gmail.com` to
-   identify the local operator.
-4. Run `docker compose up --build -d`. Open
-   `http://localhost:3000/admin/intake`, enter the operator email, then search,
-   select, and submit films. The service key stays on the local servers.
+3. The local pilot currently uses an email-string gate, not a service token or
+   verified login. Compose configures the expected value as
+   `CINEGRAPH_ADMIN_EMAIL` (default `adityavk1310@gmail.com`). Do not expose the
+   service beyond loopback; anyone who can reach the local web server can enter
+   that address. Production authentication is not implemented.
+4. Run `docker compose up --build -d`. This starts the API, web app, database,
+   migrations and `intake_worker`. Open `http://localhost:3000/admin/intake`,
+   enter the configured email, then search, select and submit films. The worker
+   processes queued jobs serially; if you start only selected services, include
+   `intake_worker` or submitted jobs will remain queued.
 
 The separate `intake_worker` service claims queued rows from PostgreSQL and
 processes one film at a time. It first resolves Wikidata by exact IMDb P345,
@@ -40,13 +41,14 @@ publish a film into the writer comparison index; that requires a separate
 quality and indexing gate. Preview and coverage checks use the newest captured
 revision of each source object; earlier snapshots remain stored for provenance.
 
-`ready` means the identity checks, TMDb cross-ID, English Wikipedia page, and
-full plot passage were found. `ready_with_gaps` means source identity was
-proved but one or more enrichment sources/fields (possibly the full plot) were
-unavailable. `needs_review` means a source identity could not safely be
-established or an existing conflicting profile requires an operator decision.
-These statuses do not certify factual correctness, complete casting, artistic
-quality, or commercial usage rights.
+Current terminal states are `captured` and `captured_with_gaps`: capture and
+extraction finished, with the latter naming missing sources/fields. Older
+persisted `ready` and `ready_with_gaps` states are displayed as legacy capture
+statuses. `needs_review` means identity or an existing conflicting profile
+needs an operator decision; `failed` means capture failed. None of these states
+means rights approval, indexing, factual correctness, complete casting,
+artistic quality or commercial clearance. Rights review, eligible chunking and
+embedding are separate explicit stages.
 
 The email field is a local operator selector, not verified login. Anyone with
 access to the local web server could enter this email; keep this pilot bound to

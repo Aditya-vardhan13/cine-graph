@@ -20,11 +20,13 @@ docker compose up --build -d
 ```
 
 Open `http://localhost:3000`. Compose starts PostgreSQL, a one-shot migration
-job, the API, then the web app. It preserves database and raw-snapshot volumes;
-it does **not** scrape or ingest anything on startup. The API is at
-`http://localhost:8000/api/v1`. Local ports bind to loopback by default. Set
-`CINEGRAPH_BIND_ADDRESS` deliberately for access from another device; never
-expose the default PostgreSQL credentials publicly.
+job, the API, web app and serial intake worker. It preserves database and
+raw-snapshot volumes and does not create or submit intake jobs automatically;
+if previously queued jobs exist, the worker will resume them. If you start only
+`api web`, also start `intake_worker` for new film-intake jobs to progress. The
+API is at `http://localhost:8000/api/v1`. Local ports bind to loopback by
+default. Set `CINEGRAPH_BIND_ADDRESS` deliberately for access from another
+device; never expose the default PostgreSQL credentials publicly.
 The local Compose pilot explicitly enables source-labelled IMDb/TMDb credits.
 Direct API runs and other deployments hide those non-commercial-only source
 credits unless `SERVE_NONCOMMERCIAL_SOURCES=true` is deliberately set. Do not
