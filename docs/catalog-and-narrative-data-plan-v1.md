@@ -1918,6 +1918,12 @@ remain local and out of Git.
   check reports both `db` and `api` containers running but **unhealthy**. No
   integration tests, migration, replay apply, corpus query, or corpus write
   was attempted in this step.
+- A read-only inspection of their health-check history returns `input/output
+  error` while executing even `/bin/sh` in PostgreSQL and `/usr/local/bin/python`
+  in the API container. This is below the application/test layer and matches
+  the previously observed Docker Desktop/containerd storage failure. No
+  restart, prune, image rebuild, or volume recreation was attempted; those
+  actions could put the persistent local corpus at risk.
 
 ### Follow-up — English pilot coverage sheet
 
