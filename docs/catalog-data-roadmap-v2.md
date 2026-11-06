@@ -72,9 +72,12 @@ cast on all ten films; 214 of 328 cast statements include a character entity or
 name qualifier, and 114 do not. The article capture yields 484 replay-verified
 passages, but citation linkage is not support verification, rights clearance or
 retrieval quality. These snapshot figures must not be conflated with the
-working catalog or its public API. Character qualifiers have not yet passed
-end-to-end projection and display verification. See the [ten-film coverage
-follow-up](catalog-and-narrative-data-plan-v1.md#follow-up--ten-film-structured-field-coverage-and-dataset-admission-plan-5-november-2026).
+working catalog or its public API. The isolated API/UI contract exercises one
+actor-to-character credit and verifies that the credit statement, actor label
+and character label link to separate provenance. This is fixture-level
+contract coverage; projection and per-credit review of the retained ten-film
+capture have not yet been completed. See the [ten-film coverage follow-up](catalog-and-narrative-data-plan-v1.md#follow-up--ten-film-structured-field-coverage-and-dataset-admission-plan-5-november-2026)
+and [credit provenance follow-up](catalog-and-narrative-data-plan-v1.md#follow-up--credit-provenance-is-visible-and-tested-end-to-end).
 
 The article-intake read path had also been selecting historical extraction v1
 while the current parser emitted v6, which could make newly captured passages
@@ -414,11 +417,16 @@ is recorded in the v6 follow-up below.
   tests (50 skipped), and 81 isolated API/PostgreSQL tests (270 deselected) on
   `cinegraph_test`. No data was ingested into the working corpus, and no
   embeddings or retrieval run were produced.
-- The next gate remains manual, stratified passage-to-reference and boundary
-  review plus source-specific rights/attribution classification. Then build
-  chunks only from eligible passages in an isolated versioned index and run
-  the frozen paired writer questions. Do not start the 100-film run until
-  those evidence and retrieval gates pass.
+- The first deterministic passage-boundary review selected 30 passages across
+  plot, production and contextual sections; all 30 matched complete paragraphs
+  under the expected full heading path in the retained HTML. This is a bounded
+  structural sample, not source support review or corpus-wide parser approval.
+  The prior citation-support spot check remains only a convenience sample.
+  Complete a broader, source-balanced support review and source-specific
+  rights/attribution classification next; then build chunks only from eligible
+  passages in an isolated versioned index and run the frozen paired writer
+  questions. Do not start the 100-film run until those evidence and retrieval
+  gates pass.
 
 ### Citation-support spot check (5 November 2026)
 
@@ -432,10 +440,14 @@ incorrect. Per-film judgments are in ignored local
 `data/evaluation/catalog-intake/first10-v1/citation-support-review-v1.md`.
 This confirms citation markers/URLs are provenance locators only, not automated
 support labels. Do not ingest or embed outbound source text from this check.
-Next, inspect passage boundaries and narrative coverage, then run retrieval
-over eligible local Wikipedia evidence against the frozen paired questions.
-The 100-film expansion remains gated on those measured results and rights
-review.
+The boundary sample is now recorded separately in
+`data/evaluation/catalog-intake/first10-v1/passage-boundary-review-v1.md`;
+it found no structural mismatch in 30 selected passages. Next, expand the
+source-balanced reference-support review and classify Wikipedia
+attribution/share-alike duties separately from linked-source terms. Then run
+retrieval over eligible local Wikipedia evidence against the frozen paired
+questions. The 100-film expansion remains gated on those measured results and
+rights review.
 
 Raw snapshots, passage derivatives and the detailed audit remain local under
 `data/evaluation/catalog-intake/first10-v1/` (ignored by Git). Only code,
@@ -443,12 +455,15 @@ documentation and small attributed fixtures belong in Git.
 
 ### Next actions, in order
 
-1. **Review ten-film reference mappings and rights.** Inspect a stratified
-   sample of passage-to-reference links against the retained HTML, and inspect
-   a stratified sample of extracted passage boundaries against article
-   sections. Classify Wikipedia attribution/share-alike obligations and linked
-   source terms separately. Citation-marker and URL resolution are locators,
-   not evidence validation or reuse clearance; exclude anything not eligible.
+1. **Continue ten-film reference-support and rights review.** The first
+   boundary sample (30 Plot, Production and contextual passages) matches the
+   retained source blocks; it is not corpus-wide approval. The existing
+   one-paragraph-per-film citation check is a convenience sample with six
+   targets still unverified. Expand source-balanced support review against the
+   exact retained references; classify Wikipedia attribution/share-alike
+   obligations separately from linked-source terms. Citation-marker and URL
+   resolution are locators, not evidence validation or reuse clearance; keep
+   anything unresolved out of the retrieval-eligible set.
 2. **Complete the isolated vertical slice.** Turn only eligible passages into
    versioned chunks, build embeddings incrementally in the isolated evaluation
    index, then run the frozen paired writer questions. Label support per film,

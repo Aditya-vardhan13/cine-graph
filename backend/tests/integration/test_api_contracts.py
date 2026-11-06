@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     Assertion, AssertionEvidence, CanonicalEntity, DataSource, EmbeddingIndexRun, EmbeddingModel,
-    EvidenceChunk, EvidenceChunkRun, EvidenceEmbedding, ReferenceCollection, ReferenceCollectionMembership,
+    EvidenceChunk, EvidenceChunkRun, EvidenceEmbedding, Film, ReferenceCollection, ReferenceCollectionMembership,
     SourceAssertion, SourceObject, SourceSnapshot,
 )
 from app.migrations import alembic_config
@@ -94,6 +94,25 @@ def test_health_and_catalogue_are_served_from_real_postgresql() -> None:
         assert connection.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm')")) is True
         assert connection.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')")) is True
         assert connection.scalar(text("SELECT to_regclass('public.ix_films_canonical_title_trgm')")) == "ix_films_canonical_title_trgm"
+
+
+def test_film_api_keeps_credit_and_label_sources_separate() -> None:
+    with Session(create_engine(DATABASE_URL)) as db:
+        film = db.scalar(select(Film).where(Film.canonical_title == "The Dark Knight"))
+        assert film
+        film_id = film.id
+
+    response = api_get(f"/api/v1/films/{film_id}")
+    assert response.status_code == 200
+    payload = response.json()
+    wikidata_group = next(group for group in payload["sourced_credit_groups"] if group["source_name"] == "Wikidata")
+    heath = next(credit for credit in wikidata_group["credits"] if credit["name"] == "Heath Ledger")
+    assert heath["character_name"] == "The Joker"
+    assert heath["source_url"] == "https://www.wikidata.org/wiki/Q163872"
+    assert heath["name_source_url"] == "https://www.wikidata.org/wiki/Q40572"
+    assert heath["name_source_revision"] == "2559704001"
+    assert heath["character_source_url"] == "https://www.wikidata.org/wiki/Q7743454"
+    assert heath["character_source_revision"] == "2559612074"
 
 
 def test_search_detail_comparison_and_lineage_return_evidence_backed_contracts() -> None:
@@ -426,10 +445,11 @@ def test_noncommercial_credits_require_explicit_serving_flag() -> None:
             evidence_type="source_assertion", reference=f"{source.url}#credits.cast[0]",
         ))
         db.flush()
-        assert sourced_credit_groups(db, knight_id) == ()
+        assert all(group.source_name != source.name for group in sourced_credit_groups(db, knight_id))
         groups = sourced_credit_groups(db, knight_id, include_noncommercial=True)
-        assert len(groups) == 1
-        assert groups[0].credits[0].character_name == "Joker"
+        local_group = next(group for group in groups if group.source_name == source.name)
+        assert local_group.rights_status == "local_noncommercial_only"
+        assert local_group.credits[0].character_name == "Joker"
         db.rollback()
 
 

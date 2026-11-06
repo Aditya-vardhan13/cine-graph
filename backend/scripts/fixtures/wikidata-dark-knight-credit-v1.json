@@ -1,0 +1,65 @@
+{
+  "schema": "cinegraph.wikidata-source-excerpt/v1",
+  "license": "CC0 1.0",
+  "note": "Field-minimized excerpt from the retained local Wikidata EntityData captures. Hashes and byte sizes refer to the complete immutable captures; the full raw payloads remain local and are not part of this test fixture.",
+  "entities": [
+    {
+      "qid": "Q163872",
+      "source_revision": "2564648138",
+      "snapshot_sha256": "c6878b2e971e6992885f6f7669872b4b31125a8204c496525446110ebfe01068",
+      "snapshot_byte_size": 290568,
+      "entity_url": "https://www.wikidata.org/wiki/Q163872",
+      "capture_url": "https://www.wikidata.org/wiki/Special:EntityData/Q163872.json",
+      "label_en": "The Dark Knight"
+    },
+    {
+      "qid": "Q40572",
+      "source_revision": "2559704001",
+      "snapshot_sha256": "53b313fb8afb3b84df241161af67c3a06921087fd4f4b161d3a35039a1c0d5f0",
+      "snapshot_byte_size": 138857,
+      "entity_url": "https://www.wikidata.org/wiki/Q40572",
+      "capture_url": "https://www.wikidata.org/wiki/Special:EntityData/Q40572.json",
+      "label_en": "Heath Ledger"
+    },
+    {
+      "qid": "Q7743454",
+      "source_revision": "2559612074",
+      "snapshot_sha256": "a1895b645772a2b98010b26b8d1df50e119b744e51c8ede78ae45e3f0df98c56",
+      "snapshot_byte_size": 16878,
+      "entity_url": "https://www.wikidata.org/wiki/Q7743454",
+      "capture_url": "https://www.wikidata.org/wiki/Special:EntityData/Q7743454.json",
+      "label_en": "The Joker"
+    }
+  ],
+  "credit": {
+    "film_qid": "Q163872",
+    "property": "P161",
+    "statement_id": "q163872$2834aa4e-4b4c-425f-4db7-771920dc9ebd",
+    "source_locator": "claims.P161[2]",
+    "actor_qid": "Q40572",
+    "character_qid": "Q7743454",
+    "raw_value": {
+      "entity-type": "item",
+      "numeric-id": 40572,
+      "id": "Q40572"
+    },
+    "raw_qualifiers": {
+      "P453": [
+        {
+          "snaktype": "value",
+          "property": "P453",
+          "hash": "f6e1b51550b2caa6cb5220cd7093545e4cf90715",
+          "datavalue": {
+            "value": {
+              "entity-type": "item",
+              "numeric-id": 7743454,
+              "id": "Q7743454"
+            },
+            "type": "wikibase-entityid"
+          },
+          "datatype": "wikibase-item"
+        }
+      ]
+    }
+  }
+}

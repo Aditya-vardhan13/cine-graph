@@ -7,12 +7,15 @@ touching the user's local research corpus or calling external services.
 from __future__ import annotations
 
 from datetime import date
+import json
+from pathlib import Path
 
 from sqlalchemy import inspect, text
 
 from app.db import SessionLocal, engine
 from app.models import (
     Assertion,
+    AssertionEvidence,
     CanonicalEntity,
     DataSource,
     Film,
@@ -27,6 +30,7 @@ from app.models import (
     ReferenceCollection,
     ReferenceCollectionMembership,
     SourceObject,
+    SourceAssertion,
     SourceSnapshot,
 )
 from app.services.evidence_preprocessing import build_evidence_chunks
@@ -49,8 +53,45 @@ def reset_database() -> None:
             connection.execute(text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"))
 
 
+def add_wikidata_label_excerpt(db, source: DataSource, entity: dict) -> SourceSnapshot:
+    """Replay a minimized label excerpt tied to its retained capture hash/revision."""
+    qid = entity["qid"]
+    label = entity["label_en"]
+    entity_url = entity["entity_url"]
+    capture_url = entity["capture_url"]
+    source_object = SourceObject(
+        source_id=source.id, external_id=qid, object_kind="entity", canonical_url=capture_url,
+    )
+    db.add(source_object)
+    db.flush()
+    snapshot = SourceSnapshot(
+        source_object_id=source_object.id, source_revision=entity["source_revision"], canonical_url=capture_url,
+        content_hash=entity["snapshot_sha256"], byte_size=entity["snapshot_byte_size"],
+        media_type="application/json", license="CC0 1.0", attribution_url=entity_url,
+        parser_version="wikidata-entitydata-excerpt-v1",
+    )
+    db.add(snapshot)
+    db.flush()
+    db.add(SourceAssertion(
+        source_snapshot_id=snapshot.id, statement_locator="labels.en",
+        source_property="wikidata:label:en", raw_subject={"wikidata_id": qid},
+        # The retained source's label shape uses `value`; the production
+        # Wikidata adapter normalizes it to the source-assertion `text` field.
+        raw_value={"language": "en", "text": label}, raw_qualifiers={},
+        extractor_version="wikidata-entitydata-excerpt-v1",
+    ))
+    return snapshot
+
+
 def seed() -> None:
     reset_database()
+    fixture_path = Path(__file__).with_name("fixtures") / "wikidata-dark-knight-credit-v1.json"
+    wikidata_excerpt = json.loads(fixture_path.read_text(encoding="utf-8"))
+    if (wikidata_excerpt.get("schema") != "cinegraph.wikidata-source-excerpt/v1"
+            or wikidata_excerpt.get("license") != "CC0 1.0"):
+        raise ValueError("Unsupported or unlicensed Wikidata integration excerpt.")
+    entities_by_qid = {row["qid"]: row for row in wikidata_excerpt["entities"]}
+    credit_excerpt = wikidata_excerpt["credit"]
     with SessionLocal() as db:
         english = LanguageEdition(
             code="en", display_name="English", native_name="English", script="Latin", enabled=True, status="live",
@@ -63,13 +104,19 @@ def seed() -> None:
             rights_status="open",
             notes="Deterministic local integration fixture; no external request.",
         )
-        db.add_all([english, source])
+        wikidata_source = DataSource(
+            name="Wikidata", url="https://www.wikidata.org/", source_type="structured_metadata",
+            license="CC0 1.0", rights_status="open",
+            notes="Integration-only extracted label fixture; no external request or working-corpus import.",
+        )
+        db.add_all([english, source, wikidata_source])
         db.flush()
         batch = IngestionBatch(source_id=source.id, external_reference="integration-fixture-v1", records_received=2, records_published=2)
         begins_entity = CanonicalEntity(entity_kind="film", canonical_label="Batman Begins (2005 film)", wikidata_id="Q166262")
         knight_entity = CanonicalEntity(entity_kind="film", canonical_label="The Dark Knight", wikidata_id="Q163872")
         nolan_entity = CanonicalEntity(entity_kind="person", canonical_label="Christopher Nolan", wikidata_id="Q25191")
-        db.add_all([batch, begins_entity, knight_entity, nolan_entity])
+        ledger_entity = CanonicalEntity(entity_kind="person", canonical_label="Heath Ledger", wikidata_id="Q40572")
+        db.add_all([batch, begins_entity, knight_entity, nolan_entity, ledger_entity])
         db.flush()
 
         begins = Film(
@@ -82,10 +129,53 @@ def seed() -> None:
             original_language_code="en", country_codes=["US", "GB"], wikidata_id="Q163872", entity_id=knight_entity.id,
         )
         nolan = Person(canonical_name="Christopher Nolan", wikidata_id="Q25191", entity_id=nolan_entity.id)
+        ledger = Person(canonical_name="Heath Ledger", wikidata_id="Q40572", entity_id=ledger_entity.id)
         crime = Genre(label="crime film", wikidata_id="Q959790")
-        db.add_all([begins, knight, nolan, crime])
+        db.add_all([begins, knight, nolan, ledger, crime])
         db.flush()
         reference = "https://www.wikidata.org/wiki/Q163872"
+        for qid in ("Q7743454", "Q40572"):
+            add_wikidata_label_excerpt(db, wikidata_source, entities_by_qid[qid])
+        film_excerpt = entities_by_qid[credit_excerpt["film_qid"]]
+        film_source_object = SourceObject(
+            source_id=wikidata_source.id, external_id=film_excerpt["qid"], object_kind="film",
+            canonical_url=film_excerpt["capture_url"],
+        )
+        db.add(film_source_object)
+        db.flush()
+        film_credit_snapshot = SourceSnapshot(
+            source_object_id=film_source_object.id, source_revision=film_excerpt["source_revision"],
+            canonical_url=film_excerpt["capture_url"], content_hash=film_excerpt["snapshot_sha256"],
+            byte_size=film_excerpt["snapshot_byte_size"], media_type="application/json", license="CC0 1.0",
+            attribution_url=film_excerpt["entity_url"], parser_version="wikidata-entitydata-excerpt-v1",
+        )
+        db.add(film_credit_snapshot)
+        db.flush()
+        cast_statement = SourceAssertion(
+            source_snapshot_id=film_credit_snapshot.id,
+            statement_locator=credit_excerpt["source_locator"],
+            source_property=credit_excerpt["property"],
+            raw_subject={"wikidata_id": credit_excerpt["film_qid"]},
+            raw_value=credit_excerpt["raw_value"],
+            raw_qualifiers=credit_excerpt["raw_qualifiers"],
+            extractor_version="wikidata-entitydata-excerpt-v1",
+        )
+        db.add(cast_statement)
+        db.flush()
+        cast_assertion = Assertion(
+            subject_entity_id=knight_entity.id, object_entity_id=ledger_entity.id,
+            object_entity_kind="person", predicate="cast", source_property=credit_excerpt["property"],
+            assertion_kind="source_fact", source_id=wikidata_source.id,
+            source_reference=reference, review_status="resolved",
+            qualifiers=cast_statement.raw_qualifiers,
+        )
+        db.add(cast_assertion)
+        db.flush()
+        db.add(AssertionEvidence(
+            assertion_id=cast_assertion.id, source_assertion_id=cast_statement.id,
+            evidence_type="source_assertion",
+            reference=f"{reference}#{credit_excerpt['statement_id']}",
+        ))
         db.add_all([
             FilmGenre(film_id=begins.id, genre_id=crime.id, source_id=source.id, source_reference=reference),
             FilmGenre(film_id=knight.id, genre_id=crime.id, source_id=source.id, source_reference=reference),

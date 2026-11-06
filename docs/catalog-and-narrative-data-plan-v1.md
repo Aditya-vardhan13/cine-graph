@@ -1258,3 +1258,39 @@ remain local and out of Git.
   integration tests deselected).
   The working corpus was not changed. UI provenance display, film-page/API
   browser checks and independent per-credit review remain open.
+
+### Follow-up — credit provenance is visible and tested end to end
+
+- The film profile now separates three links for an attributed actor/role:
+  the film's credit statement, the actor's source label, and (when present)
+  the character's source label. The UI does not make a name-label URL appear
+  to be evidence for the actor-to-character relationship.
+- The isolated integration fixture uses a field-minimized *The Dark Knight*
+  Wikidata excerpt, tied to the original capture hashes/revisions and carrying
+  the exact captured P161 statement ID and P453 Joker qualifier. English label
+  assertions follow the production adapter's normalized representation. Full
+  EntityData bytes remain local; the fixture is CC0 and is seeded only into
+  `cinegraph_test`. It does not change the working catalog. A real HTTP/API
+  assertion verifies the statement and distinct label URLs/revisions. A
+  Playwright test checks the rendered links. An offline cross-check against
+  the three full local snapshots confirmed each source hash, byte size,
+  revision and English label, and confirmed the fixture's actor value and
+  character qualifier exactly match the captured P161 statement.
+- Verification after fixture reseed: backend integration suite **82 passed,
+  1 skipped, 288 deselected**; frontend production build succeeded; Playwright
+  **7 passed** against the isolated API. The first browser attempt exposed that
+  the character-name link pointed at the label rather than the credit
+  statement; that was corrected and all browser tests then passed.
+- A separate local-only boundary sample checked 30 deterministic v6 passages
+  (Plot and Production for all ten films plus one alternating contextual
+  section per film) against the original retained HTML. An independent HTML
+  parser reconstructed each full heading path and compared each passage
+  paragraph with a complete source paragraph/list/blockquote: **30/30 matched,
+  0 failed**. The local method/results are in ignored
+  `data/evaluation/catalog-intake/first10-v1/passage-boundary-review-v1.md`.
+- These checks verify provenance plumbing and page behavior, not the
+  correctness/completeness of every displayed credit. The boundary sample is
+  not corpus-wide parser approval, semantic correctness, reference support, or
+  a reuse-rights decision. Independent per-credit review, broader source
+  support and rights decisions, and the frozen question-led retrieval
+  evaluation are still required before the next catalog expansion gate.

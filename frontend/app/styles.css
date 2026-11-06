@@ -12,3 +12,8 @@
 .release-events li{display:grid;gap:4px;padding:9px 0;border-top:1px solid var(--line);line-height:1.5}
 .release-events a{color:var(--lime);text-decoration:none}
 .release-events small{color:var(--muted)}
+.credit-row .sourced-credit-list{display:flex;gap:0;flex-wrap:wrap}
+.credit-row .sourced-credit{display:inline-flex;align-items:baseline;gap:4px;margin:0 10px 7px 0;flex-wrap:wrap}
+.credit-row .sourced-credit>a:not(.credit-provenance):not(:last-child)::after{content:none}
+.credit-row .sourced-credit .credit-provenance{font-family:Arial,Helvetica,sans-serif;color:var(--lime);font-size:9px;letter-spacing:.5px;text-transform:uppercase}
+.credit-row .sourced-credit>span{font-size:12px;color:var(--muted)}

@@ -67,7 +67,72 @@ export default async function FilmPage({ params }: { params: Promise<{ id: strin
     </section>
 
     <section className="detail-grid">
-      <div className="panel credits"><p className="eyebrow">Credits</p><h2>People and characters</h2>{sourcedCredits ? <><p className="detail-intro">Credits as reported by {sourcedCredits.source_name}; source lists may be incomplete. {sourcedCredits.rights_status === "local_noncommercial_only" && "This source is licensed for local non-commercial use only."}</p>{["director", "writer", "cast"].map((role) => { const entries = sourcedCredits.credits.filter((credit) => credit.role === role); return entries.length ? <div className="credit-row" key={role}><span>{role}</span><div>{entries.slice(0, role === "cast" ? 12 : 5).map((credit, index) => <a key={`${credit.name}-${role}-${index}`} href={credit.source_url} target="_blank" rel="noopener noreferrer">{credit.name}{credit.character_name ? ` as ${credit.character_name}` : ""}</a>)}</div></div> : null; })}<small>{sourcedCredits.source_license} · open a name to inspect the source</small></> : film.credits.length ? ["director", "writer", "cast"].map((role) => { const entries = film.credits.filter((credit) => credit.role === role); return entries.length ? <div className="credit-row" key={role}><span>{role}</span><div>{entries.slice(0, role === "cast" ? 8 : 4).map((credit) => <Link key={`${credit.person_id}-${role}`} href={`/people/${credit.person_id}`}>{credit.name}{credit.character_name ? ` as ${credit.character_name}` : ""}</Link>)}</div></div> : null; }) : <p className="muted">No reviewed credits are available for this profile yet.</p>}</div>
+      <div className="panel credits">
+        <p className="eyebrow">Credits</p>
+        <h2>People and characters</h2>
+        {sourcedCredits ? (
+          <>
+            <p className="detail-intro">
+              Credits as reported by {sourcedCredits.source_name}; source lists may be incomplete. Each linked label opens
+              the source that supplied it. {sourcedCredits.rights_status === "local_noncommercial_only" &&
+                "This source is licensed for local non-commercial use only."}
+            </p>
+            {["director", "writer", "cast"].map((role) => {
+              const entries = sourcedCredits.credits.filter((credit) => credit.role === role);
+              return entries.length ? (
+                <div className="credit-row" key={role}>
+                  <span>{role}</span>
+                  <div className="sourced-credit-list">
+                    {entries.slice(0, role === "cast" ? 12 : 5).map((credit, index) => (
+                      <span className="sourced-credit" key={`${credit.name}-${role}-${index}`}>
+                        <a href={credit.source_url} target="_blank" rel="noopener noreferrer"
+                           aria-label={`${credit.name} credit source`}>{credit.name}</a>
+                        {credit.name_source_url && (
+                          <a className="credit-provenance" href={credit.name_source_url} target="_blank"
+                             rel="noopener noreferrer" aria-label={`${credit.name} name label source`}>
+                            name source ↗
+                          </a>
+                        )}
+                        {credit.character_name ? (
+                          <span className="character-credit">
+                            as <a href={credit.source_url} target="_blank"
+                                  rel="noopener noreferrer" aria-label={`${credit.character_name} character credit source`}>
+                              {credit.character_name}
+                            </a>
+                            {credit.character_source_url && (
+                              <a className="credit-provenance" href={credit.character_source_url} target="_blank"
+                                 rel="noopener noreferrer" aria-label={`${credit.character_name} character label source`}>
+                                character source ↗
+                              </a>
+                            )}
+                          </span>
+                        ) : null}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
+            })}
+            <small>{sourcedCredits.source_license} · credit and label sources are shown separately</small>
+          </>
+        ) : film.credits.length ? (
+          ["director", "writer", "cast"].map((role) => {
+            const entries = film.credits.filter((credit) => credit.role === role);
+            return entries.length ? (
+              <div className="credit-row" key={role}>
+                <span>{role}</span>
+                <div>
+                  {entries.slice(0, role === "cast" ? 8 : 4).map((credit) => (
+                    <Link key={`${credit.person_id}-${role}`} href={`/people/${credit.person_id}`}>
+                      {credit.name}{credit.character_name ? ` as ${credit.character_name}` : ""}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null;
+          })
+        ) : <p className="muted">No reviewed credits are available for this profile yet.</p>}
+      </div>
       <div className="panel graph"><p className="eyebrow">Relationship graph</p><h2>Direct connections</h2>{graph && hasGraphPeople ? <GraphView graph={graph} /> : <p role="status" className="muted">No reviewed person graph links are available for this profile yet. Source-reported credits above remain attributed to their source.</p>}</div>
     </section>
 

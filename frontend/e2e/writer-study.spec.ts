@@ -93,6 +93,19 @@ test("film profile opens the writer desk with that film selected", async ({ page
   expect(films.ok()).toBeTruthy();
   const film = (await films.json())[0];
   await page.goto(`/films/${film.id}`);
+  const credits = page.locator(".credits");
+  await expect(credits.getByRole("link", { name: "Heath Ledger credit source" })).toHaveAttribute(
+    "href", "https://www.wikidata.org/wiki/Q163872",
+  );
+  await expect(credits.getByRole("link", { name: "Heath Ledger name label source" })).toHaveAttribute(
+    "href", "https://www.wikidata.org/wiki/Q40572",
+  );
+  await expect(credits.getByRole("link", { name: "The Joker character credit source" })).toHaveAttribute(
+    "href", "https://www.wikidata.org/wiki/Q163872",
+  );
+  await expect(credits.getByRole("link", { name: "The Joker character label source" })).toHaveAttribute(
+    "href", "https://www.wikidata.org/wiki/Q7743454",
+  );
   await expect(page.getByText(/catalog date 2022-10-06 is a separately recorded release event/)).toBeVisible();
   await expect(page.locator(".film-hero .metadata")).toContainText("2008-07-18");
   await page.getByText("Recorded release events (2)").click();
