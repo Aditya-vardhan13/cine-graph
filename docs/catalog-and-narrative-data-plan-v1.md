@@ -1506,3 +1506,33 @@ remain local and out of Git.
   data, source snapshots, or evaluation artifacts were changed. The next gate
   remains rights/support review and question-conditioned retrieval evaluation;
   no rights decisions or 100-film expansion were made.
+
+### Follow-up — retain and display scoped runtime evidence
+
+- The earlier runtime policy correctly refused to pick a scalar when eligible
+  source assertions differed or carried qualifiers, but the film page reduced
+  that evidence to “disputed” and hid the values that could explain the
+  difference. The API now returns admissible runtime options with their
+  converted minute value, bounds, typed qualifier property/entity IDs, source,
+  revision, review state, license and rights status. The conservative scalar
+  remains unset whenever version/value ambiguity remains; no source wins by
+  list order.
+- The film page now distinguishes multiple reported values, version-scoped
+  runtimes, approximate bounds and unresolved values. An expandable evidence
+  list links each assertion back to its source and Wikidata qualifier IDs.
+  Runtime variants remain evidence, not an inferred choice of theatrical,
+  extended or otherwise preferred cut.
+- Extended the write-once, read-only pilot metadata audit to include the exact
+  displayable runtime options. The fresh local-only v8 audit reports 100 films,
+  99 with at least one displayable option, 117 options total and 16 with
+  version qualifiers. The existing profile audit still finds 17 films whose
+  runtime requires review; exposing options does not resolve that review.
+  Report: `data/evaluation/catalog-pilot-metadata-audit-v8.json` (ignored/local).
+- Verification: offline backend suite **295 passed, 88 integration deselected**;
+  isolated Docker/PostgreSQL/API integration suite **87 passed, 1 skipped** on
+  `cinegraph_test`; the API assertion verifies the serialized runtime option,
+  and its Playwright film-profile flow passed against that same test stack.
+  Frontend unit suite **5 passed**; TypeScript check and Next.js production
+  build succeeded; Python audit and whitespace checks passed. No corpus facts,
+  snapshots, passages or vectors were edited. The
+  broader 100-film quality, rights and enrichment gates remain open.

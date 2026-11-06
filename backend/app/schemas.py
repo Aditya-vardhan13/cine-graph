@@ -125,12 +125,32 @@ class ResearchReleaseEventOut(BaseModel):
     source_license: str | None
 
 
+class ResearchRuntimeScopeOut(BaseModel):
+    property_id: str
+    entity_ids: list[str]
+
+
+class ResearchRuntimeOptionOut(BaseModel):
+    assertion_id: str
+    minutes: int = Field(gt=0)
+    lower_bound_minutes: int | None = Field(default=None, gt=0)
+    upper_bound_minutes: int | None = Field(default=None, gt=0)
+    scope: list[ResearchRuntimeScopeOut]
+    source_url: str
+    source_revision: str | None
+    review_status: str
+    source_name: str | None
+    source_rights_status: str | None
+    source_license: str | None
+
+
 class ResearchFilmOut(BaseModel):
     entity_id: UUID
     film_id: UUID | None
     title: str
     release_date: date | None
     runtime_minutes: int | None
+    runtime_options: list[ResearchRuntimeOptionOut]
     genres: list[str]
     language_code: str
     release_year: int | None

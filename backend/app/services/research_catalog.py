@@ -35,6 +35,7 @@ class ResearchFilm:
     title: str
     release_date: str | None
     runtime_minutes: int | None
+    runtime_options: tuple[dict[str, Any], ...]
     genres: tuple[str, ...]
     language_code: str
     release_year: int | None

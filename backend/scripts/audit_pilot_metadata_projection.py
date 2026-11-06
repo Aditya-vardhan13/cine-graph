@@ -239,6 +239,7 @@ def main() -> None:
                 "release_date": projection.release_date,
                 "release_events": list(projection.release_events),
                 "runtime_minutes": projection.runtime_minutes,
+                "runtime_options": list(projection.runtime_options),
                 "metadata_issues": list(projection.metadata_issues),
             },
             "release_profile_status": release_status,
@@ -248,11 +249,12 @@ def main() -> None:
                 "runtimes": runtime_assertions,
             },
             "counts": {"release_assertions": len(release_assertions),
-                       "runtime_assertions": len(runtime_assertions)},
+                       "runtime_assertions": len(runtime_assertions),
+                       "displayable_runtime_options": len(projection.runtime_options)},
         })
 
     report = {
-        "version": "pilot-metadata-projection-audit-v2",
+        "version": "pilot-metadata-projection-audit-v3",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "database_read_only": True,
         "pilot_sha256": hashlib.sha256(pilot_bytes).hexdigest(),
@@ -261,6 +263,21 @@ def main() -> None:
             item["release_profile_status"] for item in results).items())),
         "runtime_profile_status_counts": dict(sorted(Counter(
             item["runtime_profile_status"] for item in results).items())),
+        "runtime_option_counts": {
+            "films_with_options": sum(bool(item["default_display_research_projection"]["runtime_options"])
+                                       for item in results),
+            "total_options": sum(item["counts"]["displayable_runtime_options"] for item in results),
+            "version_scoped_options": sum(
+                bool(option["scope"])
+                for item in results
+                for option in item["default_display_research_projection"]["runtime_options"]
+            ),
+            "distinct_minutes": sorted({
+                option["minutes"]
+                for item in results
+                for option in item["default_display_research_projection"]["runtime_options"]
+            }),
+        },
         "snapshot_integrity_status_counts": dict(sorted(Counter(
             evidence["snapshot_integrity_status"]
             for item in results
@@ -278,6 +295,7 @@ def main() -> None:
     print(json.dumps({"film_count": report["film_count"],
                       "release_profile_status_counts": report["release_profile_status_counts"],
                       "runtime_profile_status_counts": report["runtime_profile_status_counts"],
+                      "runtime_option_counts": report["runtime_option_counts"],
                       "output": str(args.output), "database_read_only": True}))
 
 

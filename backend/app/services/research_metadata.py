@@ -24,6 +24,38 @@ def language_code_for_qids(qids: set[str]) -> str:
     return LANGUAGE_CODES.get(next(iter(qids)), "und")
 
 
+def _minute_value(value: Any, *, unit: str | None) -> int | None:
+    factor = MINUTE_FACTORS.get(unit or "")
+    if factor is None:
+        return None
+    try:
+        minutes = Decimal(str(value)) * factor
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    if not minutes.is_finite() or minutes <= 0 or minutes != minutes.to_integral_value():
+        return None
+    return int(minutes)
+
+
+def _runtime_scope(qualifiers: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Retain typed qualifier property IDs and entity IDs for display."""
+    scope = []
+    for property_id, statements in sorted(qualifiers.items()):
+        if not isinstance(property_id, str) or not isinstance(statements, list):
+            continue
+        entity_ids = sorted({
+            statement["datavalue"]["value"]["id"]
+            for statement in statements
+            if isinstance(statement, dict)
+            and isinstance(statement.get("datavalue"), dict)
+            and isinstance(statement["datavalue"].get("value"), dict)
+            and isinstance(statement["datavalue"]["value"].get("id"), str)
+        })
+        if entity_ids:
+            scope.append({"property_id": property_id, "entity_ids": entity_ids})
+    return scope
+
+
 @dataclass(frozen=True)
 class MetadataAssertion:
     assertion_id: str
@@ -98,21 +130,40 @@ def display_metadata(
 
     runtime_values: set[int] = set()
     runtime_unresolved = False
+    runtime_options: list[dict[str, Any]] = []
     for item in groups["runtime"]:
         value = item.value
-        try:
-            factor = MINUTE_FACTORS.get(value.get("unit"))
-            amount = Decimal(str(value.get("amount")))
-            minutes = amount * factor if factor is not None else Decimal("NaN")
-            if (not minutes.is_finite() or minutes <= 0 or minutes != minutes.to_integral_value()
-                    or item.qualifiers
-                    or any(value.get(bound) is not None and Decimal(str(value[bound])) != amount
-                           for bound in ("lower_bound", "upper_bound"))):
-                runtime_unresolved = True
-            else:
-                runtime_values.add(int(minutes))
-        except (InvalidOperation, TypeError, ValueError):
+        unit = value.get("unit")
+        minutes = _minute_value(value.get("amount"), unit=unit)
+        lower = (_minute_value(value.get("lower_bound"), unit=unit)
+                 if value.get("lower_bound") is not None else None)
+        upper = (_minute_value(value.get("upper_bound"), unit=unit)
+                 if value.get("upper_bound") is not None else None)
+        if minutes is None:
             runtime_unresolved = True
+            continue
+        scope = _runtime_scope(item.qualifiers)
+        runtime_options.append({
+            "assertion_id": item.assertion_id,
+            "minutes": minutes,
+            "lower_bound_minutes": lower,
+            "upper_bound_minutes": upper,
+            "scope": scope,
+            "source_url": item.source_url,
+            "source_revision": item.source_revision,
+            "review_status": item.review_status,
+            "source_name": item.source_name,
+            "source_rights_status": item.source_rights_status,
+            "source_license": item.source_license,
+        })
+        malformed_bound = (
+            (value.get("lower_bound") is not None and lower is None)
+            or (value.get("upper_bound") is not None and upper is None)
+        )
+        if item.qualifiers or malformed_bound or lower not in (None, minutes) or upper not in (None, minutes):
+            runtime_unresolved = True
+        else:
+            runtime_values.add(minutes)
     if runtime_unresolved or len(runtime_values) > 1:
         issues.add("runtime_requires_version_or_value_resolution")
     runtime = next(iter(runtime_values)) if len(runtime_values) == 1 and not runtime_unresolved else None
@@ -127,11 +178,17 @@ def display_metadata(
     release_events.sort(key=lambda event: (
         event["year"], event["date"] or "", event["place_ids"], event["assertion_id"],
     ))
+    runtime_options.sort(key=lambda option: (
+        option["minutes"],
+        tuple((scope["property_id"], tuple(scope["entity_ids"])) for scope in option["scope"]),
+        option["source_name"] or "", option["assertion_id"],
+    ))
     return {
         "release_date": exact_release.isoformat() if exact_release else None,
         "release_year": earliest_year,
         "release_basis": "earliest_recorded_release" if dates else None,
         "runtime_minutes": runtime,
+        "runtime_options": tuple(runtime_options),
         "genres": tuple(sorted({genre_labels[qid] for qid in genre_ids if qid in genre_labels})),
         "genre_ids": tuple(genre_ids), "language_code": language_code,
         "original_language_ids": tuple(language_ids), "metadata_issues": tuple(sorted(issues)),

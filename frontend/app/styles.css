@@ -12,6 +12,11 @@
 .release-events li{display:grid;gap:4px;padding:9px 0;border-top:1px solid var(--line);line-height:1.5}
 .release-events a{color:var(--lime);text-decoration:none}
 .release-events small{color:var(--muted)}
+.runtime-options{max-width:760px}
+.runtime-options li b{color:var(--ink)}
+.runtime-options li span{line-height:1.5}
+.runtime-options li span a,.runtime-options li small a{color:var(--lime);text-decoration:none}
+.runtime-options li small{line-height:1.5}
 .credit-row .sourced-credit-list{display:flex;gap:0;flex-wrap:wrap}
 .credit-row .sourced-credit{display:inline-flex;align-items:baseline;gap:4px;margin:0 10px 7px 0;flex-wrap:wrap}
 .credit-row .sourced-credit>a:not(.credit-provenance):not(:last-child)::after{content:none}

@@ -33,6 +33,17 @@ export default async function FilmPage({ params }: { params: Promise<{ id: strin
     (film.research_available ? null : year(film.release_date));
   const displayRuntime = research ? research.runtime_minutes :
     film.research_available ? null : film.runtime_minutes;
+  const runtimeOptions = research?.runtime_options || [];
+  const runtimeValues = new Set(runtimeOptions.map((option) => option.minutes));
+  const hasVersionScope = runtimeOptions.some((option) => option.scope.length > 0);
+  const runtimeSummary = displayRuntime ? `${displayRuntime} minutes` :
+    runtimeValues.size > 1 ? "Runtime varies by source or version" :
+      hasVersionScope ? "Runtime recorded for specific versions" :
+      runtimeOptions.length === 1 && runtimeOptions[0].lower_bound_minutes !== null &&
+        runtimeOptions[0].upper_bound_minutes !== null && runtimeOptions[0].scope.length === 0
+        ? `About ${runtimeOptions[0].minutes} minutes` :
+          research?.metadata_issues.includes("runtime_requires_version_or_value_resolution")
+            ? "Runtime needs version review" : "Runtime unavailable";
   const displayLanguage = research?.language_code ?? film.language_code;
   const displayGenres = research?.genres.length ? research.genres : film.genres;
   const sourcedCredits = film.sourced_credit_groups?.find((group) => group.credits.some((credit) => credit.character_name)) || film.sourced_credit_groups?.[0];
@@ -49,12 +60,20 @@ export default async function FilmPage({ params }: { params: Promise<{ id: strin
       <div>
         <p className="eyebrow">Film profile</p>
         <h1>{film.title}</h1>
-        <p className="metadata">{research?.release_date || displayYear} <i>·</i> {displayRuntime ? `${displayRuntime} minutes` : research?.metadata_issues.includes("runtime_requires_version_or_value_resolution") ? "Runtime disputed by sources" : "Runtime unavailable"} <i>·</i> Original language: {displayLanguage.toUpperCase()}</p>
+        <p className="metadata">{research?.release_date || displayYear} <i>·</i> {runtimeSummary} <i>·</i> Original language: {displayLanguage.toUpperCase()}</p>
         <div className="pills large">{displayGenres.map((genre) => <span key={genre}>{genre}</span>)}</div>
         <p className="detail-intro">{research ? "Source-linked research metadata is shown where available; older catalog fields fill remaining gaps." : "This profile uses older catalog metadata; check provenance before relying on a field."} {releaseSource && <a href={releaseSource} target="_blank" rel="noopener noreferrer">Inspect release source ↗</a>}</p>
         {film.release_date_matches_recorded_event && research?.release_date && year(film.release_date) !== String(research.release_year) && <p className="release-event-note">The catalog date {film.release_date} is a separately recorded release event; the earliest recorded release is {research.release_date}. See the sourced events below.</p>}
         {film.release_year_conflict && <p className="release-conflict">The catalog date {year(film.release_date)} does not match a dated event in the eligible research sources. The earliest recorded release is {film.research_release_year}; inspect both sources before relying on either value.</p>}
         {!film.research_release_year && film.release_date && <p className="release-caveat">Release year shown from the legacy profile; not yet cross-checked in the writer collection.</p>}
+        {runtimeOptions.length > 0 && <details className="release-events runtime-options">
+          <summary>Recorded runtime assertions ({runtimeOptions.length})</summary>
+          <ul>{runtimeOptions.map((option) => <li key={option.assertion_id}>
+            <span>{option.minutes} minutes{option.lower_bound_minutes !== null && option.upper_bound_minutes !== null && (option.lower_bound_minutes !== option.minutes || option.upper_bound_minutes !== option.minutes) && <> · reported range {option.lower_bound_minutes}–{option.upper_bound_minutes} min</>}</span>
+            {option.scope.length > 0 && <small>Scope qualifiers: {option.scope.map((scope, scopeIndex) => <span key={`${option.assertion_id}-${scope.property_id}`}>{scopeIndex > 0 ? "; " : ""}<a href={`https://www.wikidata.org/wiki/Property:${scope.property_id}`} target="_blank" rel="noopener noreferrer">{scope.property_id}</a>: {scope.entity_ids.map((qid, index) => <span key={qid}>{index > 0 ? ", " : ""}<a href={`https://www.wikidata.org/wiki/${qid}`} target="_blank" rel="noopener noreferrer">{qid}</a></span>)}</span>)}</small>}
+            <small>{option.source_name || sourceHost(option.source_url)} · {option.source_license || "License not recorded"} · {option.source_rights_status || "rights not classified"} · {option.review_status} · revision {option.source_revision || "not supplied"} · <a href={option.source_url} target="_blank" rel="noopener noreferrer">source ↗</a></small>
+          </li>)}</ul>
+        </details>}
         {releaseEvents.length > 0 && <details className="release-events">
           <summary>Recorded release events ({releaseEvents.length})</summary>
           <ul>{releaseEvents.map((event) => <li key={event.assertion_id}>

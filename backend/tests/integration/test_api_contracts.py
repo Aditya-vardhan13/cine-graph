@@ -274,6 +274,20 @@ def test_search_detail_comparison_and_lineage_return_evidence_backed_contracts()
     research_profile = api_get(f"/api/v1/research/films/{detail_payload['entity_id']}")
     assert research_profile.status_code == 200
     assert research_profile.json()["film_id"] == knight_id
+    assert research_profile.json()["runtime_minutes"] == 152
+    assert research_profile.json()["runtime_options"] == [{
+        "assertion_id": research_profile.json()["runtime_options"][0]["assertion_id"],
+        "minutes": 152,
+        "lower_bound_minutes": None,
+        "upper_bound_minutes": None,
+        "scope": [],
+        "source_url": "https://www.wikidata.org/wiki/Q163872",
+        "source_revision": "fixture-runtime-1",
+        "review_status": "published",
+        "source_name": "Wikidata",
+        "source_rights_status": "open",
+        "source_license": "CC0 1.0",
+    }]
     release_events = research_profile.json()["release_events"]
     assert [event["date"] for event in release_events] == ["2008-07-18", "2022-10-06"]
     assert [event["precision"] for event in release_events] == [11, 11]

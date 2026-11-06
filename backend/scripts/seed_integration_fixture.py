@@ -204,6 +204,12 @@ def seed() -> None:
                     "datavalue": {"value": {"id": "Q851"}, "type": "wikibase-entityid"}}]},
             ),
             Assertion(
+                subject_entity_id=knight_entity.id, predicate="runtime", assertion_kind="source_fact",
+                source_id=wikidata_source.id, source_reference=reference, source_revision="fixture-runtime-1",
+                review_status="published", rank="normal",
+                value_json={"type": "quantity", "amount": "+152", "unit": "Q7727"},
+            ),
+            Assertion(
                 subject_entity_id=begins_entity.id, predicate="release_event", assertion_kind="source_fact",
                 source_id=source.id, source_reference="https://www.wikidata.org/wiki/Q166262",
                 review_status="published", rank="normal",

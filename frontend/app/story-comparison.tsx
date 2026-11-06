@@ -114,7 +114,7 @@ export function StoryComparisonWorkbench({ mode }: { mode: "study" | "evidence" 
     if (!savedFirst || !savedSecond) return;
     const asResearchFilm = (film: { entity_id: string; title: string }): ResearchFilm => ({
       entity_id: film.entity_id, film_id: null, title: film.title, release_date: null,
-      runtime_minutes: null, genres: [], language_code: "en", release_year: null,
+      runtime_minutes: null, runtime_options: [], genres: [], language_code: "en", release_year: null,
       release_basis: null, genre_ids: [], original_language_ids: [], metadata_issues: [], metadata_evidence: {},
       release_events: [],
     });

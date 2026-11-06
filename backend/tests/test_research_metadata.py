@@ -1,13 +1,15 @@
 from dataclasses import replace
 
-from app.schemas import ResearchReleaseEventOut
+from app.schemas import ResearchReleaseEventOut, ResearchRuntimeOptionOut
 from app.services.research_metadata import MetadataAssertion, display_metadata
 
 
 def fact(predicate, value, **changes):
     return MetadataAssertion("assertion-1", predicate, value, changes.get("qualifiers", {}),
                              changes.get("review_status", "resolved"), changes.get("rank", "normal"),
-                             "https://www.wikidata.org/wiki/Q788822", "123")
+                             "https://www.wikidata.org/wiki/Q788822", "123",
+                             changes.get("source_name"), changes.get("source_rights_status"),
+                             changes.get("source_license"))
 
 
 def release(time, precision=11):
@@ -80,6 +82,38 @@ def test_runtime_unit_conversion_and_conflicting_versions():
     assert "runtime_requires_version_or_value_resolution" in result["metadata_issues"]
     qualified = replace(minute, qualifiers={"P518": [{"value": "extended_cut"}]})
     assert display_metadata([qualified], genre_labels={})["runtime_minutes"] is None
+
+
+def test_runtime_options_preserve_source_scopes_and_bounds():
+    theatrical = replace(
+        fact("runtime", {"type": "quantity", "amount": "+148", "unit": "Q7727"},
+             source_name="Wikidata", source_rights_status="open", source_license="CC0 1.0"),
+        assertion_id="theatrical-runtime",
+        qualifiers={"P518": [{"datavalue": {"value": {"id": "Q26225765"}}}]},
+    )
+    alternate = replace(
+        fact("runtime", {"type": "quantity", "amount": "+152", "unit": "Q7727"},
+             source_name="Wikidata", source_rights_status="open", source_license="CC0 1.0"),
+        assertion_id="alternate-runtime",
+    )
+    approximate = replace(
+        fact("runtime", {"type": "quantity", "amount": "+118", "unit": "Q7727",
+                          "lower_bound": "+117", "upper_bound": "+119"}),
+        assertion_id="approximate-runtime",
+    )
+
+    result = display_metadata([alternate, theatrical, approximate], genre_labels={})
+
+    assert result["runtime_minutes"] is None
+    assert [item["minutes"] for item in result["runtime_options"]] == [118, 148, 152]
+    assert result["runtime_options"][0]["lower_bound_minutes"] == 117
+    assert result["runtime_options"][0]["upper_bound_minutes"] == 119
+    assert result["runtime_options"][1]["scope"] == [
+        {"property_id": "P518", "entity_ids": ["Q26225765"]},
+    ]
+    response = ResearchRuntimeOptionOut(**result["runtime_options"][1])
+    assert response.source_license == "CC0 1.0"
+    assert response.source_rights_status == "open"
 
 
 def test_genre_identifiers_are_preserved_without_inventing_labels_or_language():

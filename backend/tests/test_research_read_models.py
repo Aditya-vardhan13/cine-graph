@@ -98,6 +98,10 @@ def test_canonical_metadata_works_without_legacy_profile(research_db):
     assert str(result.release_date) == "2013-10-12"
     assert result.release_year == 2013
     assert result.runtime_minutes == 126
+    assert len(result.runtime_options) == 1
+    assert result.runtime_options[0].minutes == 126
+    assert result.runtime_options[0].source_name == "Wikidata"
+    assert result.runtime_options[0].source_license == "CC0 1.0"
     assert result.language_code == "en"
     assert result.genre_ids == ["Q471839"]
     assert result.metadata_evidence["release_event"][0]["source_revision"] == "2513891788"
@@ -161,6 +165,10 @@ def test_noncommercial_metadata_is_excluded_unless_explicitly_enabled(research_d
     assert local_research_view.release_year == 2012
     assert local_research_view.runtime_minutes is None
     assert "runtime_requires_version_or_value_resolution" in local_research_view.metadata_issues
+    assert {option["minutes"] for option in default_view.runtime_options} == {126}
+    assert {option["minutes"] for option in local_research_view.runtime_options} == {126, 140}
+    assert all(option["source_rights_status"] != "local_noncommercial_only"
+               for option in default_view.runtime_options)
     assert sourced_release_years(research_db, {film.entity_id}) == {film.entity_id: 2013}
     assert sourced_release_years(research_db, {film.entity_id}, include_noncommercial=True) == {
         film.entity_id: 2012,

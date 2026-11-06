@@ -102,6 +102,12 @@ export type ResearchFilm = {
   title: string;
   release_date: string | null;
   runtime_minutes: number | null;
+  runtime_options: Array<{
+    assertion_id: string; minutes: number; lower_bound_minutes: number | null;
+    upper_bound_minutes: number | null; scope: Array<{ property_id: string; entity_ids: string[] }>;
+    source_url: string; source_revision: string | null; review_status: string;
+    source_name: string | null; source_rights_status: string | null; source_license: string | null;
+  }>;
   genres: string[];
   language_code: string;
   release_year: number | null;
