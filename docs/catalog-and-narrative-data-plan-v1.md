@@ -1558,3 +1558,18 @@ remain local and out of Git.
   `cinegraph_test`; complete Playwright suite: **10 passed**. These are test
   fixture results only; production/local-corpus rights decisions remain for
   the operator and legal review.
+- A runtime audit found the already-running local API container was an older
+  image that ignored the new filter parameters. Rebuilt and restarted only the
+  API service with `--no-deps`; the working PostgreSQL service and volume were
+  not changed. The live queue now reports **3,039 unreviewed**, **0 approved**,
+  **0 denied** and **0 deferred** snapshots. The actual local Next app at
+  `localhost:3001`, with explicit loopback-only admin settings, displays the
+  full count and narrows *The Dark Knight Rises* to its two snapshots. This
+  check did not write review decisions. Until an operator reviews eligible
+  assets, no working-corpus narrative snapshot can enter semantic indexing.
+- Rechecked the actual server-rendered *The Dark Knight Rises* profile against
+  the local API: it displays the sourced 2012-07-20 release event rather than
+  treating the legacy 2022-10-06 value as canonical, exposes the discrepancy,
+  and renders available actor-to-character labels with source links. The
+  profile still flags the runtime as needing version review. This is one-film
+  verification, not a 100-film completeness claim.
