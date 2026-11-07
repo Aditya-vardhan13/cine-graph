@@ -18,6 +18,9 @@ from app.services.wikipedia_cast_statement_replay import validate_cast_source_st
 CANDIDATE_SCHEMA = "cinegraph.wikipedia-cast-candidates/v8"
 STATEMENT_SCHEMA = "cinegraph.wikipedia-cast-source-statements/v5"
 _IDENTITY = "same_film_wikidata_cast_target"
+_IDENTITY_ONLY_BASES = {"exact_unique_english_label", "exact_unique_english_alias"}
+_IDENTITY_SUPPLEMENT_SCHEMA = "cinegraph.wikipedia-cast-identity-supplement/v1"
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _candidate_statement_binding(candidate: dict[str, Any]) -> str:
@@ -99,6 +102,42 @@ def _draft_statement_binding(draft: dict[str, Any]) -> str:
         },
     }
     return json.dumps(binding, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _supplement_candidate_binding(candidate: dict[str, Any]) -> str:
+    """Bind an unresolved source name to its exact article passage and role."""
+    return json.dumps({
+        "film_qid": candidate.get("film_qid"),
+        "actor_label_in_source": candidate.get("actor_label_in_source"),
+        "character_name_in_source": candidate.get("character_name_in_source"),
+        "wikipedia_url": candidate.get("wikipedia_url"),
+        "wikipedia_revision": candidate.get("wikipedia_revision"),
+        "wikipedia_snapshot_sha256": candidate.get("wikipedia_snapshot_sha256"),
+        "section_locator": candidate.get("section_locator"),
+        "passage_ordinal": candidate.get("passage_ordinal"),
+        "passage_sha256": candidate.get("passage_sha256"),
+        "evidence_phrase": candidate.get("evidence_phrase"),
+        "review_status": candidate.get("review_status"),
+    }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _supplement_draft_binding(draft: dict[str, Any]) -> str:
+    value = draft["raw_value"]
+    qualifiers = draft["raw_qualifiers"]
+    subject = draft["raw_subject"]
+    return json.dumps({
+        "film_qid": subject.get("film_qid"),
+        "actor_label_in_source": value.get("actor_label_in_source"),
+        "character_name_in_source": value.get("character_name_in_source"),
+        "wikipedia_url": qualifiers.get("wikipedia_url"),
+        "wikipedia_revision": qualifiers.get("wikipedia_revision"),
+        "wikipedia_snapshot_sha256": qualifiers.get("wikipedia_snapshot_sha256"),
+        "section_locator": qualifiers.get("section_locator"),
+        "passage_ordinal": qualifiers.get("passage_ordinal"),
+        "passage_sha256": qualifiers.get("passage_sha256"),
+        "evidence_phrase": qualifiers.get("evidence_phrase"),
+        "review_status": value.get("review_status"),
+    }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _sha256(payload: bytes) -> str:
@@ -188,7 +227,11 @@ def build_cast_candidate_coverage(
     candidate_report_hashes: list[str] = []
     all_statement_locators: set[str] = set()
     candidate_statement_bindings: Counter[str] = Counter()
-    draft_statement_bindings: Counter[str] = Counter()
+    regular_draft_statement_bindings: Counter[str] = Counter()
+    supplemental_candidate_bindings: Counter[str] = Counter()
+    supplemental_draft_bindings: Counter[str] = Counter()
+    unresolved_candidates_by_binding: dict[str, list[dict[str, Any]]] = {}
+    identity_supplement_hashes: list[str] = []
 
     candidate_selections: set[str] = set()
     matched_statement_inputs: set[str] = set()
@@ -264,6 +307,7 @@ def build_cast_candidate_coverage(
                 "candidate_count": 0,
                 "same_film_identity_candidates": 0,
                 "identity_only_suggestions": 0,
+                "identity_supplemented_candidates": 0,
                 "unresolved_source_names": 0,
                 "character_label_matches_only": 0,
                 "quarantined_spans": 0,
@@ -311,6 +355,9 @@ def build_cast_candidate_coverage(
             elif resolution == "unresolved_source_name":
                 row["unresolved_source_names"] += 1
                 unresolved_count += 1
+                unresolved_candidates_by_binding.setdefault(
+                    _supplement_candidate_binding(candidate), [],
+                ).append(row)
             else:
                 raise ValueError(f"Unknown candidate identity state: {resolution!r}")
             if candidate.get("matching_wikidata_character_qids"):
@@ -359,6 +406,17 @@ def build_cast_candidate_coverage(
         drafts = _required_list(manifest.get("source_statement_drafts"), "Source statement drafts")
         if len(drafts) != manifest.get("summary", {}).get("source_statement_drafts"):
             raise ValueError("Statement summary does not match its draft rows")
+        supplement = manifest.get("identity_supplement")
+        has_identity_supplement = supplement is not None
+        if has_identity_supplement:
+            if (not isinstance(supplement, dict)
+                    or supplement.get("schema") != _IDENTITY_SUPPLEMENT_SCHEMA
+                    or not isinstance(supplement.get("sha256"), str)
+                    or not _SHA256.fullmatch(supplement["sha256"])):
+                raise ValueError("Identity supplement must name its schema and exact manifest SHA-256")
+            identity_supplement_hashes.append(supplement["sha256"])
+        supplemental_draft_count = 0
+        regular_identity_only_count = 0
         for draft in drafts:
             if not isinstance(draft, dict):
                 raise ValueError("Source statement drafts must be objects")
@@ -372,7 +430,30 @@ def build_cast_candidate_coverage(
                     or value.get("review_status") != "review_required"):
                 raise ValueError("Source statement draft is not a supported review-only cast statement")
             validate_cast_source_statement_draft(draft)
-            draft_statement_bindings[_draft_statement_binding(draft)] += 1
+            binding = _draft_statement_binding(draft)
+            if regular_draft_statement_bindings[binding] < candidate_statement_bindings[binding]:
+                regular_draft_statement_bindings[binding] += 1
+                if qualifiers.get("identity_resolution_basis") in _IDENTITY_ONLY_BASES:
+                    regular_identity_only_count += 1
+            elif (has_identity_supplement
+                    and qualifiers.get("identity_resolution_basis") in _IDENTITY_ONLY_BASES):
+                supplement_binding = _supplement_draft_binding(draft)
+                matches = unresolved_candidates_by_binding.get(supplement_binding, [])
+                if len(matches) != 1 or supplemental_draft_bindings[supplement_binding]:
+                    raise ValueError("Supplemental identity draft must match one unique unresolved candidate passage")
+                row = matches[0]
+                if row["unresolved_source_names"] < 1:
+                    raise ValueError("Supplemental identity draft resolves an already resolved source name")
+                row["identity_only_suggestions"] += 1
+                row["identity_supplemented_candidates"] += 1
+                row["unresolved_source_names"] -= 1
+                identity_suggestion_count += 1
+                unresolved_count -= 1
+                supplemental_candidate_bindings[supplement_binding] += 1
+                supplemental_draft_bindings[supplement_binding] += 1
+                supplemental_draft_count += 1
+            else:
+                regular_draft_statement_bindings[binding] += 1
             digest = statement_digest_for_fields(
                 source_property=SOURCE_PROPERTY,
                 extractor_version=draft["extractor_version"],
@@ -396,6 +477,11 @@ def build_cast_candidate_coverage(
             all_statement_locators.add(locator)
             row["source_statement_drafts"] += 1
             statement_count += 1
+        summary = manifest.get("summary", {})
+        if (isinstance(summary, dict)
+                and isinstance(summary.get("identity_only_drafts"), int)
+                and summary["identity_only_drafts"] != regular_identity_only_count + supplemental_draft_count):
+            raise ValueError("Identity-only draft summary does not match its exact candidate bindings")
 
     for row in films_by_rank.values():
         if row["candidate_count"] != row.pop("_reported_candidate_count"):
@@ -407,20 +493,26 @@ def build_cast_candidate_coverage(
         ):
             raise ValueError("Strong-identity candidates and exact-source drafts are not one-to-one")
 
-    if candidate_statement_bindings != draft_statement_bindings:
+    if candidate_statement_bindings != regular_draft_statement_bindings:
         raise ValueError("Source statement drafts do not match their exact candidate evidence rows")
+    if supplemental_candidate_bindings != supplemental_draft_bindings:
+        raise ValueError("Supplemental identity drafts do not match their exact unresolved article passages")
 
     return {
-        "schema": "cinegraph.wikipedia-cast-candidate-coverage/v1",
+        "schema": "cinegraph.wikipedia-cast-candidate-coverage/v2",
         "pilot_manifest_sha256": _sha256(pilot_bytes),
         "partition_selection_sha256": sorted(candidate_selections),
         "input_report_sha256": candidate_report_hashes,
         "statement_manifest_sha256": statement_manifest_hashes,
+        "identity_supplement_manifest_sha256": identity_supplement_hashes,
         "summary": {
             "films": expected_film_count,
             "candidate_rows": candidate_count,
             "same_film_identity_candidates": identity_count,
             "identity_only_candidates_with_review_drafts": identity_suggestion_count,
+            "identity_supplemented_candidates": sum(
+                film["identity_supplemented_candidates"] for film in films_by_rank.values()
+            ),
             "review_only_source_statement_drafts": statement_count,
             "identity_only_suggestions": identity_suggestion_count,
             "unresolved_source_names": unresolved_count,
@@ -462,6 +554,11 @@ def render_cast_candidate_coverage(report: dict[str, Any]) -> str:
         "| Rank | Film | QID | Cast passages | Candidates | Same-film | Identity suggestion | Unresolved | Label-only character | Quarantined | Drafts | Captured article |",
         "|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
+    if "identity_supplemented_candidates" in summary:
+        lines.insert(
+            9,
+            f"- Curated identity-supplement matches: **{summary['identity_supplemented_candidates']}**; these remain unverified Wikipedia credit candidates.",
+        )
     for film in report["films"]:
         title = str(film["title"]).replace("|", "\\|")
         revision_url = f"{film['wikipedia_url']}?oldid={film['wikipedia_revision']}"

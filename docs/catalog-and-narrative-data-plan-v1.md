@@ -115,7 +115,7 @@ Use each source for what it actually supplies, with its source-specific policy:
 
 | Source | Intended role | Important constraint |
 | --- | --- | --- |
-| Local IMDb datasets | Candidate titles, identifiers, aliases, credits and ranking signals, where available | The published datasets are for personal/non-commercial use; do not assume they can be used in a paid service. [IMDb terms](https://data.imdb.com/non-commercial-datasets/) |
+| Local IMDb datasets / IMDb-derived CSV | Existing local evaluation target only, pending source-rights replacement or permission | IMDb's stated terms prohibit repurposing the datasets to create an online/offline movie database; do not ingest their fields into durable product records or publish IMDb-derived rankings. [IMDb terms](https://help.imdb.com/article/imdb/general-information/can-i-use-imdb-data-in-my-software/G5JTRESSHJBBHTGX) |
 | TMDB API | Film identity candidates, metadata, cast/character mappings and other available fields | Respect attribution and current API terms. TMDB distinguishes commercial API access; review before monetization. [TMDB FAQ](https://developer.themoviedb.org/docs/faq) |
 | Wikidata | Cross-source identifiers, multilingual labels, dates, credits and typed relations when supported | Statements and references still need conflict handling; a matching ID alone does not establish every property. |
 | Wikipedia | Source-linked plot, production, reception, thematic and legacy context where available | Retain source revision, attribution and license information; article depth varies. |
@@ -128,6 +128,31 @@ specific route before enabling automated retrieval; do not assume a browser
 page being visible authorizes scraping. Wikimedia recommends an informative
 user agent and sequential API requests. [MediaWiki API etiquette](https://www.mediawiki.org/wiki/API:Etiquette).
 Stop on access denial or rate limiting; do not bypass controls.
+
+#### 3.1 Current reuse gate (checked 7 November 2026)
+
+This is an engineering intake rule, not a legal opinion. Keep each source's
+rights status and permitted purpose explicit; source availability or an API
+key is not a reuse license.
+
+| Source | Current documented position | Pipeline decision |
+| --- | --- | --- |
+| Wikidata structured data | CC0 for structured data; text in other namespaces has different terms | Suitable as the open structured-identity/fact input, with exact revision and references retained. Do not treat quoted reference text as CC0. |
+| English Wikipedia article text | Generally CC BY-SA 4.0; check the particular page. Commercial reuse/adaptation is allowed subject to attribution, indication of changes and ShareAlike obligations | Preserve revision, article URL, attribution and license; keep semantic/model-use decisions per snapshot and use case. Any public redistribution or model-derived output still needs a separate compliance review. |
+| TMDB developer API | Free for non-commercial use with attribution; TMDB says revenue-benefiting projects are commercial and require a commercial license | May be used only in the local non-commercial prototype under its current API terms and attribution requirements. Exclude TMDB-derived assets/fields from a paid deployment until licensed; preserve a source-level export/filter path. |
+| IMDb datasets / IMDb-derived selection CSV | IMDb states its datasets are for personal, non-commercial use and says they may not be republished, resold or repurposed to create an online/offline movie database | Block these files from durable product-catalog ingestion and publication. Keep existing local evaluation artifacts isolated and marked non-commercial; replace the target manifest with an appropriately licensed candidate list or obtain permission before product use. A third-party CSV is not permission to reuse IMDb data. |
+| Independent reviews and essays | Usually copyrighted unless the specific publisher, author or item grants reuse rights | Store discovery links and permitted bibliographic metadata; do not capture, embed, quote or redistribute full text absent an item-specific basis. |
+
+The project must preserve these distinctions in source provenance and generated
+exports. The pipeline must not convert a non-commercial prototype decision into
+a production license by changing an environment flag. Before any public or
+paid release, re-check the current source terms and obtain the licenses or
+replacement sources required for the exact fields and uses shipped. Relevant
+primary references: [Wikidata licensing](https://www.wikidata.org/wiki/Wikidata:Copyright),
+[Wikimedia content reuse](https://www.mediawiki.org/wiki/Wikimedia_APIs/Content_reuse),
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/),
+[TMDB API FAQ](https://developer.themoviedb.org/docs/faq), and
+[IMDb dataset-use terms](https://help.imdb.com/article/imdb/general-information/can-i-use-imdb-data-in-my-software/G5JTRESSHJBBHTGX).
 
 ## 4. What a well-prepared film record should contain
 
@@ -443,16 +468,20 @@ on the first 100, then extend the same pipeline.
 
 Questions to settle during Phase A, without blocking safe baseline work:
 
-1. Which exact 1,000-film target constitutes acceptance? The supplied global
-   list is only a candidate source: the latest local audit maps 730 rows to
+1. Which appropriately licensed source will define the durable 1,000-film
+   English target? The current IMDb-derived list is a local evaluation input,
+   not a product-catalog source: the latest audit maps 730 rows to
    English-labeled catalog candidates, 50 to known non-English candidates,
-   189 to unresolved/multilingual language, and 31 to unresolved identity. It
-   cannot alone satisfy an English 1,000 target. Keep it as a multilingual
-   diagnostic; define and version any additional English candidate sources
-   and language/identity gates before expansion. Important comparison films
-   outside the deterministic list remain separately sourced exceptions.
-2. Which source licenses and attribution obligations permit the intended pilot
-   and, later, a paid product? Record decisions per source and derivative.
+   189 to unresolved/multilingual language, and 31 to unresolved identity.
+   Freeze a replacement target list with its own source, license, language and
+   inclusion method before durable expansion. Important comparison films
+   outside that list remain separately sourced exceptions.
+2. For the local pilot, source use is now explicitly separated: Wikidata
+   structured data is CC0; Wikipedia text is generally CC BY-SA 4.0 with
+   attribution/share-alike requirements; TMDB developer access is
+   non-commercial with attribution; IMDb-derived data remains isolated from
+   durable product records. Before any paid service, replace or license all
+   non-commercial-only data and review outputs/derivatives per use case.
 3. Which films lack sufficient sources for a given question, rather than merely
    lacking a model that can answer it?
 4. Can the local model configuration meet acceptable latency and useful-answer
@@ -3505,3 +3534,391 @@ remain local and out of Git.
 - Docker still reports the isolated test containers exited with container
   metadata I/O errors. The new tampered-passage persistence case is collected,
   not executed. No database, raw snapshot or corpus row was changed.
+
+### Follow-up — require canonical Wikidata hosts in cast replay (7 November 2026)
+
+- Tightened all three retained Wikidata source URL checks in the cast-draft
+  replay validator to compare the complete authority (`netloc`), not only the
+  parsed hostname. This rejects otherwise host-matching URLs with credentials
+  or explicit ports for actor identity, film identity and film-cast evidence.
+- Added six parameterized regressions that reseal candidate digests after
+  injecting credentialed or port-qualified Wikidata URLs, ensuring rejection
+  comes from URL canonicalization rather than only a stale digest.
+- Python compilation passes. Test execution is currently unavailable in the
+  project Conda environment because its installed environment lacks
+  `pgvector`, SQLAlchemy and pytest; the system Python has the same missing
+  database dependency. Docker is also inaccessible from this session (`docker`
+  socket permission denied), so no PostgreSQL/API integration check was run.
+  No corpus database, source snapshot or local data artifact was changed.
+
+### Follow-up — rerun offline gates on the supported Python runtime (7 November 2026)
+
+- Re-established a disposable Python 3.11 test environment because the named
+  Conda environment is Python 3.9, while repository modules use Python 3.10+
+  syntax and `StrEnum` (Python 3.11). Installed the pinned backend requirements
+  under `/tmp`; the project Conda environment and repository dependency files
+  were not changed.
+- The complete non-integration backend suite passes **469 tests**, with all
+  **109 integration tests deselected**. This includes the six new canonical
+  Wikidata authority regressions. The focused cast source/review group also
+  passes **98/98**. Frontend unit tests pass **5/5**, TypeScript checking
+  passes, and a production build generates the cast-review page and API proxy.
+  Alembic generates the full static migration SQL through `20261107_21`.
+  Pyflakes, Python compilation and `git diff --check` pass.
+- Retried the repository integration runner with Docker access. It failed
+  before Compose changed the stack or any test database was touched: the
+  cached `cinegraph-integration-migrate-test` image references a containerd
+  blob that returns `input/output error`. The existing API-test container also
+  reports as non-running when inspected through Compose. The migration, API,
+  transaction and reviewer workflow tests remain unexecuted; the existing
+  working catalog was not accessed. Keep these database-dependent changes
+  local until the isolated `cinegraph_test` gate can run.
+
+### Follow-up — guarded cast-statement replay entry point (7 November 2026)
+
+- Added a dry-run-first operator command to load retained, hash-bound v8 cast
+  candidate/v6 source-statement manifests into review-required
+  `SourceAssertion` rows. It verifies candidate bytes and the complete draft
+  set before opening a database connection; writes require an explicit
+  PostgreSQL URL, current schema, and an extra flag for any non-test database.
+  It does not write operational `Assertion` facts or fetch external sources.
+- Dry runs validate **1,403 drafts across 89 films** for ranks 11–100 and
+  **183 drafts across 10 films** for the first-ten manifest. The rank 11–100
+  candidate report contains 90 films: rank 32, *The Lion King* (Q36479), has
+  no source-statement drafts and must be investigated before describing this
+  bundle as complete. No database was opened or modified by these dry runs.
+- The complete non-integration backend suite passes **489 tests** with **50
+  skipped**. Python compilation and `git diff --check` pass. The initial full
+  run caught the test-policy ban on SQLite URLs; the safety test now uses a
+  MySQL URL to verify non-PostgreSQL rejection without violating that policy.
+- Database-backed replay and reviewer workflow remain unverified. Docker
+  inspection shows containerd blob and metadata-database I/O errors (including
+  for `python:3.12-slim`); no container or volume was restarted, removed, or
+  overwritten. Keep this work local until the isolated `cinegraph_test`
+  integration gate passes.
+
+### Follow-up — report cast replay film-coverage gaps (7 November 2026)
+
+- The replay dry-run now compares candidate-report film QIDs with films that
+  have at least one validated review draft and reports every missing title,
+  rank, candidate count and unresolved count. This prevents a large statement
+  count from concealing incomplete film coverage.
+- Rechecked rank 11–100: **89/90 films** have review drafts (1,403 drafts);
+  rank 32, *The Lion King* (Q36479), has 10 candidate credits, all unresolved,
+  and no source-statement drafts. Neither retained credit-label checkpoint
+  contains the listed actors, so the current local evidence cannot safely
+  resolve them. The first-ten bundle has **10/10 films** (183 drafts).
+  No network request, database connection or source-data mutation occurred.
+- The full offline backend suite passes **490 tests**, with **50 skipped**.
+  Compilation and `git diff --check` pass. Docker's cached `ps` output lists
+  the isolated stack as up, but read-only `docker exec` and `docker inspect`
+  fail: both integration containers are actually exited, and container
+  metadata reads return `input/output error`. Host probes also find no API on
+  port 18001. Do not infer DB/API gate success from cached container-list
+  status; keep database-backed changes local.
+- The isolated integration suite collects **45/45** cases successfully, and
+  offline Alembic SQL generation reaches revision `20261107_21`. A fresh
+  `docker compose -f docker-compose.integration.yml up --build -d` attempt
+  fails before starting services: containerd cannot read a cached API image
+  blob (`input/output error`). No working app service or database was touched.
+
+### Follow-up — supplement exact actor identities for rank 11–100 (7 November 2026)
+
+- Added an opt-in identity supplement for cast names absent from the film's
+  Wikidata P161 statements. A curator-supplied QID target file is bound to the
+  exact retained candidate-report hash, exact unresolved English name, and
+  pilot selection. Capture uses the existing robots-checked EntityData client,
+  runs sequentially at its configured minimum one-second interval, requires a
+  human (`P31=Q5`), and saves immutable CC0 response bytes only under ignored
+  local `data/evaluation`. Re-runs reuse and checksum-verify retained snapshots
+  rather than downloading them again. No generic Wikidata search/API route is
+  introduced.
+- Exercised the full rank-32 *The Lion King* gap from the actual retained
+  rank-11–100 v8 candidate report. Nine explicit QID/name mappings were
+  validated against their official EntityData labels and human type; the
+  invalid Rowan Atkinson mapping (Q8337, Harry Potter) was rejected before a
+  draft was emitted, then corrected to Q23760. Eight successful local payloads
+  were reused, requiring only one new sequential fetch on the corrected run.
+  Zoe Leader remains unresolved because no trustworthy Wikidata person item
+  was established. No guessed identity or cast credit was added.
+- Rebuilt the rank-11–100 review manifest with the identity supplement: **1,412
+  review-required drafts**, including 47 identity-only drafts, across **90/90
+  films**. The candidate report still records all 1,823 source candidates;
+  411 remain unresolved/ambiguous. The dry-run replay reports no film without
+  a draft and zero database writes. Rebuilt the first-ten v8 bundle as well:
+  **183 drafts across 10/10 films**. Together the English top-100 test corpus
+  now has at least one source draft for **100/100 titles and 1,595 drafts**.
+- These numbers demonstrate identity-resolution and film coverage only. They
+  do not establish that a human approved each actor–character pairing, that
+  every credit is present, or that operational `Assertion` facts were written.
+  Actor `CanonicalEntity` availability and the transactional reviewer/API flow
+  still require the isolated PostgreSQL `cinegraph_test` integration gate.
+- The complete offline backend suite passes **498 tests**, with **95
+  integration tests skipped**; changed Python modules compile and
+  `git diff --check` passes. The isolated Compose status check is still blocked
+  by permission denied for `/Users/vkammela/.docker/run/docker.sock`. No
+  database was opened or modified. Candidate reports, identity targets,
+  snapshots and generated review bundles remain local and ignored; no raw data
+  or model assets were staged for Git.
+
+### Follow-up — provenance-preserving identity replay boundary (7 November 2026)
+
+- Added a replay validator that binds curated person QIDs to the exact retained
+  rank-11–100 candidate report, unresolved source names, target manifest, and
+  CC0 EntityData bytes. It rejects changed hashes, non-human entities, invalid
+  revisions, and labels/aliases that do not exactly support the candidate
+  name. Replay stores source snapshots/assertions through the existing
+  Wikidata ingestion path, then records an `EntityResolution` and canonical /
+  legacy person identity. It explicitly creates **zero** film-credit
+  operational assertions; a film credit still requires separate review.
+- The command is dry-run by default and refuses implicit database targets;
+  writes require `--apply`, an explicit reviewer, and an explicit database URL.
+  Local corpus writes require an additional opt-in. The real retained Lion King
+  supplement validates **9/9** curated QIDs as exact English-label matches;
+  the dry-run reports zero operational cast assertions.
+- Replay diagnostics say “source objects processed” (not “created”): the
+  ingestion adapter processes one object per target while independently
+  reporting actual snapshot/assertion creation, so repeat runs are not
+  misrepresented as new objects.
+- Added pure failure-path coverage and an isolated PostgreSQL persistence test
+  covering snapshot/source-assertion provenance, canonical person resolution,
+  zero credit assertions, and replay idempotency. Full offline backend tests
+  pass: **504 passed, 96 skipped**. Frontend tests pass (**5/5**), TypeScript
+  check and production build pass. The focused Playwright first-use test also
+  passes (**1/1**) in installed Chrome, and `git diff --check` is clean.
+- The PostgreSQL test is **not verified yet**. The dedicated `cinegraph_test`
+  container intermittently reports healthy internally but has no reachable
+  host port; the API test container also exits. Reconciliation of only the
+  `db-test` service failed because Docker cannot read its cached pgvector image
+  blob (`input/output error`). No database was restarted, pruned, or modified
+  by this attempt. Keep this change local until the isolated persistence gate
+  can run successfully.
+
+### Follow-up — join review-only cast coverage into the English-100 sheet (7 November 2026)
+
+- Extended the existing English pilot coverage renderer to join the current
+  passage-free Wikipedia cast-candidate coverage report by exact rank, title,
+  year and Wikidata QID. The cast report must also carry the exact frozen pilot
+  manifest SHA-256, complete rank set, consistent aggregate/per-film totals,
+  quarantine reason totals, and explicit review-only / not-verified status.
+  A mismatch fails closed; no passage text is copied into the sheet.
+- Generated local-only
+  `data/evaluation/catalog-pilot-english100-coverage-v7.md` (SHA-256
+  `002cfcd6d79b72c963d8e1fde9b2a4897d45b569340edc9abd36005654cfb68e`). For
+  the frozen 100 English films, the retained cast audit has **2,044 candidate
+  rows**, **1,546 same-film identity candidates**, **40 identity-only
+  suggestions**, **458 unresolved names**, **52 quarantined spans**, and
+  **1,586 review-only drafts**. Character-label-only matches are **324**.
+  Existing resolved cast/character assertion counts remain separate from these
+  unreviewed candidates; the report explicitly does not show a reviewed-credit
+  ledger because the database review flow has not passed its integration gate.
+- The same sheet keeps the pipeline bottleneck visible: **0/200** narrative
+  snapshots approved or eligible for semantic use, and **0/7,466** stored
+  vectors eligible under the current snapshot-purpose rights gate. These are
+  eligibility counts, not claims that source content is inaccurate or that a
+  larger model would help.
+- Added regressions for pilot-hash/rank/identity/year mismatches, invalid
+  counts, quarantine arithmetic, and false verified-credit claims. Focused
+  report tests pass **14/14**; the full offline backend suite passes
+  **512 passed, 96 skipped**; `git diff --check` is clean. The report and raw
+  input artifacts stay local/ignored. PostgreSQL/API cast-review persistence
+  remains unverified because Docker's isolated test stack is still unavailable;
+  no database or volume was changed.
+
+### Follow-up — expose per-title review gates for the 1,000-candidate target (7 November 2026)
+
+- Extended the target coverage renderer with a versioned, film-by-film Markdown
+  queue. Every frozen rank now shows title/year, candidate mapping and English
+  gate, catalog candidate/QID, language label, available narrative sections,
+  separate resolved cast/character assertion counts, source snapshot/rights
+  eligibility counts, stored/eligible vector counts, and explicit review
+  reasons. Ambiguous matches retain each candidate label and ID in the report;
+  title fields are escaped for Markdown tables. Narrative passages are not
+  copied into this artifact.
+- Generated local-only `data/evaluation/catalog-target-english1000-coverage-v7.md`
+  (SHA-256 `6cae16c9883469ca49e269d3e2fe2a6d77785927833bcd0dbd0fbef04456c0a7`)
+  and JSON (`e2ea9516211d2c3a39045138f505e4bf3bbff5c67cc10a80df86fea67c8f9d8b`).
+  The report preserves 1,000 contiguous ranks, 969 unreviewed catalog
+  candidates, one ambiguous row and 30 unmatched rows. It reiterates that 730
+  English-language labels are still identity candidates, 189 mapped rows have
+  unresolved language, 50 are non-English, and none of the 969 mappings has
+  semantic-use-eligible narrative evidence or an eligible vector.
+- The first rank's row now explicitly shows 30 resolved cast assertions versus
+  1 character assertion, plus 2 source snapshots / 0 eligible and 104 vectors
+  / 0 eligible. These aggregate counts do not prove complete credits or
+  actor-character mappings; the separate human-review queue remains necessary.
+- Focused renderer tests pass **4/4**; full offline backend tests pass
+  **498 passed, 110 deselected**; pyflakes, report regeneration/validation and
+  `git diff --check` pass. The artifact is local/ignored; no corpus or source
+  data was modified.
+- PostgreSQL/API integration remains open. Docker still lists stale test
+  containers without host ports; container exec reports them stopped, and
+  Compose rebuild fails reading the existing pgvector image blob (`input/output
+  error`). No container, image, volume or working corpus was changed by this
+  verification.
+
+### Follow-up — current offline and isolated-stack verification (7 November 2026)
+
+- Corrected a formatting indentation defect in the target-coverage report
+  schema declaration. The report remains schema v4; no report semantics or
+  catalog data changed.
+- Revalidated the local 1,000-title coverage artifact against its exact source
+  fingerprints: 1,000 rows and 969 candidate mappings. The report's validation
+  passes and the focused coverage suites pass **18/18**.
+- Re-ran the complete offline backend suite: **498 passed, 110 deselected**.
+  Frontend tests pass (**6/6**), `tsc --noEmit` passes, and the Next.js
+  production build passes with all current routes, including the admin cast
+  review surface.
+- The cast-review UI now retains the decision-success notice after refreshing
+  the queue, and only creates a retained-revision link for a validated HTTPS
+  English Wikipedia article URL and numeric revision. Added a unit test for
+  allowed and unsafe article-link inputs.
+- The narrative-rights UI had the same refresh behavior, which erased its
+  success notice; it now preserves the decision result and reports separately
+  when refreshing the queue fails. The server-side approval route now refuses
+  an approval unless the snapshot fetch succeeded, narrative passages exist,
+  retained bytes match their recorded hash/size, the license is supported by
+  the current semantic-use policy, and attribution, HTTPS basis, and a
+  non-whitespace rationale are present. Reviewer email is normalized before
+  recording. Pure policy tests cover each failure class.
+- The integration fixture now stores real temporary source bytes and matching
+  hashes for its approval case, and checks that whitespace-only rationale is
+  rejected. Its PostgreSQL/API execution remains pending with the rest of the
+  integration suite.
+- After this policy change, the offline backend suite passes **499 tests**
+  (**110 integration tests deselected**); frontend tests pass (**6/6**),
+  TypeScript, production build, Python compilation and `git diff --check` pass.
+- Reproduced those offline checks with the explicit `cine-graph` Conda Python
+  and the repository-retained `mwparserfromhell` dependency on `PYTHONPATH`:
+  **499 passed, 110 deselected**. A focused Playwright run using the already
+  installed Chrome binary passes **3/3** initial-page checks for the narrative
+  rights, film intake and cast-review operator desks. These checks do not
+  exercise live API behavior or decision persistence.
+- Alembic's PostgreSQL offline SQL generation completes through revision
+  `20261107_21`, including the new cast-review table, constraints, indexes and
+  append-only trigger. This confirms migration graph/DDL generation only; the
+  DDL has not executed against PostgreSQL.
+- The real-PostgreSQL integration gate is still unverified. The dedicated
+  integration runner stopped before migration or tests because Docker
+  containerd returned an I/O error reading its cached `pgvector/pg16` image;
+  a normal pull then failed writing containerd metadata with the same I/O
+  error. A read-only disk check showed 2.6 GiB free with the host volume at
+  100% capacity; `docker system df` also failed on a containerd image blob.
+  Clearing only the 21 MiB project-generated Playwright build cache increased
+  host free space to 2.7 GiB but did not repair Docker. The test services did
+  not start, no integration test ran, and no database or volume was changed.
+  No workaround that prunes or resets Docker state was attempted because that
+  could affect the user's other local services.
+- These checks establish offline code/unit/build health only. Browser
+  presentation is checked, but browser interaction with live admin/API routes,
+  PostgreSQL persistence for cast decisions, rights approval, and a vetted
+  1,000-title English corpus remain unverified.
+
+### Follow-up — recheck of integration gate (7 November 2026)
+
+- Re-ran the offline backend suite from the project Conda environment:
+  **499 passed, 110 integration tests deselected**. Frontend tests pass
+  (**6/6**), `tsc --noEmit` passes, and the production build completes with
+  the catalog, film, study, intake, rights and cast-review routes.
+- Retried the dedicated `cinegraph-integration` Compose stack with explicit
+  permission to use Docker. It still fails before any service or migration
+  starts: containerd cannot read the cached `pgvector/pgvector:pg16` content
+  blob (`input/output error`). The host volume remains at 100% capacity with
+  2.6 GiB available. The test database was not reached or modified; no Docker
+  image or volume cleanup was attempted.
+- A read-only connection probe to `127.0.0.1:5433/cinegraph_test` also could
+  not establish a host connection, and no native PostgreSQL client is
+  installed. This does not establish that PostgreSQL is corrupt or that more
+  free space alone will repair Docker; the isolated integration gate remains
+  unverified pending a healthy Docker image store or another isolated local
+  PostgreSQL runtime.
+- These checks do not change the data-readiness conclusion: the current
+  1,000-title report has 969 unreviewed candidate mappings and zero
+  semantically eligible narrative passages/vectors. No catalog data was
+  published by this verification.
+
+### Follow-up — source reuse gate and local-only intake enforcement (7 November 2026)
+
+- Reviewed current primary-source reuse statements for IMDb, TMDB, Wikidata
+  and Wikimedia. The source matrix now distinguishes CC0 structured Wikidata,
+  Wikipedia's generally CC BY-SA text, TMDB's non-commercial developer API,
+  and IMDb's personal/non-commercial datasets and stated restriction on
+  repurposing them to create a movie database. The 1,000-title IMDb-derived
+  input remains a local evaluation artifact, not a cleared product-catalog
+  target. Before durable/public expansion, replace it with a suitably licensed
+  target list or obtain permission; TMDB-derived data likewise needs a
+  commercial license before paid use. References are recorded in section 3.1.
+- Added one fail-closed policy for local-only non-commercial source acquisition
+  and applied it at IMDb/TMDB registration, ingestion, and the intake worker's
+  entry point. The worker now refuses to process any job outside local
+  development before loading the local IMDb index, reading the TMDB token,
+  or opening its database session. This prevents a deployment environment from
+  accidentally starting the local research worker; it does not grant rights
+  for commercial reuse or clear the existing local corpus.
+- Focused policy and intake-identity tests pass (**18/18**). The complete
+  offline backend suite passes **500 tests**, with **110 integration tests
+  deselected**. PostgreSQL/API persistence remains unverified because the
+  isolated Docker test image still fails with a containerd I/O error; no test
+  database or volume was touched.
+- Added a subprocess regression that invokes both ingestion entry points in a
+  production environment and proves they refuse before reading the local
+  dataset/TMDb credential or opening a database session. Focused rights tests
+  pass (**13/13**); the current full offline suite passes **501 tests**, with
+  **110 integration tests deselected**.
+- The intake desk now displays the local-only/non-commercial status of its
+  IMDb candidate index and TMDB enrichment, with a warning that these records
+  are not ready for public or paid use without source replacement/licensing.
+  Frontend tests pass (**6/6**), TypeScript validation passes, and the Next.js
+  production build completes. This is an operator disclosure, not a data-rights
+  approval or a substitute for the per-snapshot review gate.
+
+### Follow-up — reconcile curated cast identity supplement in 100-film audit (7 November 2026)
+
+- The rank 11–100 cast statement bundle includes nine exact English label/alias
+  identity supplements for unresolved Wikipedia cast names. The prior coverage
+  join only recognized identities present in the original candidate report,
+  so regenerating the aggregate failed closed rather than attaching those nine
+  supplemental drafts to their exact captured article passages.
+- Updated the coverage join to bind each supplement draft to one unique
+  unresolved candidate by film QID, source actor label, character wording,
+  captured Wikipedia URL/revision/hash, section locator, passage ordinal/hash,
+  evidence phrase and review state. Duplicate, ambiguous or altered passage
+  bindings fail closed. The supplement remains identity-only: it does not
+  create film-side cast evidence or an operational assertion.
+- Regenerated local review artifacts:
+  `data/evaluation/catalog-intake/english100-pilot-v1/cast-candidate-coverage-v10.json`
+  (SHA-256 `84d1ba520f37dfa35f599123600642edf2f34ee2ad4d8affdfa9fcb5d83af7f7`)
+  and `cast-candidate-review-v8.md` (SHA-256
+  `20e824e6f7ce6a6c4eb0b77127344e942bdadfd11485e9534e2f93b02f50e74f`). The
+  combined report accounts for **2,044** candidate rows, **1,595** review-only
+  source drafts, **1,546** same-film identity candidates, **49** identity-only
+  suggestions (including the nine supplemental names), **449** unresolved
+  names, **324** character-label-only matches and **52** quarantined spans.
+  It explicitly records zero verified actor-character credits and zero
+  operational assertion writes.
+- Regenerated the overall local pilot coverage sheet as
+  `data/evaluation/catalog-pilot-english100-coverage-v8.md` (SHA-256
+  `b5a9b1d38f0366ba5c04d4cac0a0f44ae8a163ebe9b5f6da4606b0bf53fe30ad`). It
+  reports the nine curated identity matches separately and continues to show
+  zero rights-eligible narrative snapshots/vectors. Added regression tests for
+  valid v2 count reconciliation and inconsistent supplement totals.
+- Focused coverage tests pass (**25/25**); the complete offline backend suite passes
+  **505 tests** with **110 integration tests deselected**. Frontend tests pass
+  **6/6** and `tsc --noEmit` passes. The PostgreSQL/API integration suite
+  remains unverified because Docker's local image store has the previously
+  documented containerd blob I/O failure; no working corpus or test volume was
+  changed.
+
+### Follow-up — verify current local app health without disturbing corpus (7 November 2026)
+
+- Read-only checks show the local UI responds with HTTP 200 and the API's basic
+  `/health` responds `{"status":"ok"}`, but `/api/v1/health` returns HTTP 500.
+  Compose reports the existing corpus DB and API containers as unhealthy; the
+  DB has been running for weeks and the web container is stopped. Docker cannot
+  read the DB container log or execute `pg_isready` because the container
+  runtime returns input/output errors. The dedicated integration runner fails
+  before startup on a missing/corrupt local image blob.
+- No existing database was restarted, migrated, repaired, pruned or written.
+  The local page shell is reachable, but current database-backed search and
+  research flows are not verified as usable until the local Docker storage/DB
+  health problem is resolved and the API integration suite passes.

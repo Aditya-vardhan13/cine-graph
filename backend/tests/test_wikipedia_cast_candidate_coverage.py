@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from copy import deepcopy
 
 import pytest
 
@@ -187,6 +188,102 @@ def _pilot(candidate_inputs):
     ]
     manifest = {"film_count": len(films), "films": films}
     return manifest, json.dumps(manifest, sort_keys=True).encode()
+
+
+def _unresolved_identity_supplement():
+    candidate, statements = _partition(range(1, 2))
+    report, _ = candidate
+    manifest, _ = statements
+    candidate_row = report["candidates"][0]
+    candidate_row.update({
+        "actor_qid": None,
+        "actor_identity_qid": None,
+        "actor_identity_label": None,
+        "actor_identity_evidence": None,
+        "actor_statement_locators": [],
+        "actor_identity_match": "no_exact_captured_person_label_or_alias",
+        "identity_resolution": "unresolved_source_name",
+    })
+    report["summary"].update({
+        "wikidata_actor_candidates": 0,
+        "source_only_identity_matches": 0,
+        "source_only_unresolved_candidates": 1,
+    })
+    draft = deepcopy(manifest["source_statement_drafts"][0])
+    qid = "Q2001"
+    qualifiers = draft["raw_qualifiers"]
+    qualifiers["identity_resolution_basis"] = "exact_unique_english_label"
+    qualifiers["wikidata_actor_identity"] = {
+        "entity_qid": qid,
+        "entity_label": "Actor 1",
+        "source_url": f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json",
+        "source_revision": 12001,
+        "snapshot_sha256": "f" * 64,
+        "license": "CC0 1.0",
+    }
+    qualifiers["wikidata_cast_statement_locators"] = []
+    qualifiers["wikidata_film_cast_evidence"] = None
+    draft["raw_subject"]["actor_qid"] = qid
+    digest = statement_digest_for_fields(
+        source_property=draft["source_property"],
+        extractor_version=draft["extractor_version"],
+        raw_subject=draft["raw_subject"],
+        raw_value=draft["raw_value"],
+        raw_qualifiers=qualifiers,
+    )
+    draft["raw_value"]["statement_digest"] = digest
+    draft["statement_locator"] = f"cast-candidate/{digest}"
+    manifest["source_statement_drafts"] = [draft]
+    manifest["summary"]["identity_only_drafts"] = 1
+    manifest["identity_supplement"] = {
+        "schema": "cinegraph.wikipedia-cast-identity-supplement/v1",
+        "sha256": hashlib.sha256(b"retained identity supplement manifest").hexdigest(),
+    }
+    report_bytes = json.dumps(report, sort_keys=True).encode()
+    manifest["input_sha256"] = hashlib.sha256(report_bytes).hexdigest()
+    manifest_bytes = json.dumps(manifest, sort_keys=True).encode()
+    return (report, report_bytes), (manifest, manifest_bytes)
+
+
+def test_curated_identity_supplement_resolves_only_the_exact_unresolved_source_passage():
+    candidate, statements = _unresolved_identity_supplement()
+    report = build_cast_candidate_coverage(
+        [candidate], [statements], _pilot([candidate]), expected_film_count=1,
+    )
+
+    assert report["schema"] == "cinegraph.wikipedia-cast-candidate-coverage/v2"
+    assert report["summary"]["same_film_identity_candidates"] == 0
+    assert report["summary"]["identity_only_suggestions"] == 1
+    assert report["summary"]["identity_supplemented_candidates"] == 1
+    assert report["summary"]["unresolved_source_names"] == 0
+    assert report["summary"]["review_only_source_statement_drafts"] == 1
+    assert report["films"][0]["source_statement_drafts"] == 1
+    assert "remain unverified" in render_cast_candidate_coverage(report)
+
+
+def test_identity_supplement_cannot_attach_a_valid_draft_to_a_different_phrase():
+    candidate, statements = _unresolved_identity_supplement()
+    report, report_bytes = candidate
+    manifest, _ = statements
+    draft = manifest["source_statement_drafts"][0]
+    draft["raw_qualifiers"]["evidence_phrase"] = "Forged Actor 1 as Character 1"
+    digest = statement_digest_for_fields(
+        source_property=draft["source_property"],
+        extractor_version=draft["extractor_version"],
+        raw_subject=draft["raw_subject"],
+        raw_value=draft["raw_value"],
+        raw_qualifiers=draft["raw_qualifiers"],
+    )
+    draft["raw_value"]["statement_digest"] = digest
+    draft["statement_locator"] = f"cast-candidate/{digest}"
+    manifest["input_sha256"] = hashlib.sha256(report_bytes).hexdigest()
+    manifest_bytes = json.dumps(manifest, sort_keys=True).encode()
+
+    with pytest.raises(ValueError, match="unique unresolved candidate passage"):
+        build_cast_candidate_coverage(
+            [(report, report_bytes)], [(manifest, manifest_bytes)],
+            _pilot([(report, report_bytes)]), expected_film_count=1,
+        )
 
 
 def test_combines_complete_disjoint_partitions_and_renders_passage_free_review_sheet():
