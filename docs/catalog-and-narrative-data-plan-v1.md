@@ -3922,3 +3922,33 @@ remain local and out of Git.
   The local page shell is reachable, but current database-backed search and
   research flows are not verified as usable until the local Docker storage/DB
   health problem is resolved and the API integration suite passes.
+
+### Follow-up — recheck offline gates and identify intake publication gap (7 November 2026)
+
+- Re-ran the offline backend suite with the project Conda interpreter and the
+  repository-retained `mwparserfromhell` dependency: **505 passed, 110
+  integration tests deselected**. Frontend tests pass (**6/6**), TypeScript
+  validation passes, and `git diff --check` is clean.
+- Docker status is inconsistent: `docker ps` lists the isolated DB as healthy,
+  but the API test container's inspect state is exited and `docker exec` reports
+  it is not running. The dedicated integration runner still fails before
+  migration or seed with a containerd image-blob I/O error. No test or working
+  database was reached or changed.
+- A fresh code-path audit found an unresolved plan violation in the current
+  intake adapter: `run_ingestion` persists facts and immutable snapshots from
+  the local IMDb datasets, although section 3.1 restricts those files to local
+  evaluation and prohibits durable product-catalog ingestion. The deployment
+  guard only disables the adapter outside local development; it does not
+  enforce the stronger storage boundary. Do not treat this local-only guard as
+  satisfying the reuse gate.
+- The same trace found that the worker adds new films to
+  `operator-selected-films-v1`, while writer-facing catalog search and retrieval
+  use only `english-1000-retained-narrative-v1`. This currently keeps intake
+  titles out of the writer flow. Copying them directly into the frozen
+  evaluation collection would be an invalid shortcut. Next implementation
+  must separate a non-IMDb-derived candidate/identity input from retained
+  product evidence and define an explicit writer-catalog publication boundary
+  that leaves the 1,000-film evaluation scope immutable.
+- No product records were changed in this audit. The remaining open gates are
+  source-policy-compliant intake, explicit publication/search scope, and the
+  isolated PostgreSQL/API integration suite.
