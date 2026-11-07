@@ -3299,3 +3299,26 @@ remain local and out of Git.
 - The new candidate, statement and coverage v9 artifacts are ignored local
   derivatives. No source snapshots, working-catalog rows, rights decisions,
   assertions or embeddings were modified.
+
+### Follow-up — local cache cleanup and integration-stack recheck (7 November 2026)
+
+- Removed only regenerable or unreferenced local artifacts inside the project:
+  `frontend/.next-build-check` (98 MiB), `frontend/.next-playwright` (28 MiB),
+  and `data/venvs/pair-reranker-site` (329 MiB). The first two had no active
+  process using them; `.next-build-check` had no code references, and the
+  Playwright output is configured to regenerate. The package-only reranker
+  environment had no code/documentation references or running process; current
+  experiment instructions use `data/venvs/mlx-reranker`. The active
+  `frontend/.next`, required model weights, `rag-encoders`, `mlx-reranker`, raw
+  snapshots and evaluation data were retained. Host free space increased from
+  2.8 GiB to **3.3 GiB**.
+- Retried the isolated test runner after cleanup. It still stops before build,
+  migration or seeding because Docker Desktop cannot read the existing
+  `cinegraph-integration-api-test` image blob (`sha256:2453265d…`, input/output
+  error). Read-only `compose ps` reports the test containers as up, but `exec`
+  to `db-test` reports the container is not running; the HTTP health endpoint
+  responds from the older API image, which does not contain the new cast-review
+  route. This inconsistent daemon state does not prove the current DB/API code.
+  The migration graph has one head, `20261107_21`; static compilation and
+  `git diff --check` pass. The working corpus and Docker volumes remain
+  untouched. Database/API integration is still an explicit unmet gate.
