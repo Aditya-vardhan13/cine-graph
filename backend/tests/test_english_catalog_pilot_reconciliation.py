@@ -5,6 +5,7 @@ from app.services.english_catalog_pilot_reconciliation import (
     reconcile_english_pilot_captures,
     render_reconciliation_markdown,
 )
+from scripts.reconcile_english_catalog_pilot import _local_evaluation_path
 
 
 def _pilot() -> dict:
@@ -105,6 +106,15 @@ def test_accepts_historical_v2_audit_batches() -> None:
 
     assert report["captured_films"] == 2
     assert report["passages_under_80_chars"] == 2
+
+
+def test_reconciliation_report_paths_are_confined_to_local_evaluation_data(tmp_path) -> None:
+    evaluation_root = tmp_path / "data" / "evaluation"
+    safe_path = evaluation_root / "report-v1.md"
+
+    assert _local_evaluation_path(safe_path, evaluation_root) == safe_path.resolve()
+    with pytest.raises(ValueError, match="must stay under"):
+        _local_evaluation_path(tmp_path / "outside.md", evaluation_root)
 
 
 def test_reports_missing_plot_as_a_content_gap_not_capture_failure() -> None:

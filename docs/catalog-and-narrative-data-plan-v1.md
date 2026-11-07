@@ -3015,8 +3015,15 @@ remain local and out of Git.
   versioned reports are `first10-v1/capture-audit-v11.md` and
   `english100-rank11-100-v1/capture-audit-v5.md`; snapshots and prose remain
   ignored local data.
-- Focused capture/reconciliation tests: **22 passed**. Full offline backend:
-  **416 passed, 102 integration tests deselected**. The isolated PostgreSQL
+- Added the offline `backend/scripts/reconcile_english_catalog_pilot.py`
+  command so the exact source captures can be reconciled into deterministic,
+  immutable local JSON and Markdown reports without a database or network.
+  Replayed it to produce
+  `data/evaluation/english100-capture-reconciliation-v6.json` and `.md`.
+  Existing v5 artifacts were schema-v1 historical reports, so the command
+  correctly refused to overwrite them and wrote a new version instead.
+- Focused capture/reconciliation tests: **23 passed**. Full offline backend:
+  **417 passed, 102 integration tests deselected**. The isolated PostgreSQL
   integration gate remains unavailable due to the previously documented
   Docker/containerd I/O failure; this report-only change does not claim to
   close it. No database, raw source, vector, container or volume was changed.
