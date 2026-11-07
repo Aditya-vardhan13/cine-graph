@@ -92,6 +92,9 @@ def test_reconciles_distinct_manifest_hashes_only_with_exact_pilot_rows() -> Non
     rendered = render_reconciliation_markdown(report)
     assert "Passage length review flags" in rendered
     assert "`" + "a" * 64 + "`" in rendered
+    assert "Film-by-film source coverage" in rendered
+    assert "release dates=1, runtime=1, cast=2" in rendered
+    assert "plot=1, production=1, reception=1, themes=1, legacy=1" in rendered
 
 
 def test_accepts_historical_v2_audit_batches() -> None:

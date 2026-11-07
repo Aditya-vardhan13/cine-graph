@@ -237,6 +237,42 @@ def render_reconciliation_markdown(report: dict[str, Any]) -> str:
         if key.endswith("_films_with_values"):
             field = key.removesuffix("_films_with_values")
             lines.append(f"| {field.replace('_', ' ')} | {metadata[key]} | {metadata[f'{field}_statements']} |")
+    metadata_labels = (
+        ("release_date", "release dates"), ("runtime", "runtime"),
+        ("genre", "genres"), ("country", "countries"),
+        ("original_language", "languages"), ("director", "directors"),
+        ("screenwriter", "writers"), ("producer", "producers"),
+        ("cinematography", "cinematography"), ("editing", "editing"),
+        ("music", "music"), ("production_company", "companies"), ("cast", "cast"),
+    )
+    lines.extend([
+        "",
+        "## Film-by-film source coverage",
+        "",
+        "Cells show counts of value-bearing Wikidata statements and extracted Wikipedia sections, not verified truth or complete credits. Zero-valued fields are omitted from the compact metadata cell; no narrative prose is reproduced.",
+        "",
+        "| Rank | Film | Wikidata values (field=count) | Cast claims with character qualifier | Wikipedia sections (passage counts) |",
+        "| ---: | --- | --- | ---: | --- |",
+    ])
+    for film in report["films"]:
+        film_metadata = film["wikidata_metadata"]
+        value_counts = film_metadata["value_statement_counts"]
+        metadata_cell = ", ".join(
+            f"{label}={value_counts.get(field, 0)}"
+            for field, label in metadata_labels if value_counts.get(field, 0)
+        ) or "none"
+        category_labels = (
+            ("plot", "plot"), ("production", "production"), ("reception", "reception"),
+            ("themes_analysis", "themes"), ("legacy", "legacy"),
+        )
+        sections_cell = ", ".join(
+            f"{label}={film['categories'].get(category, 0)}"
+            for category, label in category_labels if film["categories"].get(category, 0)
+        ) or "none"
+        lines.append(
+            f"| {film['rank']} | {film['title']} ({film['year']}) | {metadata_cell} | "
+            f"{film_metadata['cast_with_character_qualifier']} | {sections_cell} |"
+        )
     length_flags = report["passage_length_flags"]
     lines.extend([
         "",

@@ -3019,11 +3019,39 @@ remain local and out of Git.
   command so the exact source captures can be reconciled into deterministic,
   immutable local JSON and Markdown reports without a database or network.
   Replayed it to produce
-  `data/evaluation/english100-capture-reconciliation-v6.json` and `.md`.
+  `data/evaluation/english100-capture-reconciliation-v7.json` and `.md`.
   Existing v5 artifacts were schema-v1 historical reports, so the command
   correctly refused to overwrite them and wrote a new version instead.
+- The Markdown now includes a film-by-film matrix of value-bearing Wikidata
+  statement counts and Wikipedia section passage counts. This makes missing
+  metadata visible per title while keeping prose and unreviewed raw values out
+  of the report. The matrix describes source coverage only, not verified facts.
 - Focused capture/reconciliation tests: **23 passed**. Full offline backend:
   **417 passed, 102 integration tests deselected**. The isolated PostgreSQL
   integration gate remains unavailable due to the previously documented
   Docker/containerd I/O failure; this report-only change does not claim to
   close it. No database, raw source, vector, container or volume was changed.
+
+### Follow-up — let operators disposition quarantined cast evidence (7 November 2026)
+
+- Read-only review of the in-progress cast-review endpoint found that the UI
+  enabled reject/defer for blocked rows while the service ran the full approval
+  validator for every decision. This made it impossible to record a reason for
+  malformed or checksum-failing evidence, contrary to the quarantine workflow.
+- Changed the boundary so approval still requires exact Wikipedia snapshot,
+  passage, actor identity and film P161 checks; reject/defer now require only a
+  review-required cast source assertion attached to the English Wikipedia
+  source. A bad checksum can therefore be dispositioned without projection.
+  A candidate evidence link resolving to multiple Assertions now fails closed
+  instead of updating an arbitrary projection. Added a real-PostgreSQL test
+  covering failed-approval plus durable reject/defer decisions and zero facts.
+- The full offline suite still passes: **417 passed, 104 integration tests
+  deselected**. Alembic generated the complete upgrade SQL through
+  `20261107_21` without connecting to a database. SQL generation checks
+  revision wiring and rendering only; it does not replace applying the
+  migration or running the persistence test against `cinegraph_test`.
+- This behavior is not yet verified: the isolated integration runner still
+  cannot read Docker's cached pgvector blob
+  `sha256:a3625087…` (containerd input/output error). No container, volume,
+  production corpus or database was touched. The new cast-review edits remain
+  local and uncommitted until that integration test and migration pass.

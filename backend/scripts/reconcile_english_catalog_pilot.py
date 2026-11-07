@@ -20,8 +20,8 @@ DEFAULT_BATCHES = (
     Path("data/evaluation/catalog-intake/first10-v1"),
     Path("data/evaluation/catalog-intake/english100-rank11-100-v1"),
 )
-DEFAULT_JSON = Path("data/evaluation/english100-capture-reconciliation-v6.json")
-DEFAULT_MARKDOWN = Path("data/evaluation/english100-capture-reconciliation-v6.md")
+DEFAULT_JSON = Path("data/evaluation/english100-capture-reconciliation-v7.json")
+DEFAULT_MARKDOWN = Path("data/evaluation/english100-capture-reconciliation-v7.md")
 
 
 def _local_evaluation_path(path: Path, evaluation_root: Path) -> Path:
