@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
 from app.services.snapshot_integrity import verify_snapshot_file
@@ -12,7 +13,7 @@ class PilotSnapshotRecheckError(ValueError):
 
 
 def recheck_unmapped_pilot_snapshots(
-    audit: dict[str, Any], *, audit_sha256: str,
+    audit: dict[str, Any], *, audit_sha256: str, allowed_snapshot_root: Path,
 ) -> dict[str, Any]:
     """Verify exact bytes only for snapshots the prior audit marked unmapped.
 
@@ -65,6 +66,10 @@ def recheck_unmapped_pilot_snapshots(
                             f"Snapshot {snapshot_id} has inconsistent retained audit metadata."
                         )
 
+    root = allowed_snapshot_root.resolve(strict=False)
+    if not root.is_dir():
+        raise PilotSnapshotRecheckError("The allowed local snapshot root must exist as a directory.")
+
     rows = []
     for snapshot_id in sorted(snapshots):
         item = snapshots[snapshot_id]
@@ -73,6 +78,7 @@ def recheck_unmapped_pilot_snapshots(
             "previous_status": "unmapped",
             "local_recheck_status": verify_snapshot_file(
                 item["storage_uri"], item["sha256"], item["byte_size"],
+                root_mappings=((root, root),),
             ),
         })
     counts = Counter(row["local_recheck_status"] for row in rows)
@@ -81,12 +87,13 @@ def recheck_unmapped_pilot_snapshots(
         "input_audit_version": audit["version"],
         "input_audit_sha256": audit_sha256,
         "pilot_film_count": audit["film_count"],
+        "allowed_snapshot_root": str(root),
         "previously_unmapped_snapshot_count": len(rows),
         "local_recheck_status_counts": dict(sorted(counts.items())),
         "snapshots": rows,
         "limitations": [
             "Rechecks only snapshots previously marked unmapped; it does not replace or mutate the original audit.",
             "A verified local byte file proves size and digest only, not factual accuracy, source eligibility, or publication rights.",
-            "Missing files remain missing; no source is fetched, repaired, or copied by this report.",
+            "URIs outside the allowed root remain unmapped and are not opened; no source is fetched, repaired, or copied.",
         ],
     }

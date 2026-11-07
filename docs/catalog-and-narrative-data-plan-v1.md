@@ -3347,18 +3347,22 @@ remain local and out of Git.
   exact snapshots previously marked `unmapped`. It records the input report
   hash, film/QID, snapshot ID, URI, expected hash/size and local verification
   result in a new, ignored local report; it never mutates the original audit,
-  copies or repairs a snapshot, or fetches a source.
+  copies or repairs a snapshot, or fetches a source. A follow-up safety review
+  confined file access to the project `data/raw-snapshots` directory; URIs
+  outside it are reported as unmapped without being opened.
 - Rechecked all 14 previously unmapped snapshot records from
   `catalog-pilot-metadata-audit-v11.json` against their literal local file
-  URIs: **8 now verify by exact size and SHA-256; 6 remain missing**. The six
-  missing records reference a prior `/private/tmp/cinegraph-pilot-raw/` path;
-  no same-named file exists in the retained project snapshot store. The new
-  report is `data/evaluation/catalog-pilot-snapshot-recheck-v1.json` and is
+  URIs: **8 verified by exact size and SHA-256; 6 remain unmapped** because
+  their paths are outside the project snapshot root. A filename-only search of
+  the retained project snapshot store found no matching files for those six.
+  The versioned report is
+  `data/evaluation/catalog-pilot-snapshot-recheck-v2.json` and remains
   local-only. Its result does not change source eligibility, factual review,
   or publication rights.
-- Seven tests use real temporary files to verify exact hash/size checking,
+- Eight tests use real temporary files to verify exact hash/size checking,
   deduplication, conflicting snapshot metadata rejection, input fingerprint
-  validation and output-path confinement. No mock framework or database is
-  involved. The pre-existing audit remains unchanged; integration work is
-  still blocked on Docker's damaged cached image and the `cinegraph_test` API
-  container remains unavailable.
+  validation, output-path confinement and rejection of paths outside the
+  project snapshot root. No mock framework or database is involved. The
+  pre-existing audit remains unchanged; integration work is still blocked on
+  Docker's damaged cached image and the `cinegraph_test` API container remains
+  unavailable.

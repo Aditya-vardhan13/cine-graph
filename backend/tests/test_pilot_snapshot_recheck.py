@@ -35,6 +35,7 @@ def test_rechecks_local_unmapped_snapshot_against_exact_hash_and_size(tmp_path):
     report = recheck_unmapped_pilot_snapshots(
         _audit(snapshot, sha256(payload).hexdigest(), len(payload)),
         audit_sha256="a" * 64,
+        allowed_snapshot_root=tmp_path,
     )
 
     assert report["local_recheck_status_counts"] == {"verified": 1}
@@ -51,6 +52,7 @@ def test_recheck_never_calls_a_changed_or_wrong_sized_file_verified(tmp_path, ex
     snapshot.write_bytes(b"retained source bytes")
     report = recheck_unmapped_pilot_snapshots(
         _audit(snapshot, expected_hash, expected_size), audit_sha256="a" * 64,
+        allowed_snapshot_root=tmp_path,
     )
 
     expected_status = "hash_mismatch" if expected_hash == "0" * 64 else "size_mismatch"
@@ -64,7 +66,9 @@ def test_recheck_deduplicates_repeated_snapshot_references(tmp_path):
     audit = _audit(snapshot, sha256(payload).hexdigest(), len(payload))
     audit["films"][0]["source_assertions"]["release_events"] = audit["films"][0]["source_assertions"]["runtimes"]
 
-    report = recheck_unmapped_pilot_snapshots(audit, audit_sha256="a" * 64)
+    report = recheck_unmapped_pilot_snapshots(
+        audit, audit_sha256="a" * 64, allowed_snapshot_root=tmp_path,
+    )
 
     assert report["previously_unmapped_snapshot_count"] == 1
 
@@ -79,14 +83,35 @@ def test_recheck_rejects_conflicting_descriptions_for_same_snapshot(tmp_path):
     audit["films"][0]["source_assertions"]["release_events"] = [{"source_evidence": [second]}]
 
     with pytest.raises(PilotSnapshotRecheckError, match="inconsistent"):
-        recheck_unmapped_pilot_snapshots(audit, audit_sha256="a" * 64)
+        recheck_unmapped_pilot_snapshots(
+            audit, audit_sha256="a" * 64, allowed_snapshot_root=tmp_path,
+        )
 
 
 def test_recheck_requires_exact_input_fingerprint(tmp_path):
     snapshot = tmp_path / "snapshot.json"
     snapshot.write_bytes(b"x")
     with pytest.raises(PilotSnapshotRecheckError, match="SHA-256"):
-        recheck_unmapped_pilot_snapshots(_audit(snapshot, sha256(b"x").hexdigest(), 1), audit_sha256="bad")
+        recheck_unmapped_pilot_snapshots(
+            _audit(snapshot, sha256(b"x").hexdigest(), 1), audit_sha256="bad",
+            allowed_snapshot_root=tmp_path,
+        )
+
+
+def test_recheck_does_not_open_files_outside_the_allowed_project_root(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    snapshot = outside / "snapshot.json"
+    snapshot.write_bytes(b"x")
+    allowed = tmp_path / "data" / "raw-snapshots"
+    allowed.mkdir(parents=True)
+
+    report = recheck_unmapped_pilot_snapshots(
+        _audit(snapshot, sha256(b"x").hexdigest(), 1), audit_sha256="a" * 64,
+        allowed_snapshot_root=allowed,
+    )
+
+    assert report["local_recheck_status_counts"] == {"unmapped": 1}
 
 
 def test_report_paths_are_confined_to_evaluation_root(tmp_path):

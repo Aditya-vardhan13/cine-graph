@@ -12,7 +12,7 @@ from app.services.pilot_snapshot_recheck import recheck_unmapped_pilot_snapshots
 
 
 DEFAULT_INPUT = Path("data/evaluation/catalog-pilot-metadata-audit-v11.json")
-DEFAULT_OUTPUT = Path("data/evaluation/catalog-pilot-snapshot-recheck-v1.json")
+DEFAULT_OUTPUT = Path("data/evaluation/catalog-pilot-snapshot-recheck-v2.json")
 
 
 def local_evaluation_path(path: Path, root: Path) -> Path:
@@ -27,6 +27,7 @@ def build_report(input_path: Path) -> dict[str, Any]:
     audit = json.loads(data)
     report = recheck_unmapped_pilot_snapshots(
         audit, audit_sha256=hashlib.sha256(data).hexdigest(),
+        allowed_snapshot_root=Path.cwd() / "data/raw-snapshots",
     )
     report["generated_at"] = datetime.now(timezone.utc).isoformat()
     return report
