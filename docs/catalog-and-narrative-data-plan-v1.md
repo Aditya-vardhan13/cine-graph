@@ -3466,3 +3466,23 @@ remain local and out of Git.
   `tsconfig.json`; those generated include entries were removed afterward, so
   the existing project configuration is preserved. Build artifacts remain
   local and ignored.
+
+### Follow-up — validate replay-draft source fields before persistence (7 November 2026)
+
+- Tightened the pure replay validator to independently require a canonical
+  HTTPS `en.wikipedia.org/wiki/...` URL without credentials, port, query or
+  fragment; a positive non-boolean revision; a nonempty section locator and
+  nonnegative integer passage ordinal; and nonempty actor/character/evidence
+  text with the character label present in the evidence phrase. This is
+  defense at the replay boundary, before any candidate reaches PostgreSQL.
+- Added **16** no-network/no-database tests for valid drafts, unsafe URLs,
+  invalid revision/ordinal types, tampered character evidence, and
+  non-mutation. Replayed validation against the two current retained manifests:
+  **1,403/1,403** drafts for ranks 11–100 and **183/183** for the first ten
+  pass; no raw manifest was modified. The complete offline backend suite passes
+  **462 tests**, with **108 integration tests deselected**. Changed-module
+  lint, Python compilation and `git diff --check` pass.
+- This still does not prove the DB/API replay or human decision transaction:
+  Docker's isolated test containers remain exited with container metadata I/O
+  errors, so all database-dependent cast-review code stays local pending the
+  `cinegraph_test` gate.
