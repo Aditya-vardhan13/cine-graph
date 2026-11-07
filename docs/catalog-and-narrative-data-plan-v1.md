@@ -3366,3 +3366,46 @@ remain local and out of Git.
   pre-existing audit remains unchanged; integration work is still blocked on
   Docker's damaged cached image and the `cinegraph_test` API container remains
   unavailable.
+
+### Follow-up — exact source binding audit for cast candidates (7 November 2026)
+
+- Added an offline, append-only verifier for the retained English-100 cast
+  candidate partitions. It checks the exact capture-manifest hash, source
+  article byte count and SHA-256, extraction manifest when the candidate report
+  binds one, passage-derivative hash/revision/source binding, passage-content
+  hash, section/ordinal locator and literal candidate phrase. Paths are
+  confined to project `data/evaluation`; the report contains hashes and counts,
+  not copied source passages. The verifier deliberately does not judge whether
+  an actor really played a character or publish an operational assertion.
+- The v5 local audit at
+  `data/evaluation/catalog-intake/english100-pilot-v1/cast-candidate-source-audit-v5.json`
+  passes for **100/100** article snapshots and passage
+  derivatives, **2,044/2,044** candidate phrases, and **52/52** quarantined
+  spans, with zero binding errors. The first-ten candidate report is correctly
+  tied to its separately retained extraction-manifest-v6; ranks 11–100 bind
+  their passage derivative directly in the capture manifest. Two intermediate
+  diagnostics failed closed: one used the older first-ten passage derivative,
+  and one excluded the valid `voice-cast` locator. The verifier now uses the
+  exact extraction-manifest hash and the same explicit cast-section allowlist
+  as the candidate extractor. Earlier local diagnostics remain ignored and are
+  not treated as the result. Passing this audit proves source-text traceability
+  only, not cast-credit accuracy or semantic completeness.
+- A stratified source-coverage review includes ranks 1–5, 32, 41, 42, 59 and
+  94. The animation-heavy examples expose a genuine identity coverage gap:
+  *The Lion King* has 0 same-film actor identity matches among 10 text
+  candidates; *Spider-Man: Into the Spider-Verse* has 0 among 19 (2 identity-
+  only suggestions); and *Toy Story 3* has 0 among 25 (5 identity-only
+  suggestions). Those remain unresolved/review-required, not cast facts. The
+  *Endgame* sample has 50 same-film candidates out of 55. This variability
+  confirms that passing phrase-level provenance cannot substitute for manual
+  credit review.
+- The source-audit policy tests pass **4/4**; the full offline backend suite
+  passes **445 tests**, with **108 PostgreSQL/API integration tests
+  deselected**; frontend tests pass **5/5** and TypeScript checking passes.
+  The isolated Docker database still reports contradictory Compose state: its
+  inspect state is `exited`, `exec` says it is not running, and Docker Desktop
+  returns `input/output error` for both its image blob and container log. No
+  integration API/database, working-corpus service, test volume or source
+  snapshot was modified. Keep database-dependent cast-review UI/API changes
+  unpublished until the real `cinegraph_test` replay, decision and authorization
+  tests can run.
