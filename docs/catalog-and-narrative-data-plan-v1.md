@@ -3448,3 +3448,15 @@ remain local and out of Git.
   immediately before removing one unused import from an integration test; the
   integration DB/API suite remains unrun because Docker reports an I/O error
   reading container metadata. No database, snapshot, or volume was changed.
+
+### Follow-up — browser-check local cast-review entry state (7 November 2026)
+
+- Ran the Playwright first-use test for `/admin/cast-credits` against the
+  actual Next.js route using the installed Chrome binary: **1/1 passed**. It
+  confirms the operator desk and its evidence-boundary copy render before the
+  operator enters an email, without needing to call the unavailable DB/API.
+  Playwright's bundled browser was absent, so the test used the machine's
+  existing Chrome installation; no browser download was made.
+- This verifies the local empty-email UI state only. Loading candidates,
+  recording decisions, character-credit display and the complete HTTP →
+  PostgreSQL path remain unverified until `cinegraph_test` can start.
