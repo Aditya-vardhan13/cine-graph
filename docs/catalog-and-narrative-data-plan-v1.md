@@ -3460,3 +3460,9 @@ remain local and out of Git.
 - This verifies the local empty-email UI state only. Loading candidates,
   recording decisions, character-credit display and the complete HTTP →
   PostgreSQL path remain unverified until `cinegraph_test` can start.
+- The frontend production build also passes in isolated output directory
+  `.next-build-check`; Next.js produced static `/admin/cast-credits` and its
+  dynamic proxy route. The build tool auto-added that temporary directory to
+  `tsconfig.json`; those generated include entries were removed afterward, so
+  the existing project configuration is preserved. Build artifacts remain
+  local and ignored.
