@@ -3409,3 +3409,26 @@ remain local and out of Git.
   snapshot was modified. Keep database-dependent cast-review UI/API changes
   unpublished until the real `cinegraph_test` replay, decision and authorization
   tests can run.
+
+### Follow-up — recheck isolated cast-review verification gate (7 November 2026)
+
+- Re-ran the complete offline backend suite from the project Conda Python with
+  the repository root and retained parser dependency on `PYTHONPATH`: **445
+  passed, 108 PostgreSQL/API tests deselected**. Frontend unit tests pass **5/5**
+  and TypeScript checking exits successfully. These checks cover pure policy
+  and UI types, not database persistence or live operator workflow.
+- Rechecked the dedicated integration containers rather than trusting their
+  stale Compose `Up` display: Docker inspect reports both
+  `cinegraph-integration-db-test-1` and `cinegraph-integration-api-test-1` as
+  exited, and localhost port `18001` is unreachable. A targeted attempt to
+  start only `cinegraph-integration-db-test-1` failed before the database
+  process ran: Docker could not read that container's `hosts` metadata
+  (`input/output error`). Available disk headroom is about 3.2 GB; no image
+  rebuild, volume reset/prune, applied migration, seed, or working-corpus DB
+  operation was attempted. Alembic can generate the full static upgrade SQL
+  through head `20261107_21`, including the new append-only decision table;
+  this checks migration generation only, not execution against PostgreSQL.
+  The new PostgreSQL/API cast-review tests remain unverified.
+- The database-dependent cast-review implementation remains uncommitted and
+  local until the isolated Docker store is healthy and the full `cinegraph_test`
+  migration/API gate passes. Do not mistake the offline suite for that gate.
