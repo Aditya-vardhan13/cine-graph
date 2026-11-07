@@ -3322,3 +3322,20 @@ remain local and out of Git.
   The migration graph has one head, `20261107_21`; static compilation and
   `git diff --check` pass. The working corpus and Docker volumes remain
   untouched. Database/API integration is still an explicit unmet gate.
+
+### Follow-up — isolated Docker endpoint recovery attempt (7 November 2026)
+
+- A narrowly scoped restart of only the integration `db-test` and `api-test`
+  containers was attempted to resolve the mismatch between `compose ps` and
+  `exec`. Docker failed while reading the test DB container's `hosts` file. A
+  read-only inspection then showed both containers had empty network endpoint
+  IDs despite retaining their expected Compose-network and port-binding
+  configuration. `compose up --no-build` and explicit network reattachment both
+  failed on further containerd input/output errors. The test API's host port
+  `18001` is currently unreachable; its persistent test volumes were not
+  removed or reset, and no working-corpus service or volume was targeted.
+- This confirms the integration gate needs Docker Desktop/container-store
+  recovery before it can be executed; changing application code or deleting
+  Docker data from the project would not address the observed host-level I/O
+  failures. Keep the database-dependent cast-review changes uncommitted until
+  the isolated stack is restored and the current code passes its DB/API tests.
