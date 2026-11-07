@@ -3486,3 +3486,22 @@ remain local and out of Git.
   Docker's isolated test containers remain exited with container metadata I/O
   errors, so all database-dependent cast-review code stays local pending the
   `cinegraph_test` gate.
+
+### Follow-up — recompute stored passage hashes at cast review time (7 November 2026)
+
+- Review validation previously matched the candidate's passage hash against
+  the database field but did not recompute a digest from the complete stored
+  passage text. A changed passage retaining its old hash label could therefore
+  pass the queue's integrity check if the quoted phrase remained present. The
+  service now recalculates SHA-256 from the exact text before exposing a quote
+  or approving a credit.
+- Added a pure real-text hash regression and a PostgreSQL/API integration case
+  that alters persisted passage text while retaining the old digest; expected
+  behavior is a blocked queue item, no quote, and no approval. The focused
+  policy suite passes **16/16**; the offline backend suite passes **463 tests**
+  with **109 integration tests deselected**. Integration collection confirms
+  all **109/109** cases are discoverable; changed-module lint and whitespace
+  checks pass.
+- Docker still reports the isolated test containers exited with container
+  metadata I/O errors. The new tampered-passage persistence case is collected,
+  not executed. No database, raw snapshot or corpus row was changed.
