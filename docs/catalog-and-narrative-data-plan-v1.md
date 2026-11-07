@@ -3339,3 +3339,26 @@ remain local and out of Git.
   Docker data from the project would not address the observed host-level I/O
   failures. Keep the database-dependent cast-review changes uncommitted until
   the isolated stack is restored and the current code passes its DB/API tests.
+
+### Follow-up — local pilot snapshot recheck (7 November 2026)
+
+- Added `backend/scripts/recheck_pilot_snapshot_integrity.py` and a pure
+  verifier that reads a retained metadata-audit report and checks only the
+  exact snapshots previously marked `unmapped`. It records the input report
+  hash, film/QID, snapshot ID, URI, expected hash/size and local verification
+  result in a new, ignored local report; it never mutates the original audit,
+  copies or repairs a snapshot, or fetches a source.
+- Rechecked all 14 previously unmapped snapshot records from
+  `catalog-pilot-metadata-audit-v11.json` against their literal local file
+  URIs: **8 now verify by exact size and SHA-256; 6 remain missing**. The six
+  missing records reference a prior `/private/tmp/cinegraph-pilot-raw/` path;
+  no same-named file exists in the retained project snapshot store. The new
+  report is `data/evaluation/catalog-pilot-snapshot-recheck-v1.json` and is
+  local-only. Its result does not change source eligibility, factual review,
+  or publication rights.
+- Seven tests use real temporary files to verify exact hash/size checking,
+  deduplication, conflicting snapshot metadata rejection, input fingerprint
+  validation and output-path confinement. No mock framework or database is
+  involved. The pre-existing audit remains unchanged; integration work is
+  still blocked on Docker's damaged cached image and the `cinegraph_test` API
+  container remains unavailable.
