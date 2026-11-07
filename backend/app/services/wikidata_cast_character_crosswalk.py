@@ -130,7 +130,7 @@ def build_wikidata_cast_character_crosswalk(
                 passage_bindings)):
             raise ValueError("Partition is missing one of its retained inputs")
         for key, schema in (
-            ("candidate_report", "cinegraph.wikipedia-cast-candidates/v7"),
+            ("candidate_report", "cinegraph.wikipedia-cast-candidates/v8"),
             ("capture_manifest", "cinegraph.catalog-pilot-capture/v1"),
             ("credit_target_manifest", "cinegraph.credit-target-manifest/v1"),
         ):

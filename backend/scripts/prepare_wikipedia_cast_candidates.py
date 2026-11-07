@@ -80,6 +80,22 @@ def _bind_extraction_manifest(
     return bound
 
 
+def _passage_derivative_binding(derivative: dict, film: dict) -> dict[str, bool]:
+    """Validate retained v6 parser identity, including the original schema typo."""
+    return {
+        # Both exact markers occur in immutable v6 derivatives: /v6 in ranks
+        # 1-10, /6 in ranks 11-100. Hash/revision/parser checks still bind each
+        # payload to its exact captured article.
+        "schema": derivative.get("schema") in {
+            "cinegraph.wikipedia-passage-extraction/v6",
+            "cinegraph.wikipedia-passage-extraction/6",
+        },
+        "parser_version": derivative.get("parser_version") == "enwiki-article-html-extraction-v6",
+        "revision": derivative.get("source_revision") == film.get("wikipedia_revision"),
+        "snapshot_sha256": derivative.get("source_snapshot_sha256") == film.get("wikipedia_sha256"),
+    }
+
+
 def prepare(
     bundle: Path, credit_manifest_path: Path, label_dir: Path,
     extraction_manifest_path: Path | None = None,
@@ -199,12 +215,7 @@ def prepare(
         if derivative_hash != film.get("passage_derivative_sha256"):
             raise ValueError(f"Passage derivative hash mismatch for {qid}")
         derivative = json.loads(payload)
-        binding = {
-            "schema": derivative.get("schema") == "cinegraph.wikipedia-passage-extraction/v6",
-            "parser_version": derivative.get("parser_version") == "enwiki-article-html-extraction-v6",
-            "revision": derivative.get("source_revision") == film.get("wikipedia_revision"),
-            "snapshot_sha256": derivative.get("source_snapshot_sha256") == film.get("wikipedia_sha256"),
-        }
+        binding = _passage_derivative_binding(derivative, film)
         if not all(binding.values()):
             raise ValueError(f"Passage derivative source binding mismatch for {qid}: {binding}")
         result = extract_cast_candidates(
@@ -255,7 +266,7 @@ def prepare(
         row["passage_ordinal"],
     ))
     return {
-        "schema": "cinegraph.wikipedia-cast-candidates/v7",
+        "schema": "cinegraph.wikipedia-cast-candidates/v8",
         "adapter_version": ADAPTER_VERSION,
         "selection_sha256": capture_manifest["selection_sha256"],
         "film_capture_manifest_sha256": hashlib.sha256(capture_bytes).hexdigest(),

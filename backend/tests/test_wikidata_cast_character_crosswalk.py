@@ -49,7 +49,7 @@ def _partition():
     passage_payload = json.dumps(passage_derivative, sort_keys=True).encode()
     passage_derivative_sha = hashlib.sha256(passage_payload).hexdigest()
     candidate = {
-        "schema": "cinegraph.wikipedia-cast-candidates/v7",
+        "schema": "cinegraph.wikipedia-cast-candidates/v8",
         "selection_sha256": selection,
         "films": [{
             "selection_rank": 1, "film_qid": "Q10", "title": "Fixture Film", "year": 2020,

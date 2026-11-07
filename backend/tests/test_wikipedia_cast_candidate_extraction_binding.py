@@ -43,6 +43,23 @@ def test_v6_extraction_binding_keeps_exact_source_and_derivative_identity():
     assert bound["wikipedia_sha256"] == "b" * 64
 
 
+@pytest.mark.parametrize("schema", [
+    "cinegraph.wikipedia-passage-extraction/v6",
+    "cinegraph.wikipedia-passage-extraction/6",
+])
+def test_v6_passage_derivatives_accept_both_immutable_schema_markers(schema):
+    capture, _ = _manifests()
+    film = capture["films"][0]
+    binding = MODULE._passage_derivative_binding({
+        "schema": schema,
+        "parser_version": "enwiki-article-html-extraction-v6",
+        "source_revision": 123,
+        "source_snapshot_sha256": "b" * 64,
+    }, film)
+
+    assert all(binding.values())
+
+
 @pytest.mark.parametrize("field,value", [
     ("source_snapshot_sha256", "d" * 64),
     ("source_revision", 124),

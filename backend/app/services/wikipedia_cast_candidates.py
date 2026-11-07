@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 
-ADAPTER_VERSION = "wikipedia-cast-explicit-as-candidates-v7"
+ADAPTER_VERSION = "wikipedia-cast-explicit-as-candidates-v8"
 CAST_SECTION_NAMES = {
     "cast", "cast-and-characters", "cast-and-crew", "cast-characters",
     "cast-members", "main-cast", "principal-cast", "voice-cast",
@@ -206,7 +206,11 @@ def extract_cast_candidates(
             matching_actors = labels_to_actors.get(label_key, []) if known_match else []
             end = discovered[index + 1][0].start() if index + 1 < len(discovered) else len(content)
             character_name = _first_character_name(content[match.end():end])
-            evidence_phrase = content[match.start():end].strip()
+            character_start = content.find(character_name, match.end(), end) if character_name else -1
+            evidence_phrase = (
+                content[match.start():character_start + len(character_name)].strip()
+                if character_start >= 0 else content[match.start():end].strip()[:240]
+            )
             common = {
                 "film_qid": film_qid,
                 "actor_label_in_source": match.group("actor"),

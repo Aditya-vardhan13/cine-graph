@@ -36,8 +36,8 @@ def _read_actor_snapshots(label_dir: Path, checkpoint: dict, candidate_report: d
     if not isinstance(captured, dict) or not isinstance(candidates, list):
         raise ValueError("Credit-label checkpoint or candidate report rows are malformed")
     qids = {
-        row.get("actor_qid") for row in candidates
-        if isinstance(row, dict) and isinstance(row.get("actor_qid"), str)
+        row.get("actor_qid") or row.get("actor_identity_qid") for row in candidates
+        if isinstance(row, dict) and isinstance(row.get("actor_qid") or row.get("actor_identity_qid"), str)
     }
     payloads: dict[str, bytes] = {}
     for qid in qids:
@@ -60,7 +60,7 @@ def _read_actor_snapshots(label_dir: Path, checkpoint: dict, candidate_report: d
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("candidate_report", type=Path, help="Retained v7 Wikipedia cast candidate report")
+    parser.add_argument("candidate_report", type=Path, help="Retained v8 Wikipedia cast candidate report")
     parser.add_argument("capture_manifest", type=Path, help="Exact capture manifest hashed by the candidate report")
     parser.add_argument("credit_target_manifest", type=Path, help="Exact Wikidata P161 target manifest hashed by the candidate report")
     parser.add_argument("output", type=Path, help="New ignored local JSON output; existing files are not overwritten")

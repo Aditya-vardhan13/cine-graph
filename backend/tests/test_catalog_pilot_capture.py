@@ -18,6 +18,7 @@ from app.services.catalog_pilot_audit import (
     section_categories,
     structured_metadata_coverage,
 )
+from scripts.audit_catalog_pilot import next_audit_output
 from app.services.wikipedia_article_html import parse_article_html
 
 
@@ -128,6 +129,14 @@ def test_capture_files_are_content_addressed_and_never_overwritten(tmp_path: Pat
         _atomic_write(target, b"different")
 
 
+def test_audit_cli_selects_next_report_version_without_overwriting(tmp_path: Path) -> None:
+    (tmp_path / "capture-audit-v2.md").write_text("old", encoding="utf-8")
+    (tmp_path / "capture-audit-v5.md").write_text("older", encoding="utf-8")
+    (tmp_path / "capture-audit.md").write_text("legacy", encoding="utf-8")
+
+    assert next_audit_output(tmp_path) == tmp_path / "capture-audit-v6.md"
+
+
 def test_section_counts_preserve_nested_section_titles() -> None:
     class Passage:
         def __init__(self, section_title: str) -> None:
@@ -168,6 +177,42 @@ def test_structured_metadata_coverage_counts_values_and_role_qualifiers() -> Non
     assert coverage["cast_character_name_qualifiers"] == 1
     assert coverage["cast_with_character_qualifier"] == 2
     assert coverage["cast_without_character_qualifier"] == 1
+
+
+def test_structured_metadata_coverage_ignores_malformed_claim_and_qualifier_shapes() -> None:
+    claims = {
+        "P577": [
+            None,
+            {"mainsnak": None},
+            {"mainsnak": {"snaktype": "novalue", "datavalue": {"value": {"precision": 11}}}},
+            {"mainsnak": {"datavalue": {"value": None}}},
+            {"mainsnak": {"datavalue": {"value": {"time": "+2000-00-00T00:00:00Z", "precision": "11"}}},
+             "qualifiers": {"P291": [{"snaktype": "somevalue"}, None]}, "references": "not-a-list"},
+        ],
+        "P161": [
+            {"mainsnak": {"datavalue": {"value": {"id": "Q20"}}},
+             "qualifiers": [
+                 {"P453": [{"datavalue": {"value": {"id": "Q30"}}}]},
+             ]},
+            {"mainsnak": {"datavalue": {"value": {"id": "Q21"}}},
+             "qualifiers": {
+                 "P453": [{"snaktype": "value", "datavalue": {"value": {"id": "invalid"}}}],
+                 "P4633": [{"snaktype": "somevalue"}],
+             }},
+        ],
+    }
+
+    coverage = structured_metadata_coverage(claims)
+
+    assert coverage["value_statement_counts"]["release_date"] == 1
+    assert coverage["release_date_precision_counts"] == {}
+    assert coverage["release_dates_with_territory"] == 0
+    assert coverage["release_dates_with_references"] == 0
+    assert coverage["value_statement_counts"]["cast"] == 2
+    assert coverage["cast_character_entity_qualifiers"] == 0
+    assert coverage["cast_character_name_qualifiers"] == 0
+    assert coverage["cast_with_character_qualifier"] == 0
+    assert structured_metadata_coverage([{"P577": []}])["value_statement_counts"]["release_date"] == 0
 
 
 def test_catalog_pilot_audit_reverifies_bytes_identity_and_parser_output(tmp_path: Path) -> None:
@@ -250,7 +295,7 @@ def test_catalog_pilot_audit_reverifies_bytes_identity_and_parser_output(tmp_pat
     report = audit_capture_bundle(tmp_path)
 
     assert report["identity_and_capture_pass"] is True, report["failures"]
-    assert report["schema"] == "cinegraph.catalog-pilot-audit/v3"
+    assert report["schema"] == "cinegraph.catalog-pilot-audit/v4"
     assert report["total_passages"] == 3
     assert report["exact_duplicate_passages"] == 0
     assert report["wikidata_metadata_coverage"]["director"] == {

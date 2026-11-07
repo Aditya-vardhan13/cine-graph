@@ -3055,3 +3055,247 @@ remain local and out of Git.
   `sha256:a3625087…` (containerd input/output error). No container, volume,
   production corpus or database was touched. The new cast-review edits remain
   local and uncommitted until that integration test and migration pass.
+- A fresh retry on the same day now fails earlier while Compose reads the
+  existing migration image blob `sha256:e166e4b1…` (also containerd
+  input/output error). `compose ps` shows the old isolated DB as healthy, but
+  it has no host port mapping; the old API container is not a valid test runner
+  for current code (even a read-only Python probe returns I/O error). No
+  container, volume, or database was restarted or altered.
+- The current Chrome browser test for the cast-review first-use state passes
+  **1/1** against the local Next page: it verifies the evidence-boundary copy,
+  configured-email prompt and navigation. This does not authenticate an
+  operator, load the queue or exercise API/database decisions.
+- A follow-up UI review found that a failed queue request or changing the
+  configured email could leave previously loaded candidates visible. The
+  cast-review page now clears stale rows on identity changes and failed
+  responses, and ignores out-of-order queue responses. Frontend tests pass
+  **5/5**, TypeScript checking and the production build pass, and the targeted
+  Chrome first-use test passes **1/1**. No live queue request was made.
+- Re-ran the full offline backend suite with the project Conda interpreter:
+  **417 passed, 104 integration tests deselected**. The first attempted command
+  accidentally resolved to system Python; it was discarded as an environment
+  error and the suite was rerun successfully with the explicit
+  `cine-graph` interpreter.
+- Re-attempted the repository integration runner with authorized Docker access.
+  It still fails before Compose startup because Docker cannot read cached
+  pgvector blob `sha256:a3625087…` (input/output error). No containers,
+  volumes, migrations or databases were changed by that failed attempt. Cast
+  persistence/API behavior remains unverified and the work stays uncommitted.
+
+### Follow-up — retain identity-only cast suggestions without overstating them (7 November 2026)
+
+- The first 100 English pilot had 40 exact, unique matches between a Wikipedia
+  cast-page name and a retained Wikidata English person label/alias that were
+  excluded only because the captured film entity did not list the person in
+  `P161`. These are now kept as **identity-only review suggestions**, with no
+  fabricated film-side cast evidence. The review UI and audit sheet explicitly
+  warn that this identity match is not cast corroboration; the reviewer must
+  inspect and approve the exact Wikipedia credit before an operational
+  assertion can exist.
+- The additive v4 draft schema binds the exact English label/alias and person
+  snapshot, the film identity snapshot, the retained article passage and an
+  explicit identity-resolution basis. Replay validates these fields; approval
+  confirms the actor is absent from the captured film `P161` list and verifies
+  the source name against the captured label/alias. Existing same-film `P161`
+  candidates still require their exact statement references. Neither path
+  silently writes a fact.
+- Rebuilt the immutable local 100-film review report as
+  `data/evaluation/catalog-intake/english100-pilot-v1/cast-candidate-coverage-v8.{json,md}`.
+  It reports 2,044 candidate spans, 1,546 same-film identity candidates, 40
+  identity-only suggestions (all 40 have review-only drafts), 458 unresolved
+  source names, 52 quarantined spans and **1,586 review-only drafts**. All 100
+  films remain in scope; no operational assertions were created. The report
+  is local/ignored and carries its source and manifest fingerprints.
+- Added an isolated PostgreSQL integration case for reviewing an exact alias
+  match when the retained film `P161` snapshot has no such actor. It verifies
+  the queue marks it as identity-only, exposes no film-cast evidence, and only
+  creates a sourced credit after explicit approval. Python compilation and
+  focused pure suites pass (**35 passed**); the full offline backend suite
+  passes (**425 passed, 105 integration cases deselected**). Frontend tests
+  pass (**5/5**), TypeScript checking succeeds and the production build
+  completes. The current Chrome first-use browser test for the local cast
+  review page also passes (**1/1**); it does not submit a review or load the
+  database-backed queue. The new integration case is not claimed as passing: a fresh
+  isolated-run attempt still fails before Compose startup because Docker
+  cannot read the cached pgvector image blob (`sha256:a3625087…`, input/output
+  error). No containers, volumes, migrations or databases were changed. No
+  working-corpus rows or external files were touched.
+
+### Follow-up — expose the exact film snapshot behind identity-only review (7 November 2026)
+
+- Review of the source-backed queue found that identity-only approval checked
+  the retained film Wikidata snapshot for absence of the actor from `P161`, but
+  the operator could not open that exact film revision from the review card.
+  The API now returns this already-bound snapshot metadata; the UI links the
+  captured EntityData revision and Wikidata item and displays the snapshot
+  revision, license and SHA-256 beside the explicit “not cast corroboration”
+  warning. This lets the reviewer inspect the same record the approval policy
+  actually validated.
+- The integration case asserts the exact film identity snapshot is exposed.
+  While checking this fixture, replaced a stale hard-coded reference hash with
+  the real hash computed from the retained fixture bytes. This previously
+  unexercised assertion would otherwise have failed when the integration suite
+  becomes runnable.
+- Verification after the change: **425 offline backend tests passed**, frontend
+  tests **5/5**, TypeScript and production build passed, and the cast-review
+  first-use Chrome test passed **1/1**. The integration suite remains blocked
+  before startup by the existing Docker image-blob I/O error. Read-only Docker
+  inspection shows the stale `api-test` is up but the old `db-test` has no host
+  port mapping. The old API returned a healthy response through an approved
+  localhost check, but its image predates the current work and cannot verify
+  current-code persistence; a read-only `docker compose exec` probe failed with
+  the same container I/O error. I did not restart, replace, seed or alter those
+  containers or their volumes, and did not use them as evidence for
+  current-code persistence behavior.
+
+### Follow-up — align replay regression fixtures with cast-draft v4 (7 November 2026)
+
+- The database replay test still asserted the old v3 extractor string, so it
+  would fail after the v4 identity-basis schema change even if persistence
+  worked. It now checks the service's current extractor version. Added an
+  isolated-database replay case for a uniquely matched English alias: the
+  assertion keeps `review_required`, has no P161 locators or film-cast
+  evidence, and creates no operational `Assertion`.
+- Exercised the new identity-only replay fixture through the real offline
+  manifest builder and draft validator; it validates as v4 with basis
+  `exact_unique_english_alias`. The complete offline backend suite passes
+  **425 tests**; **106 integration cases are deselected**. The extra deselected
+  case is the new PostgreSQL replay test, not a pass. The Docker/containerd
+  image-read failure remains the reason it cannot yet be executed against
+  `cinegraph_test`.
+
+### Follow-up — keep the cast review reader on the current draft version (7 November 2026)
+
+- A cross-file version audit found the review queue and decision validator still
+  pinned to the v3 cast-draft extractor, while the current builder/replay
+  validator emit v4. That would hide every new v4 candidate from the review
+  queue and reject its decisions. The review service now imports the shared
+  source-statement property and extractor constants, eliminating the duplicate
+  stale values.
+- Added a regression test asserting that the review reader's supported
+  extractor matches the draft builder. The full offline backend suite passes
+  **426 tests**, with **106 PostgreSQL integration tests deselected**. This
+  catches the version mismatch without claiming the database queue or review
+  transaction has passed; those still require the isolated DB gate.
+
+### Follow-up — verify the declared label-versus-alias resolution basis (7 November 2026)
+
+- Tightened identity-only matching so the recorded basis must match the exact
+  captured Wikidata name that matched the Wikipedia cast name: canonical
+  English label or English alias. The same pure policy is now used when the
+  draft is built and again when a reviewer approves it. A candidate cannot say
+  “label” when only an alias matched, or vice versa.
+- Added regressions for label/alias/unmatched cases and for rejecting an
+  alias mislabeled as an exact English-label match. Focused source/review
+  policies pass (**36 passed**); full offline backend passes (**428 passed,
+  106 PostgreSQL integration tests deselected**). The isolated stack remains
+  unchanged from the previous check: stale containers, no DB host port, and a
+  corrupted cached image prevent running current-code persistence tests.
+
+### Follow-up — add an HTTP contract for cast-review decisions (7 November 2026)
+
+- Added an API/PostgreSQL integration contract that creates a uniquely bound
+  Wikipedia source candidate inside `cinegraph_test`, rejects an unauthorized
+  operator and malformed rationale, then records rejection and deferral via
+  the real HTTP route. It verifies reviewer attribution, null fact projection,
+  monotonically increasing decision versions, and the persisted append-only
+  history. The candidate has a retained source snapshot but no canonical film
+  or person identity, so this contract cannot accidentally publish a credit.
+- Verified Python compilation, `git diff --check`, and the complete offline
+  backend suite (**428 passed, 107 integration tests deselected**). This new
+  HTTP contract is among the deselected tests and is not yet verified against
+  a live API/test database. The isolated Docker image I/O issue remains an
+  explicit unresolved gate; no integration database or container was changed.
+
+### Follow-up — fail closed before showing cast evidence in the review queue (7 November 2026)
+
+- A source-chain audit found the operator queue checked candidate structure and
+  retained Wikidata identities, but unlike approval it did not verify the
+  retained Wikipedia bytes, snapshot rights/attribution or exact passage before
+  returning the candidate quotation. The queue now runs the same immutable
+  source and passage validation as approval, and returns no quote when a
+  candidate is blocked. The UI omits an absent quote and retains the explicit
+  block reason and pinned revision link.
+- Added isolated DB and API-contract regressions for altered source bytes and
+  missing canonical identities: neither may expose the candidate phrase as
+  verified evidence. All integration modules collect (**44 collected**) and
+  Alembic reports the new migration `20261107_21` as its sole head; collection
+  does not execute DB tests. Static compilation and whitespace checks pass. Full
+  offline backend remains **428 passed, 108 integration tests deselected**;
+  frontend is **5/5 tests**, TypeScript passes and production build succeeds.
+- Rechecked the integration environment read-only. Docker shows the dedicated
+  database container healthy but without the declared host port mapping;
+  inspecting its image still fails reading its pgvector content blob with an
+  I/O error. A read-only connection attempt to the explicitly named
+  `cinegraph_test` database on localhost:5432 also failed before returning a
+  SQL result (`global/pg_filenode.map`: input/output error). No SQL mutations,
+  repairs, restarts, volume operations or access to the working corpus were
+  performed. The new DB/API regressions remain unexecuted.
+
+### Follow-up — harden structured-metadata coverage and rerun the frozen pilot (7 November 2026)
+
+- The offline Wikidata audit treated malformed nested `mainsnak` / qualifier
+  values as valid coverage and could raise on malformed claim shapes. It now
+  counts only value-bearing snaks, validates character-entity qualifiers and
+  release precision shapes, and safely ignores malformed claim/qualifier
+  containers. The report schema is v4; the reconciler accepts v2/v3 historical
+  audits and v4 current audits.
+- Audit Markdown output now chooses the next immutable per-bundle version and
+  uses the repository's no-overwrite writer. It does not replace prior audit
+  results. Regenerated local-only reports are
+  `first10-v1/capture-audit-v12.md` (**10/10**, 484 passages) and
+  `english100-rank11-100-v1/capture-audit-v6.md` (**90/90**, 3,210 passages).
+  Both pass source hash, identity, revision and deterministic parser checks.
+- Reconciliation against the frozen English-100 pilot passes **100/100** with
+  3,694 verified passages. All 100 have captured plot and production sections;
+  themes/analysis is present for 43 and legacy/influence for 50. The stricter
+  parser preserved the current observed counts: 2,541 Wikidata cast statements
+  total, 1,270 with a valid character qualifier, and 395 territory-qualified
+  release-date statements. These are source-coverage counts, not accuracy or
+  completeness claims.
+- Focused audit/reconciliation tests pass **25/25**; the complete offline
+  backend suite passes **430 tests**, with PostgreSQL integration tests
+  deselected. No source snapshots, operational catalog records, DB rows or
+  embeddings changed; the two new reports remain ignored local artifacts.
+
+### Follow-up — bound cast review evidence to one actor–character credit (7 November 2026)
+
+- Reviewing the retained *The Dark Knight* pilot candidates found that the
+  quoted evidence span could continue beyond the actor–character pair through
+  another phrase or paragraph. The review UI therefore showed avoidable,
+  unrelated cast text even though the candidate character label itself was
+  extracted separately. Candidate extractor v8 now stores the exact retained
+  substring from the actor name through that character label (for example,
+  `Heath Ledger as the Joker`); the article revision and passage hash remain
+  attached for wider context. The output/schema and statement extractor are
+  versioned v8/v5; older immutable v7/v4 artifacts remain untouched.
+- Replayed both retained capture partitions and rebuilt the local-only
+  English-100 review report. Totals are unchanged: **100 films, 2,044
+  candidates, 1,546 same-film identity candidates, 40 identity-only
+  suggestions, 458 unresolved names, 52 quarantined spans, and 1,586
+  review-required drafts**. For *The Dark Knight*, 13 same-film drafts remain
+  review-required, 3 names remain unresolved and 3 group-role spans are
+  quarantined. All five Wikidata character-label matches remain explicitly
+  label-only; none is considered a verified actor–character credit.
+- The rank 11–100 replay exposed an immutable legacy derivative marker:
+  ranks 1–10 use `cinegraph.wikipedia-passage-extraction/v6`, while rank
+  11–100 use `/6` with the same exact parser version. The adapter accepts only
+  these two observed markers and still requires the exact article revision,
+  SHA-256 and parser version; a pure regression covers both. This does not
+  alter or rewrite either captured derivative.
+- Focused cast policy/coverage tests pass **72/72**; full offline backend
+  passes **433 tests**, with **108 PostgreSQL integration tests deselected**;
+  Python compilation and `git diff --check` pass. Frontend tests pass **5/5**,
+  TypeScript passes, and the Next.js production build succeeds. The explicit
+  integration runner was retried against the isolated stack and stopped before
+  build or seeding because Docker Desktop could not read the existing API image
+  blob (`sha256:2453265d…`, input/output error). Follow-up read-only checks show
+  only **2.8 GiB** free on the 460 GiB host volume (reported at 100% capacity),
+  and Docker cannot even enumerate its image cache because another content blob
+  returns an I/O error. Pulling/rebuilding images or pruning cache in this state
+  risks worsening disk pressure and was not attempted. No test database,
+  working corpus, containers or volumes were changed. PostgreSQL replay,
+  decision persistence and live API behavior therefore remain unverified.
+- The new candidate, statement and coverage v9 artifacts are ignored local
+  derivatives. No source snapshots, working-catalog rows, rights decisions,
+  assertions or embeddings were modified.

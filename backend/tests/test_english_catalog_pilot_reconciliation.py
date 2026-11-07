@@ -43,7 +43,7 @@ def _bundle(rank: int, *, selection_hash: str, missing_plot: bool = False) -> tu
                    "wikipedia_sha256": "w" * 64, "wikidata_sha256": "d" * 64}],
     }
     audit = {
-        "schema": "cinegraph.catalog-pilot-audit/v3",
+        "schema": "cinegraph.catalog-pilot-audit/v4",
         "selection_sha256": selection_hash,
         "identity_and_capture_pass": True,
         "audited_films": 1,

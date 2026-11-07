@@ -38,45 +38,76 @@ def _value_statements(claims: dict[str, Any], property_id: str) -> list[dict[str
     rows = claims.get(property_id, [])
     if not isinstance(rows, list):
         return []
-    return [statement for statement in rows
-            if isinstance(statement, dict)
-            if statement.get("rank") != "deprecated"
-            and statement.get("mainsnak", {}).get("snaktype", "value") == "value"
-            and "datavalue" in statement.get("mainsnak", {})]
+    values = []
+    for statement in rows:
+        if not isinstance(statement, dict) or statement.get("rank") == "deprecated":
+            continue
+        mainsnak = statement.get("mainsnak")
+        if not isinstance(mainsnak, dict) or mainsnak.get("snaktype", "value") != "value":
+            continue
+        datavalue = mainsnak.get("datavalue")
+        if isinstance(datavalue, dict) and datavalue.get("value") is not None:
+            values.append(statement)
+    return values
+
+
+def _qualifier_values(statement: dict[str, Any], property_id: str) -> list[Any]:
+    """Return only actual value snaks; malformed and unknown qualifiers do not count."""
+    qualifiers = statement.get("qualifiers")
+    rows = qualifiers.get(property_id) if isinstance(qualifiers, dict) else None
+    if not isinstance(rows, list):
+        return []
+    values = []
+    for snak in rows:
+        if not isinstance(snak, dict) or snak.get("snaktype", "value") != "value":
+            continue
+        datavalue = snak.get("datavalue")
+        if isinstance(datavalue, dict) and datavalue.get("value") is not None:
+            values.append(datavalue["value"])
+    return values
+
+
+def _has_references(statement: dict[str, Any]) -> bool:
+    references = statement.get("references")
+    return isinstance(references, list) and any(isinstance(reference, dict) for reference in references)
+
+
+def _has_character_entity(statement: dict[str, Any]) -> bool:
+    return any(
+        isinstance(value, dict) and isinstance(value.get("id"), str)
+        and value["id"].startswith("Q") and value["id"][1:].isdigit()
+        for value in _qualifier_values(statement, "P453")
+    )
 
 
 def structured_metadata_coverage(claims: dict[str, Any]) -> dict[str, Any]:
     """Count value-bearing Wikidata statements without treating them as verified facts."""
+    if not isinstance(claims, dict):
+        claims = {}
     counts = {
         field: len(_value_statements(claims, property_id))
         for field, property_id in WIKIDATA_METADATA_PROPERTIES.items()
     }
     cast = _value_statements(claims, "P161")
-    with_character_entity = sum(
-        bool(statement.get("qualifiers", {}).get("P453")) for statement in cast
-    )
-    with_character_name = sum(
-        bool(statement.get("qualifiers", {}).get("P4633")) for statement in cast
-    )
+    with_character_entity = sum(_has_character_entity(statement) for statement in cast)
+    with_character_name = sum(bool(_qualifier_values(statement, "P4633")) for statement in cast)
     with_character = sum(
-        bool({"P453", "P4633"} & statement.get("qualifiers", {}).keys())
+        _has_character_entity(statement) or bool(_qualifier_values(statement, "P4633"))
         for statement in cast
     )
     release_dates = _value_statements(claims, "P577")
     precision_counts: Counter[str] = Counter()
     for statement in release_dates:
         value = statement.get("mainsnak", {}).get("datavalue", {}).get("value", {})
-        if isinstance(value, dict) and value.get("precision") is not None:
+        if isinstance(value, dict) and type(value.get("precision")) is int and value["precision"] > 0:
             precision_counts[str(value["precision"])] += 1
     return {
         "value_statement_counts": counts,
         "release_date_precision_counts": dict(sorted(precision_counts.items())),
-        "release_dates_with_territory": sum(
-            bool(statement.get("qualifiers", {}).get("P291")) for statement in release_dates
-        ),
-        "release_dates_with_references": sum(bool(statement.get("references")) for statement in release_dates),
+        "release_dates_with_territory": sum(bool(_qualifier_values(statement, "P291")) for statement in release_dates),
+        "release_dates_with_references": sum(_has_references(statement) for statement in release_dates),
         "runtime_values_with_references": sum(
-            bool(statement.get("references")) for statement in _value_statements(claims, "P2047")
+            _has_references(statement) for statement in _value_statements(claims, "P2047")
         ),
         "cast_character_entity_qualifiers": with_character_entity,
         "cast_character_name_qualifiers": with_character_name,
@@ -290,7 +321,7 @@ def audit_capture_bundle(output_dir: Path) -> dict[str, Any]:
     duplicate_passages = sum(count - 1 for count in passage_hashes.values() if count > 1)
     requested = len(manifest.get("films", []))
     return {
-        "schema": "cinegraph.catalog-pilot-audit/v3",
+        "schema": "cinegraph.catalog-pilot-audit/v4",
         "selection_sha256": manifest.get("selection_sha256"),
         "run_status": manifest.get("run_status"),
         "requested_films": requested,

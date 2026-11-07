@@ -15,9 +15,90 @@ from app.services.wikipedia_cast_source_statements import (
 from app.services.wikipedia_cast_statement_replay import validate_cast_source_statement_draft
 
 
-CANDIDATE_SCHEMA = "cinegraph.wikipedia-cast-candidates/v7"
-STATEMENT_SCHEMA = "cinegraph.wikipedia-cast-source-statements/v3"
+CANDIDATE_SCHEMA = "cinegraph.wikipedia-cast-candidates/v8"
+STATEMENT_SCHEMA = "cinegraph.wikipedia-cast-source-statements/v5"
 _IDENTITY = "same_film_wikidata_cast_target"
+
+
+def _candidate_statement_binding(candidate: dict[str, Any]) -> str:
+    """Fingerprint the exact source/identity fields projected into a draft."""
+    identity = candidate.get("actor_identity_evidence")
+    identity = identity if isinstance(identity, dict) else {}
+
+    def trimmed_text(field: str) -> Any:
+        value = candidate.get(field)
+        return value.strip() if isinstance(value, str) else value
+
+    binding = {
+        "raw_subject": {
+            "film_qid": candidate.get("film_qid"),
+            "actor_qid": candidate.get("actor_qid") or candidate.get("actor_identity_qid"),
+        },
+        "raw_value": {
+            # The statement builder applies _text() to these fields, which
+            # deliberately strips surrounding whitespace before hashing.
+            "actor_label_in_source": trimmed_text("actor_label_in_source"),
+            "character_name_in_source": trimmed_text("character_name_in_source"),
+            "review_status": candidate.get("review_status"),
+        },
+        "raw_qualifiers": {
+            "wikipedia_url": candidate.get("wikipedia_url"),
+            "wikipedia_revision": candidate.get("wikipedia_revision"),
+            "wikipedia_snapshot_sha256": candidate.get("wikipedia_snapshot_sha256"),
+            "wikipedia_license": candidate.get("wikipedia_license"),
+            "attribution_url": candidate.get("wikipedia_url"),
+            "section_locator": candidate.get("section_locator"),
+            "passage_ordinal": candidate.get("passage_ordinal"),
+            "passage_sha256": candidate.get("passage_sha256"),
+            "evidence_phrase": trimmed_text("evidence_phrase"),
+            "wikidata_actor_identity": {
+                "entity_qid": candidate.get("actor_identity_qid"),
+                "entity_label": candidate.get("actor_identity_label"),
+                "source_url": identity.get("source_url"),
+                "source_revision": identity.get("source_revision"),
+                "snapshot_sha256": identity.get("snapshot_sha256"),
+                "license": "CC0 1.0",
+            },
+            "wikidata_cast_statement_locators": candidate.get("actor_statement_locators"),
+            "identity_resolution_basis": candidate.get("actor_identity_match"),
+            "matching_character_qids_by_label_only": candidate.get(
+                "matching_wikidata_character_qids", []
+            ),
+        },
+    }
+    return json.dumps(binding, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _draft_statement_binding(draft: dict[str, Any]) -> str:
+    value = draft.get("raw_value")
+    qualifiers = draft.get("raw_qualifiers")
+    subject = draft.get("raw_subject")
+    value = value if isinstance(value, dict) else {}
+    qualifiers = qualifiers if isinstance(qualifiers, dict) else {}
+    subject = subject if isinstance(subject, dict) else {}
+    binding = {
+        "raw_subject": {
+            "film_qid": subject.get("film_qid"),
+            "actor_qid": subject.get("actor_qid"),
+        },
+        "raw_value": {
+            "actor_label_in_source": value.get("actor_label_in_source"),
+            "character_name_in_source": value.get("character_name_in_source"),
+            "review_status": value.get("review_status"),
+        },
+        "raw_qualifiers": {
+            field: qualifiers.get(field)
+            for field in (
+                "wikipedia_url", "wikipedia_revision", "wikipedia_snapshot_sha256",
+                "wikipedia_license", "attribution_url", "section_locator",
+                "passage_ordinal", "passage_sha256", "evidence_phrase",
+                "wikidata_actor_identity", "wikidata_cast_statement_locators",
+                "identity_resolution_basis",
+                "matching_character_qids_by_label_only",
+            )
+        },
+    }
+    return json.dumps(binding, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _sha256(payload: bytes) -> str:
@@ -39,7 +120,7 @@ def build_cast_candidate_coverage(
     """Join disjoint candidate partitions and their exact-input statement bundles.
 
     The join is intentionally strict: all partitions must describe one frozen
-    exact pilot identities must be unique, each row must bind to the partition's
+    pilot; identities must be unique, each row must bind to the partition's
     retained source revision, and statement manifests must hash the exact
     candidate-report bytes. Partition fingerprints may differ because captures
     can be split; the frozen pilot manifest is the cross-partition authority.
@@ -106,6 +187,8 @@ def build_cast_candidate_coverage(
     statement_count = 0
     candidate_report_hashes: list[str] = []
     all_statement_locators: set[str] = set()
+    candidate_statement_bindings: Counter[str] = Counter()
+    draft_statement_bindings: Counter[str] = Counter()
 
     candidate_selections: set[str] = set()
     matched_statement_inputs: set[str] = set()
@@ -220,9 +303,11 @@ def build_cast_candidate_coverage(
             if resolution == _IDENTITY:
                 row["same_film_identity_candidates"] += 1
                 identity_count += 1
+                candidate_statement_bindings[_candidate_statement_binding(candidate)] += 1
             elif resolution == "matched_captured_person_identity_only":
                 row["identity_only_suggestions"] += 1
                 identity_suggestion_count += 1
+                candidate_statement_bindings[_candidate_statement_binding(candidate)] += 1
             elif resolution == "unresolved_source_name":
                 row["unresolved_source_names"] += 1
                 unresolved_count += 1
@@ -287,9 +372,10 @@ def build_cast_candidate_coverage(
                     or value.get("review_status") != "review_required"):
                 raise ValueError("Source statement draft is not a supported review-only cast statement")
             validate_cast_source_statement_draft(draft)
+            draft_statement_bindings[_draft_statement_binding(draft)] += 1
             digest = statement_digest_for_fields(
                 source_property=SOURCE_PROPERTY,
-                extractor_version=EXTRACTOR_VERSION,
+                extractor_version=draft["extractor_version"],
                 raw_subject=subject,
                 raw_value=value,
                 raw_qualifiers=qualifiers,
@@ -316,8 +402,13 @@ def build_cast_candidate_coverage(
             raise ValueError("Per-film candidate count does not match its report summary")
         if row["quarantined_spans"] != row.pop("_reported_quarantine_count"):
             raise ValueError("Per-film quarantine count does not match its report summary")
-        if row["source_statement_drafts"] != row["same_film_identity_candidates"]:
-            raise ValueError("Same-film candidates and exact-source drafts are not one-to-one")
+        if row["source_statement_drafts"] != (
+            row["same_film_identity_candidates"] + row["identity_only_suggestions"]
+        ):
+            raise ValueError("Strong-identity candidates and exact-source drafts are not one-to-one")
+
+    if candidate_statement_bindings != draft_statement_bindings:
+        raise ValueError("Source statement drafts do not match their exact candidate evidence rows")
 
     return {
         "schema": "cinegraph.wikipedia-cast-candidate-coverage/v1",
@@ -329,6 +420,7 @@ def build_cast_candidate_coverage(
             "films": expected_film_count,
             "candidate_rows": candidate_count,
             "same_film_identity_candidates": identity_count,
+            "identity_only_candidates_with_review_drafts": identity_suggestion_count,
             "review_only_source_statement_drafts": statement_count,
             "identity_only_suggestions": identity_suggestion_count,
             "unresolved_source_names": unresolved_count,
@@ -359,13 +451,13 @@ def render_cast_candidate_coverage(report: dict[str, Any]) -> str:
         f"- Films: **{summary['films']}**",
         f"- Candidate rows: **{summary['candidate_rows']}**; same-film actor identity candidates: **{summary['same_film_identity_candidates']}**",
         f"- Review-only source-statement drafts: **{summary['review_only_source_statement_drafts']}**",
-        f"- Identity-only suggestions: **{summary['identity_only_suggestions']}**; unresolved names: **{summary['unresolved_source_names']}**",
+        f"- Identity-only suggestions: **{summary['identity_only_suggestions']}**; drafts created for those suggestions: **{summary['identity_only_candidates_with_review_drafts']}**; unresolved names: **{summary['unresolved_source_names']}**",
         f"- Character label matches only: **{summary['character_label_matches_only']}**; quarantined spans: **{summary['quarantined_spans']}**",
         f"- Quarantine reasons: `{json.dumps(summary['quarantine_reasons'], sort_keys=True)}`",
         "",
         "## Film-by-film audit queue",
         "",
-        "Open the source article at the captured revision, then review candidate wording against the exact cast passage. `same-film` means only that the actor QID is listed for the film in Wikidata; it does not verify this Wikipedia credit. `drafts` are retained source statements, still `review_required`.",
+        "Open the source article at the captured revision, then review candidate wording against the exact cast passage. `same-film` means only that the actor QID is listed for the film in Wikidata; it does not verify this Wikipedia credit. `Identity suggestion` is a unique captured English label/alias match only: the retained film-side Wikidata P161 snapshot does not list that actor, so this is not cast corroboration. All `drafts` are retained source statements, still `review_required`; none are operational credits until a reviewer verifies the exact article passage.",
         "",
         "| Rank | Film | QID | Cast passages | Candidates | Same-film | Identity suggestion | Unresolved | Label-only character | Quarantined | Drafts | Captured article |",
         "|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",

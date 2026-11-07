@@ -61,6 +61,7 @@ def reconcile_english_pilot_captures(
             raise EnglishPilotReconciliationError(f"{label}: unsupported capture manifest schema.")
         if (audit.get("schema") not in {
                 "cinegraph.catalog-pilot-audit/v2", "cinegraph.catalog-pilot-audit/v3",
+                "cinegraph.catalog-pilot-audit/v4",
             }
                 or audit.get("selection_sha256") != manifest.get("selection_sha256")
                 or audit.get("identity_and_capture_pass") is not True

@@ -13,9 +13,11 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-SCHEMA = "cinegraph.wikipedia-cast-source-statements/v3"
-INPUT_SCHEMA = "cinegraph.wikipedia-cast-candidates/v7"
-EXTRACTOR_VERSION = "wikipedia-cast-candidate-source-statement-v3"
+SCHEMA = "cinegraph.wikipedia-cast-source-statements/v5"
+INPUT_SCHEMA = "cinegraph.wikipedia-cast-candidates/v8"
+EXTRACTOR_VERSION = "wikipedia-cast-candidate-source-statement-v5"
+LEGACY_SCHEMA = "cinegraph.wikipedia-cast-source-statements/v4"
+LEGACY_EXTRACTOR_VERSION = "wikipedia-cast-candidate-source-statement-v4"
 SOURCE_PROPERTY = "wikipedia_cast_credit_candidate"
 _QID = re.compile(r"^Q[1-9][0-9]*$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -30,6 +32,18 @@ def _text(value: Any, field: str) -> str:
 
 def _normalized(value: str) -> str:
     return " ".join(value.split()).casefold()
+
+
+def english_person_name_match_basis(
+    source_name: str, english_label: str, english_aliases: set[str],
+) -> str | None:
+    """Return the exact retained English-name basis, preferring the label."""
+    normalized_source = _normalized(source_name)
+    if normalized_source == _normalized(english_label):
+        return "exact_unique_english_label"
+    if any(normalized_source == _normalized(alias) for alias in english_aliases):
+        return "exact_unique_english_alias"
+    return None
 
 
 def statement_digest_for_fields(
@@ -56,11 +70,12 @@ def build_source_statement_manifest(
     credit_label_checkpoint: dict[str, Any], checkpoint_bytes: bytes,
     actor_snapshot_bytes: dict[str, bytes],
 ) -> dict[str, Any]:
-    """Create review-only statement drafts from exact same-film cast identities.
+    """Create review-only drafts for strong identities, with evidence basis explicit.
 
-    Candidate rows that only have an identity suggestion, an ambiguous actor,
-    or a string-only character-label match are excluded from statement drafts.
-    They remain counted in the report summary for a future review queue.
+    A same-film P161 actor match and a unique captured English person
+    label/alias match are separate evidence bases. Identity-only rows have no
+    film-side P161 claim; they remain review-required and require a human to
+    verify the article's credit before any operational projection.
     """
     if candidate_report.get("schema") != INPUT_SCHEMA:
         raise ValueError("Expected the v7 retained Wikipedia cast candidate report")
@@ -103,17 +118,32 @@ def build_source_statement_manifest(
         raise ValueError("Candidate report must contain a candidates array")
 
     statements: list[dict[str, Any]] = []
-    excluded = {"not_same_film_cast_identity": 0, "invalid_or_incomplete": 0}
+    excluded = {"unresolved_or_ambiguous_identity": 0, "invalid_or_incomplete": 0}
+    identity_only_drafts = 0
     seen_locators: set[tuple[str, str]] = set()
     for row in candidates:
         if not isinstance(row, dict):
             raise ValueError("Candidate rows must be objects")
-        actor_qid = row.get("actor_qid")
-        if (not isinstance(actor_qid, str) or not _QID.fullmatch(actor_qid)
-                or row.get("actor_identity_qid") != actor_qid
-                or row.get("identity_resolution") != "same_film_wikidata_cast_target"
-                or row.get("actor_identity_match") != "same_film_wikidata_cast_target"):
-            excluded["not_same_film_cast_identity"] += 1
+        resolution = row.get("identity_resolution")
+        same_film_match = (
+            resolution == "same_film_wikidata_cast_target"
+            and row.get("actor_identity_match") == "same_film_wikidata_cast_target"
+            and isinstance(row.get("actor_qid"), str)
+            and row.get("actor_identity_qid") == row.get("actor_qid")
+        )
+        identity_only_match = (
+            resolution == "matched_captured_person_identity_only"
+            and row.get("actor_identity_match") in {
+                "exact_unique_english_label", "exact_unique_english_alias",
+            }
+            and row.get("actor_qid") is None
+            and isinstance(row.get("actor_identity_qid"), str)
+            and row.get("actor_statement_locators") == []
+        )
+        actor_qid = row.get("actor_qid") if same_film_match else row.get("actor_identity_qid")
+        if (not (same_film_match or identity_only_match)
+                or not isinstance(actor_qid, str) or not _QID.fullmatch(actor_qid)):
+            excluded["unresolved_or_ambiguous_identity"] += 1
             continue
 
         film_qid = row.get("film_qid")
@@ -148,7 +178,8 @@ def build_source_statement_manifest(
         except ValueError:
             excluded["invalid_or_incomplete"] += 1
             continue
-        if _normalized(actor_label) != _normalized(str(row.get("actor_label") or "")):
+        if (same_film_match
+                and _normalized(actor_label) != _normalized(str(row.get("actor_label") or ""))):
             excluded["invalid_or_incomplete"] += 1
             continue
         identity_evidence = row.get("actor_identity_evidence")
@@ -180,8 +211,19 @@ def build_source_statement_manifest(
             and (person_label == candidate_identity_label
                  or candidate_identity_label in alias_labels)
         )
+        source_name_basis = (
+            english_person_name_match_basis(actor_label, person_label, alias_labels)
+            if isinstance(actor_label, str) and isinstance(person_label, str) else None
+        )
+        valid_identity_locators = (
+            isinstance(identity_locators, list)
+            and len(set(identity_locators)) == len(identity_locators)
+            and all(isinstance(value, str) and _P161_LOCATOR.fullmatch(value)
+                    for value in identity_locators)
+        )
         if (row.get("actor_identity_qid") != actor_qid
-                or row.get("actor_identity_match") != "same_film_wikidata_cast_target"
+                or (same_film_match and row.get("actor_identity_match") != "same_film_wikidata_cast_target")
+                or (identity_only_match and source_name_basis != row.get("actor_identity_match"))
                 or not isinstance(row.get("actor_identity_label"), str)
                 or not row["actor_identity_label"].strip()
                 or parsed_identity_url is None
@@ -201,15 +243,14 @@ def build_source_statement_manifest(
                 or person_entity.get("id") != actor_qid
                 or person_entity.get("lastrevid") != identity_revision
                 or not identity_label_matches
-                or not isinstance(identity_locators, list) or not identity_locators
-                or any(not isinstance(value, str) or not _P161_LOCATOR.fullmatch(value)
-                       for value in identity_locators)
-                or len(set(identity_locators)) != len(identity_locators)):
+                or not valid_identity_locators
+                or (same_film_match and not identity_locators)
+                or (identity_only_match and identity_locators)):
             excluded["invalid_or_incomplete"] += 1
             continue
         film_capture = films_by_qid.get(film_qid)
         cast_target = targets_by_qid.get(actor_qid)
-        if (film_capture is None or cast_target is None
+        if (film_capture is None or (same_film_match and cast_target is None)
                 or film_capture.get("capture_status") != "complete"
                 or film_capture.get("wikidata_status") != "captured"
                 or film_capture.get("wikidata_license") != "CC0 1.0"
@@ -218,22 +259,29 @@ def build_source_statement_manifest(
                 or not _SHA256.fullmatch(film_capture["wikidata_sha256"])):
             excluded["invalid_or_incomplete"] += 1
             continue
-        references = cast_target.get("references")
-        if not isinstance(references, list):
-            excluded["invalid_or_incomplete"] += 1
-            continue
-        matching_references = [reference for reference in references
-                               if isinstance(reference, dict)
-                               and reference.get("film_qid") == film_qid
-                               and reference.get("role") == "cast"
-                               and reference.get("statement_locator") in identity_locators]
-        if (not matching_references
-                or {reference["statement_locator"] for reference in matching_references} != set(identity_locators)
-                or any(
-            reference.get("source_revision") != film_capture.get("wikidata_revision")
-            or reference.get("source_sha256") != film_capture.get("wikidata_sha256")
-            for reference in matching_references
-        )):
+        matching_references: list[dict[str, Any]] = []
+        if same_film_match:
+            references = cast_target.get("references") if isinstance(cast_target, dict) else None
+            if not isinstance(references, list):
+                excluded["invalid_or_incomplete"] += 1
+                continue
+            matching_references = [reference for reference in references
+                                   if isinstance(reference, dict)
+                                   and reference.get("film_qid") == film_qid
+                                   and reference.get("role") == "cast"
+                                   and reference.get("statement_locator") in identity_locators]
+            if (not matching_references
+                    or {reference["statement_locator"] for reference in matching_references} != set(identity_locators)
+                    or any(
+                reference.get("source_revision") != film_capture.get("wikidata_revision")
+                or reference.get("source_sha256") != film_capture.get("wikidata_sha256")
+                for reference in matching_references
+            )):
+                excluded["invalid_or_incomplete"] += 1
+                continue
+        elif row.get("actor_identity_match") not in {
+            "exact_unique_english_label", "exact_unique_english_alias",
+        }:
             excluded["invalid_or_incomplete"] += 1
             continue
 
@@ -261,8 +309,20 @@ def build_source_statement_manifest(
                 "snapshot_sha256": identity_hash,
                 "license": "CC0 1.0",
             },
+            "identity_resolution_basis": (
+                "same_film_wikidata_cast_target" if same_film_match
+                else row["actor_identity_match"]
+            ),
+            "wikidata_film_identity_source": {
+                "film_qid": film_qid,
+                "source_url": film_capture.get("wikidata_capture_url"),
+                "attribution_url": film_capture.get("wikidata_attribution_url"),
+                "source_revision": film_capture.get("wikidata_revision"),
+                "snapshot_sha256": film_capture.get("wikidata_sha256"),
+                "license": film_capture.get("wikidata_license"),
+            },
             "wikidata_cast_statement_locators": identity_locators,
-            "wikidata_film_cast_evidence": {
+            "wikidata_film_cast_evidence": ({
                 "film_qid": film_qid,
                 "source_url": film_capture.get("wikidata_capture_url"),
                 "attribution_url": film_capture.get("wikidata_attribution_url"),
@@ -277,7 +337,7 @@ def build_source_statement_manifest(
                     }
                     for reference in matching_references
                 ],
-            },
+            } if same_film_match else None),
             "matching_character_qids_by_label_only": row.get("matching_wikidata_character_qids", []),
         }
         statement_digest = statement_digest_for_fields(
@@ -298,6 +358,8 @@ def build_source_statement_manifest(
             "raw_value": {**raw_value, "statement_digest": statement_digest},
             "raw_qualifiers": raw_qualifiers,
         })
+        if identity_only_match:
+            identity_only_drafts += 1
 
     statements.sort(key=lambda row: row["statement_locator"])
     return {
@@ -318,6 +380,7 @@ def build_source_statement_manifest(
             "excluded": excluded,
             "all_drafts_review_required": True,
             "actor_identity_snapshot_bound": True,
+            "identity_only_drafts": identity_only_drafts,
             "character_qids_are_label_matches_only": True,
         },
         "source_statement_drafts": statements,

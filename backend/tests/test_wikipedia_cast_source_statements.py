@@ -3,13 +3,17 @@ import json
 
 import pytest
 
-from app.services.wikipedia_cast_source_statements import build_source_statement_manifest
+from app.services.wikipedia_cast_source_statements import (
+    build_source_statement_manifest,
+    english_person_name_match_basis,
+)
 from app.services.wikipedia_cast_statement_replay import validate_cast_source_statement_draft
 
 
 ACTOR_SNAPSHOT_BYTES = json.dumps({"entities": {"Q20": {
     "id": "Q20", "lastrevid": 98765,
     "labels": {"en": {"language": "en", "value": "Actor Name"}},
+    "aliases": {"en": [{"language": "en", "value": "Source Alias"}]},
 }}}, sort_keys=True).encode()
 
 
@@ -47,7 +51,7 @@ def _candidate(**updates):
 
 def _build(*candidates, actor_snapshot_override=None):
     report = {
-        "schema": "cinegraph.wikipedia-cast-candidates/v7",
+        "schema": "cinegraph.wikipedia-cast-candidates/v8",
         "selection_sha256": "c" * 64,
         "films": [{"film_qid": "Q10"}],
         "candidates": list(candidates),
@@ -103,7 +107,7 @@ def test_same_film_cast_identity_yields_traceable_non_operational_statement_draf
     assert result["input_sha256"] == hashlib.sha256(raw).hexdigest()
     assert result["operational_fact_write"] is False
     assert result["assertions_created"] is False
-    assert result["schema"] == "cinegraph.wikipedia-cast-source-statements/v3"
+    assert result["schema"] == "cinegraph.wikipedia-cast-source-statements/v5"
     assert statement["source_property"] == "wikipedia_cast_credit_candidate"
     assert statement["raw_subject"] == {"film_qid": "Q10", "actor_qid": "Q20"}
     assert statement["raw_value"]["character_name_in_source"] == "Character"
@@ -117,20 +121,69 @@ def test_same_film_cast_identity_yields_traceable_non_operational_statement_draf
         "license": "CC0 1.0",
     }
     assert statement["raw_qualifiers"]["wikidata_cast_statement_locators"] == ["claims.P161[0]"]
+    assert statement["raw_qualifiers"]["identity_resolution_basis"] == "same_film_wikidata_cast_target"
     assert statement["raw_qualifiers"]["matching_character_qids_by_label_only"] == ["Q30"]
     assert result["summary"]["character_qids_are_label_matches_only"] is True
 
 
-def test_identity_only_suggestion_never_becomes_a_source_statement_draft():
+def test_identity_only_suggestion_gets_review_draft_without_fabricated_film_cast_evidence():
     result, _ = _build(_candidate(
         actor_qid=None,
         actor_identity_qid="Q20",
         actor_identity_match="exact_unique_english_alias",
         identity_resolution="matched_captured_person_identity_only",
+        actor_label=None,
+        actor_label_in_source="Source Alias",
+        actor_statement_locators=[],
+        evidence_phrase="Source Alias as Character in the cast list.",
+    ))
+
+    draft = result["source_statement_drafts"][0]
+    assert draft["raw_subject"] == {"film_qid": "Q10", "actor_qid": "Q20"}
+    assert draft["raw_qualifiers"]["identity_resolution_basis"] == "exact_unique_english_alias"
+    assert draft["raw_qualifiers"]["wikidata_cast_statement_locators"] == []
+    assert draft["raw_qualifiers"]["wikidata_film_cast_evidence"] is None
+    assert result["summary"]["identity_only_drafts"] == 1
+    validate_cast_source_statement_draft(draft)
+
+
+def test_identity_only_suggestion_requires_source_actor_name_to_match_captured_alias():
+    result, _ = _build(_candidate(
+        actor_qid=None,
+        actor_identity_qid="Q20",
+        actor_identity_match="exact_unique_english_alias",
+        identity_resolution="matched_captured_person_identity_only",
+        actor_label=None,
+        actor_label_in_source="Unrelated Name",
+        actor_statement_locators=[],
+        evidence_phrase="Unrelated Name as Character in the cast list.",
     ))
 
     assert result["source_statement_drafts"] == []
-    assert result["summary"]["excluded"]["not_same_film_cast_identity"] == 1
+    assert result["summary"]["excluded"]["invalid_or_incomplete"] == 1
+
+
+def test_identity_only_suggestion_rejects_alias_misreported_as_label_match():
+    result, _ = _build(_candidate(
+        actor_qid=None,
+        actor_identity_qid="Q20",
+        actor_identity_match="exact_unique_english_label",
+        identity_resolution="matched_captured_person_identity_only",
+        actor_label=None,
+        actor_label_in_source="Source Alias",
+        actor_statement_locators=[],
+        evidence_phrase="Source Alias as Character in the cast list.",
+    ))
+
+    assert result["source_statement_drafts"] == []
+    assert result["summary"]["excluded"]["invalid_or_incomplete"] == 1
+
+
+def test_english_person_name_match_basis_distinguishes_label_alias_and_unmatched_name():
+    aliases = {"Source Alias"}
+    assert english_person_name_match_basis(" Actor Name ", "Actor Name", aliases) == "exact_unique_english_label"
+    assert english_person_name_match_basis("source  alias", "Actor Name", aliases) == "exact_unique_english_alias"
+    assert english_person_name_match_basis("Different Name", "Actor Name", aliases) is None
 
 
 @pytest.mark.parametrize("field,value", [

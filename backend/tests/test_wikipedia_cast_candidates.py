@@ -64,6 +64,25 @@ def test_multiple_actor_as_phrases_in_one_sentence_do_not_bleed_roles():
     assert [(row["actor_qid"], row["character_name_in_source"]) for row in result["candidates"]] == [
         ("Q1", "Hermione Granger"), ("Q2", "Harry Potter")
     ]
+    assert [row["evidence_phrase"] for row in result["candidates"]] == [
+        "Actor One as Hermione Granger", "Actor Two as Harry Potter",
+    ]
+
+
+def test_evidence_phrase_stops_at_the_exact_credit_not_the_rest_of_the_cast_sentence():
+    result = extract_cast_candidates(
+        film_qid="Q10",
+        passages=[_passage(
+            "cast",
+            "Actor One as Hero, a brave champion. Actor Two as Villain, his rival.",
+        )],
+        actors=[{"qid": "Q1", "label": "Actor One"}, {"qid": "Q2", "label": "Actor Two"}],
+    )
+
+    assert [row["character_name_in_source"] for row in result["candidates"]] == ["Hero", "Villain"]
+    assert [row["evidence_phrase"] for row in result["candidates"]] == [
+        "Actor One as Hero", "Actor Two as Villain",
+    ]
 
 
 def test_duplicate_english_actor_labels_are_quarantined_not_assigned():

@@ -16,7 +16,8 @@ from app.services.wikipedia_cast_source_statements import (
 )
 
 
-def _partition(film_ranks: range, *, selection_sha256: str = "s" * 64):
+def _partition(film_ranks: range, *, selection_sha256: str = "s" * 64,
+              identity_only: bool = False):
     capture_manifest_sha = hashlib.sha256(f"capture-{selection_sha256}".encode()).hexdigest()
     credit_target_manifest_sha = hashlib.sha256(f"targets-{selection_sha256}".encode()).hexdigest()
     films = []
@@ -38,6 +39,8 @@ def _partition(film_ranks: range, *, selection_sha256: str = "s" * 64):
             "ambiguous_or_unmatched_count": 0,
         }
         films.append(film)
+        actor_source_name = f"Alias {rank}" if identity_only else f"Actor {rank}"
+        identity_match = "exact_unique_english_alias" if identity_only else "same_film_wikidata_cast_target"
         candidate = {
             "selection_rank": rank,
             "film_qid": qid,
@@ -46,28 +49,61 @@ def _partition(film_ranks: range, *, selection_sha256: str = "s" * 64):
             "wikipedia_revision": film["source_revision"],
             "wikipedia_snapshot_sha256": snapshot_hash,
             "wikipedia_url": url,
-            "identity_resolution": "same_film_wikidata_cast_target",
+            "wikipedia_license": "CC BY-SA 4.0",
+            "actor_qid": None if identity_only else f"Q{rank + 2000}",
+            "actor_identity_qid": f"Q{rank + 2000}",
+            "actor_identity_label": f"Actor {rank}",
+            "actor_identity_evidence": {
+                "source_url": f"https://www.wikidata.org/wiki/Special:EntityData/Q{rank + 2000}.json",
+                "source_revision": 10000 + rank,
+                "snapshot_sha256": "d" * 64,
+            },
+            "actor_statement_locators": [] if identity_only else [f"claims.P161[{rank}]"],
+            "actor_label_in_source": actor_source_name,
+            "character_name_in_source": f"Character {rank}",
+            "evidence_phrase": f"{actor_source_name} as Character {rank}",
+            "section_locator": "cast",
+            "passage_ordinal": 0,
+            "passage_sha256": hashlib.sha256(f"passage-{rank}".encode()).hexdigest(),
+            "identity_resolution": "matched_captured_person_identity_only" if identity_only else "same_film_wikidata_cast_target",
+            "actor_identity_match": identity_match,
             "matching_wikidata_character_qids": [],
             "review_status": "review_required",
         }
         candidates.append(candidate)
         subject = {"film_qid": qid, "actor_qid": f"Q{rank + 2000}"}
-        value = {"character_name_in_source": f"Character {rank}", "review_status": "review_required"}
+        value = {
+            "actor_label_in_source": actor_source_name,
+            "character_name_in_source": f"Character {rank}",
+            "review_status": "review_required",
+        }
         qualifiers = {
             "wikipedia_url": url,
             "wikipedia_revision": film["source_revision"],
             "wikipedia_snapshot_sha256": snapshot_hash,
             "wikipedia_license": "CC BY-SA 4.0",
             "attribution_url": url,
+            "section_locator": "cast",
+            "passage_ordinal": 0,
             "passage_sha256": hashlib.sha256(f"passage-{rank}".encode()).hexdigest(),
+            "evidence_phrase": f"{actor_source_name} as Character {rank}",
             "wikidata_actor_identity": {
                 "entity_qid": subject["actor_qid"], "entity_label": f"Actor {rank}",
                 "source_url": f"https://www.wikidata.org/wiki/Special:EntityData/{subject['actor_qid']}.json",
                 "source_revision": 10000 + rank, "snapshot_sha256": "d" * 64,
                 "license": "CC0 1.0",
             },
-            "wikidata_cast_statement_locators": [f"claims.P161[{rank}]"],
-            "wikidata_film_cast_evidence": {
+            "wikidata_cast_statement_locators": [] if identity_only else [f"claims.P161[{rank}]"],
+            "identity_resolution_basis": identity_match,
+            "wikidata_film_identity_source": {
+                "film_qid": qid,
+                "source_url": f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json",
+                "attribution_url": f"https://www.wikidata.org/wiki/{qid}",
+                "source_revision": 11000 + rank,
+                "snapshot_sha256": "e" * 64,
+                "license": "CC0 1.0",
+            },
+            "wikidata_film_cast_evidence": None if identity_only else {
                 "film_qid": qid,
                 "source_url": f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json",
                 "attribution_url": f"https://www.wikidata.org/wiki/{qid}",
@@ -80,6 +116,7 @@ def _partition(film_ranks: range, *, selection_sha256: str = "s" * 64):
                     "snapshot_sha256": "e" * 64,
                 }],
             },
+            "matching_character_qids_by_label_only": [],
         }
         digest = statement_digest_for_fields(
             source_property=SOURCE_PROPERTY,
@@ -98,7 +135,7 @@ def _partition(film_ranks: range, *, selection_sha256: str = "s" * 64):
         })
 
     report = {
-        "schema": "cinegraph.wikipedia-cast-candidates/v7",
+        "schema": "cinegraph.wikipedia-cast-candidates/v8",
         "selection_sha256": selection_sha256,
         "film_capture_manifest_sha256": capture_manifest_sha,
         "credit_target_manifest_sha256": credit_target_manifest_sha,
@@ -112,8 +149,8 @@ def _partition(film_ranks: range, *, selection_sha256: str = "s" * 64):
             "candidate_rows": len(candidates),
             "ambiguous_or_unmatched_rows": 0,
             "films_with_cast_passages": len(films),
-            "wikidata_actor_candidates": len(candidates),
-            "source_only_identity_matches": 0,
+            "wikidata_actor_candidates": 0 if identity_only else len(candidates),
+            "source_only_identity_matches": len(candidates) if identity_only else 0,
             "source_only_unresolved_candidates": 0,
             "candidates_matching_wikidata_character_label": 0,
             "films_with_candidates": len(films),
@@ -121,7 +158,7 @@ def _partition(film_ranks: range, *, selection_sha256: str = "s" * 64):
     }
     report_bytes = json.dumps(report, sort_keys=True).encode()
     manifest = {
-        "schema": "cinegraph.wikipedia-cast-source-statements/v3",
+        "schema": "cinegraph.wikipedia-cast-source-statements/v5",
         "input_schema": report["schema"],
         "input_sha256": hashlib.sha256(report_bytes).hexdigest(),
         "capture_manifest_sha256": capture_manifest_sha,
@@ -171,6 +208,18 @@ def test_combines_complete_disjoint_partitions_and_renders_passage_free_review_s
     assert "passage text is reproduced" in markdown
     assert "Film 1 (2001)" in markdown
     assert "?oldid=9001" in markdown
+
+
+def test_identity_only_candidate_is_bound_as_a_review_draft_without_cast_membership_claim():
+    candidate, statements = _partition(range(1, 2), identity_only=True)
+    report = build_cast_candidate_coverage(
+        [candidate], [statements], _pilot([candidate]), expected_film_count=1,
+    )
+
+    assert report["summary"]["same_film_identity_candidates"] == 0
+    assert report["summary"]["identity_only_suggestions"] == 1
+    assert report["summary"]["identity_only_candidates_with_review_drafts"] == 1
+    assert report["summary"]["review_only_source_statement_drafts"] == 1
 
 
 def test_accepts_the_frozen_catalog_pilot_nested_identity_when_unique():
@@ -233,4 +282,20 @@ def test_rejects_tampered_statement_content_even_when_source_binding_matches():
     with pytest.raises(ValueError, match="content does not match"):
         build_cast_candidate_coverage(
             [candidate], [(manifest, manifest_bytes)], _pilot([candidate]), expected_film_count=1,
+        )
+
+
+def test_rejects_valid_draft_that_does_not_match_its_candidate_evidence_row():
+    candidate, statements = _partition(range(1, 2))
+    report, _ = candidate
+    report["candidates"][0]["character_name_in_source"] = "A different, still syntactically valid role"
+    candidate_bytes = json.dumps(report, sort_keys=True).encode()
+    manifest, _ = statements
+    manifest["input_sha256"] = hashlib.sha256(candidate_bytes).hexdigest()
+    manifest_bytes = json.dumps(manifest, sort_keys=True).encode()
+
+    with pytest.raises(ValueError, match="do not match their exact candidate evidence rows"):
+        build_cast_candidate_coverage(
+            [(report, candidate_bytes)], [(manifest, manifest_bytes)],
+            _pilot([(report, candidate_bytes)]), expected_film_count=1,
         )
