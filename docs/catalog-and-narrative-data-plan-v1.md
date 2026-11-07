@@ -3432,3 +3432,19 @@ remain local and out of Git.
 - The database-dependent cast-review implementation remains uncommitted and
   local until the isolated Docker store is healthy and the full `cinegraph_test`
   migration/API gate passes. Do not mistake the offline suite for that gate.
+
+### Follow-up — fix an offline-detectable cast-review runtime defect (7 November 2026)
+
+- A static review of the unverified queue/approval path found that
+  `wikipedia_cast_review` called `verify_snapshot_file` without importing it.
+  Once a candidate reached source validation, this would raise `NameError`;
+  the earlier integration tests had not run to expose it. The service now uses
+  the shared snapshot-integrity verifier, and a regression checks the binding
+  against a real temporary source file and its exact SHA-256/size.
+- The focused cast-review policy suite passes **15/15**; `pyflakes` reports no
+  undefined/unused names in the changed backend modules, fixture seeder and
+  integration tests; Python compilation and `git diff --check` pass. This is
+  local-only verification. The full offline suite had passed **446 tests**
+  immediately before removing one unused import from an integration test; the
+  integration DB/API suite remains unrun because Docker reports an I/O error
+  reading container metadata. No database, snapshot, or volume was changed.
