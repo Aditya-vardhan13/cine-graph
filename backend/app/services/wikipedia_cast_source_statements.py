@@ -12,6 +12,7 @@ import re
 from typing import Any
 from urllib.parse import urlparse
 
+from app.services.wikipedia_cast_candidates import resolve_source_actor_identities
 
 SCHEMA = "cinegraph.wikipedia-cast-source-statements/v5"
 INPUT_SCHEMA = "cinegraph.wikipedia-cast-candidates/v8"
@@ -22,6 +23,7 @@ SOURCE_PROPERTY = "wikipedia_cast_credit_candidate"
 _QID = re.compile(r"^Q[1-9][0-9]*$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _P161_LOCATOR = re.compile(r"^claims\.P161\[\d+\]$")
+IDENTITY_SUPPLEMENT_SCHEMA = "cinegraph.wikipedia-cast-identity-supplement/v1"
 
 
 def _text(value: Any, field: str) -> str:
@@ -32,6 +34,15 @@ def _text(value: Any, field: str) -> str:
 
 def _normalized(value: str) -> str:
     return " ".join(value.split()).casefold()
+
+
+def _require_object_matches_bytes(value: dict[str, Any], payload: bytes, name: str) -> None:
+    try:
+        decoded = json.loads(payload)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ValueError(f"{name} bytes are not valid JSON") from exc
+    if decoded != value:
+        raise ValueError(f"{name} object does not match its exact retained bytes")
 
 
 def english_person_name_match_basis(
@@ -63,12 +74,117 @@ def statement_digest_for_fields(
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _apply_identity_supplement(
+    candidate_report: dict[str, Any], report_bytes: bytes,
+    manifest: dict[str, Any], manifest_bytes: bytes,
+    snapshot_bytes: dict[str, bytes],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Resolve only exact names against separately captured CC0 person items.
+
+    This supplements an existing P161 capture; it never creates a film-cast
+    locator and remains a review-only identity suggestion.
+    """
+    if manifest.get("schema") != IDENTITY_SUPPLEMENT_SCHEMA:
+        raise ValueError("Unexpected Wikidata cast identity-supplement schema")
+    _require_object_matches_bytes(manifest, manifest_bytes, "Identity supplement")
+    manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
+    if (manifest.get("candidate_report_sha256") != hashlib.sha256(report_bytes).hexdigest()
+            or manifest.get("selection_sha256") != candidate_report.get("selection_sha256")):
+        raise ValueError("Identity supplement is not bound to this exact candidate report")
+    captured = manifest.get("captured")
+    if not isinstance(captured, dict) or not captured:
+        raise ValueError("Identity supplement must contain captured person entities")
+    target_qids = manifest.get("target_qids")
+    target_hash = manifest.get("target_manifest_sha256")
+    if (not isinstance(target_qids, list)
+            or any(not isinstance(qid, str) or not _QID.fullmatch(qid) for qid in target_qids)
+            or len(set(target_qids)) != len(target_qids)
+            or set(target_qids) != set(captured)
+            or not isinstance(target_hash, str) or not _SHA256.fullmatch(target_hash)):
+        raise ValueError("Identity supplement targets do not match its captured QIDs")
+
+    people: list[dict[str, Any]] = []
+    for qid, record in captured.items():
+        if not isinstance(qid, str) or not _QID.fullmatch(qid) or not isinstance(record, dict):
+            raise ValueError("Identity supplement contains a malformed QID record")
+        url = f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json"
+        payload = snapshot_bytes.get(qid)
+        digest = record.get("sha256")
+        revision = record.get("source_revision")
+        if (record.get("source_url") != url
+                or record.get("license") != "CC0 1.0"
+                or not isinstance(revision, int) or isinstance(revision, bool) or revision < 1
+                or not isinstance(digest, str) or not _SHA256.fullmatch(digest)
+                or not isinstance(payload, bytes)
+                or hashlib.sha256(payload).hexdigest() != digest):
+            raise ValueError(f"Identity supplement evidence is incomplete or mismatched for {qid}")
+        try:
+            entity = json.loads(payload).get("entities", {}).get(qid, {})
+        except (json.JSONDecodeError, UnicodeDecodeError, AttributeError) as exc:
+            raise ValueError(f"Identity supplement payload is invalid for {qid}") from exc
+        if not isinstance(entity, dict) or entity.get("id") != qid or entity.get("lastrevid") != revision:
+            raise ValueError(f"Identity supplement entity/revision does not match its manifest for {qid}")
+        claims = entity.get("claims", {})
+        instance_of = claims.get("P31", []) if isinstance(claims, dict) else []
+        is_human = any(
+            claim.get("mainsnak", {}).get("datavalue", {}).get("value", {}).get("id") == "Q5"
+            for claim in instance_of
+            if isinstance(claim, dict)
+            and isinstance(claim.get("mainsnak"), dict)
+            and isinstance(claim["mainsnak"].get("datavalue"), dict)
+            and isinstance(claim["mainsnak"]["datavalue"].get("value"), dict)
+        ) if isinstance(instance_of, list) else False
+        if not is_human:
+            raise ValueError(f"Identity supplement item is not explicitly typed as a human: {qid}")
+        labels = entity.get("labels", {})
+        label_row = labels.get("en", {}) if isinstance(labels, dict) else {}
+        label = label_row.get("value") if isinstance(label_row, dict) else None
+        if not isinstance(label, str) or not label.strip() or record.get("english_label") != label:
+            raise ValueError(f"Identity supplement has no matching English label for {qid}")
+        aliases_by_language = entity.get("aliases", {})
+        aliases = aliases_by_language.get("en", []) if isinstance(aliases_by_language, dict) else []
+        if not isinstance(aliases, list):
+            raise ValueError(f"Identity supplement aliases are malformed for {qid}")
+        people.append({
+            "qid": qid,
+            "label": label,
+            "aliases": [alias["value"] for alias in aliases
+                        if isinstance(alias, dict) and isinstance(alias.get("value"), str)],
+            "source_url": url,
+            "source_revision": revision,
+            "snapshot_sha256": digest,
+        })
+
+    original_rows = candidate_report.get("candidates")
+    if not isinstance(original_rows, list):
+        raise ValueError("Candidate report must contain a candidates array")
+    if any(not isinstance(row, dict) for row in original_rows):
+        raise ValueError("Candidate report rows must be objects")
+    resolved = resolve_source_actor_identities(original_rows, people)
+    # The resolver also re-emits pre-existing matches. Preserve existing
+    # candidate assertions unchanged and use supplement results only where the
+    # original pipeline had no exact captured identity.
+    final_rows = []
+    for original, candidate in zip(original_rows, resolved, strict=True):
+        if original.get("identity_resolution") in {
+            "unresolved_source_name", "no_exact_captured_person_label_or_alias",
+        } and candidate.get("identity_resolution") == "matched_captured_person_identity_only":
+            candidate["identity_evidence_origin"] = "separate_wikidata_entitydata_capture"
+        else:
+            candidate = original
+        final_rows.append(candidate)
+    return final_rows, {"schema": IDENTITY_SUPPLEMENT_SCHEMA, "sha256": manifest_hash}
+
+
 def build_source_statement_manifest(
     candidate_report: dict[str, Any], report_bytes: bytes,
     capture_manifest: dict[str, Any], capture_bytes: bytes,
     credit_target_manifest: dict[str, Any], credit_target_bytes: bytes,
     credit_label_checkpoint: dict[str, Any], checkpoint_bytes: bytes,
     actor_snapshot_bytes: dict[str, bytes],
+    identity_supplement: dict[str, Any] | None = None,
+    identity_supplement_bytes: bytes | None = None,
+    identity_supplement_snapshot_bytes: dict[str, bytes] | None = None,
 ) -> dict[str, Any]:
     """Create review-only drafts for strong identities, with evidence basis explicit.
 
@@ -77,8 +193,15 @@ def build_source_statement_manifest(
     film-side P161 claim; they remain review-required and require a human to
     verify the article's credit before any operational projection.
     """
+    for name, value, payload in (
+        ("Candidate report", candidate_report, report_bytes),
+        ("Film capture manifest", capture_manifest, capture_bytes),
+        ("Credit-target manifest", credit_target_manifest, credit_target_bytes),
+        ("Credit-label checkpoint", credit_label_checkpoint, checkpoint_bytes),
+    ):
+        _require_object_matches_bytes(value, payload, name)
     if candidate_report.get("schema") != INPUT_SCHEMA:
-        raise ValueError("Expected the v7 retained Wikipedia cast candidate report")
+        raise ValueError("Expected the v8 retained Wikipedia cast candidate report")
     if capture_manifest.get("schema") != "cinegraph.catalog-pilot-capture/v1":
         raise ValueError("Expected the exact retained film capture manifest")
     if credit_target_manifest.get("schema") != "cinegraph.credit-target-manifest/v1":
@@ -116,6 +239,27 @@ def build_source_statement_manifest(
     candidates = candidate_report.get("candidates")
     if not isinstance(candidates, list):
         raise ValueError("Candidate report must contain a candidates array")
+    supplemental_people: dict[str, Any] = {}
+    if identity_supplement is not None:
+        if identity_supplement_bytes is None:
+            raise ValueError("Identity supplement bytes are required for provenance binding")
+        candidates, supplement_binding = _apply_identity_supplement(
+            candidate_report, report_bytes, identity_supplement,
+            identity_supplement_bytes, identity_supplement_snapshot_bytes or {},
+        )
+        supplemental_people = identity_supplement["captured"]
+    else:
+        if identity_supplement_bytes is not None or identity_supplement_snapshot_bytes:
+            raise ValueError("Identity supplement bytes cannot be supplied without its manifest")
+        supplement_binding = None
+    available_people = dict(captured_people)
+    available_snapshot_bytes = dict(actor_snapshot_bytes)
+    for qid, record in supplemental_people.items():
+        if qid in available_people and available_people[qid] != record:
+            raise ValueError(f"Identity supplement conflicts with existing person capture {qid}")
+        available_people[qid] = record
+        if qid not in available_snapshot_bytes:
+            available_snapshot_bytes[qid] = (identity_supplement_snapshot_bytes or {}).get(qid)
 
     statements: list[dict[str, Any]] = []
     excluded = {"unresolved_or_ambiguous_identity": 0, "invalid_or_incomplete": 0}
@@ -189,8 +333,8 @@ def build_source_statement_manifest(
         identity_locators = row.get("actor_statement_locators")
         film_qid = row.get("film_qid")
         parsed_identity_url = urlparse(identity_url) if isinstance(identity_url, str) else None
-        captured_person = captured_people.get(actor_qid)
-        person_payload = actor_snapshot_bytes.get(actor_qid)
+        captured_person = available_people.get(actor_qid)
+        person_payload = available_snapshot_bytes.get(actor_qid)
         try:
             person_entity = json.loads(person_payload).get("entities", {}).get(actor_qid, {}) if isinstance(person_payload, bytes) else {}
         except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
@@ -370,6 +514,7 @@ def build_source_statement_manifest(
         "capture_manifest_sha256": capture_hash,
         "credit_target_manifest_sha256": credit_hash,
         "credit_label_checkpoint_sha256": checkpoint_hash,
+        "identity_supplement": supplement_binding,
         "selection_sha256": candidate_report.get("selection_sha256"),
         "operational_fact_write": False,
         "rights_decision_created": False,

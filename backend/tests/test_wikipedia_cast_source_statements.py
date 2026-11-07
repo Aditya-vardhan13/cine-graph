@@ -17,6 +17,14 @@ ACTOR_SNAPSHOT_BYTES = json.dumps({"entities": {"Q20": {
 }}}, sort_keys=True).encode()
 
 
+SUPPLEMENT_SNAPSHOT_BYTES = json.dumps({"entities": {"Q21": {
+    "id": "Q21", "lastrevid": 65432,
+    "labels": {"en": {"language": "en", "value": "Supplement Actor"}},
+    "aliases": {"en": [{"language": "en", "value": "Supplement Alias"}]},
+    "claims": {"P31": [{"mainsnak": {"datavalue": {"value": {"id": "Q5"}}}}]},
+}}}, sort_keys=True).encode()
+
+
 def _candidate(**updates):
     row = {
         "film_qid": "Q10",
@@ -49,7 +57,8 @@ def _candidate(**updates):
     return row
 
 
-def _build(*candidates, actor_snapshot_override=None):
+def _build(*candidates, actor_snapshot_override=None, identity_supplement=False,
+           supplement_snapshot_override=None):
     report = {
         "schema": "cinegraph.wikipedia-cast-candidates/v8",
         "selection_sha256": "c" * 64,
@@ -92,10 +101,34 @@ def _build(*candidates, actor_snapshot_override=None):
     report["credit_target_manifest_sha256"] = hashlib.sha256(target_bytes).hexdigest()
     report["credit_label_checkpoint_sha256"] = hashlib.sha256(checkpoint_bytes).hexdigest()
     raw = json.dumps(report, sort_keys=True).encode()
+    supplement = supplement_raw = supplement_snapshot = None
+    if identity_supplement:
+        supplement_snapshot = (SUPPLEMENT_SNAPSHOT_BYTES if supplement_snapshot_override is None
+                               else supplement_snapshot_override)
+        supplement = {
+            "schema": "cinegraph.wikipedia-cast-identity-supplement/v1",
+            "candidate_report_sha256": hashlib.sha256(raw).hexdigest(),
+            "selection_sha256": "c" * 64,
+            "target_manifest_sha256": "d" * 64,
+            "target_qids": ["Q21"],
+            "captured": {"Q21": {
+                "english_label": "Supplement Actor",
+                "source_url": "https://www.wikidata.org/wiki/Special:EntityData/Q21.json",
+                "source_revision": 65432,
+                "sha256": hashlib.sha256(SUPPLEMENT_SNAPSHOT_BYTES).hexdigest(),
+                "license": "CC0 1.0", "snapshot_path": "snapshots/Q21.json",
+            }},
+        }
+        supplement_raw = json.dumps(supplement, sort_keys=True).encode()
     result = build_source_statement_manifest(
         report, raw, capture, capture_bytes, targets, target_bytes,
         checkpoint, checkpoint_bytes,
         {"Q20": person_bytes if actor_snapshot_override is None else actor_snapshot_override},
+        identity_supplement=supplement,
+        identity_supplement_bytes=supplement_raw,
+        identity_supplement_snapshot_bytes=(
+            {"Q21": supplement_snapshot} if supplement_snapshot is not None else None
+        ),
     )
     return result, raw
 
@@ -145,6 +178,48 @@ def test_identity_only_suggestion_gets_review_draft_without_fabricated_film_cast
     assert draft["raw_qualifiers"]["wikidata_film_cast_evidence"] is None
     assert result["summary"]["identity_only_drafts"] == 1
     validate_cast_source_statement_draft(draft)
+
+
+def test_separate_entitydata_identity_supplement_only_resolves_exact_unmatched_name():
+    result, _ = _build(_candidate(
+        actor_qid=None,
+        actor_identity_qid=None,
+        identity_resolution="unresolved_source_name",
+        actor_identity_match="no_exact_captured_person_label_or_alias",
+        actor_identity_label=None,
+        actor_identity_evidence=None,
+        actor_label=None,
+        actor_label_in_source="Supplement Alias",
+        actor_statement_locators=[],
+        evidence_phrase="Supplement Alias as Character in the cast list.",
+    ), identity_supplement=True)
+
+    draft = result["source_statement_drafts"][0]
+    assert result["identity_supplement"]["schema"] == "cinegraph.wikipedia-cast-identity-supplement/v1"
+    assert draft["raw_subject"] == {"film_qid": "Q10", "actor_qid": "Q21"}
+    assert draft["raw_qualifiers"]["identity_resolution_basis"] == "exact_unique_english_alias"
+    assert draft["raw_qualifiers"]["wikidata_cast_statement_locators"] == []
+    assert draft["raw_qualifiers"]["wikidata_film_cast_evidence"] is None
+    assert draft["raw_qualifiers"]["wikidata_actor_identity"]["snapshot_sha256"] == hashlib.sha256(
+        SUPPLEMENT_SNAPSHOT_BYTES
+    ).hexdigest()
+    validate_cast_source_statement_draft(draft)
+
+
+def test_identity_supplement_snapshot_bytes_must_match_retained_manifest_hash():
+    with pytest.raises(ValueError, match="incomplete or mismatched"):
+        _build(_candidate(
+            actor_qid=None,
+            actor_identity_qid=None,
+            identity_resolution="unresolved_source_name",
+            actor_identity_match="no_exact_captured_person_label_or_alias",
+            actor_identity_label=None,
+            actor_identity_evidence=None,
+            actor_label=None,
+            actor_label_in_source="Supplement Alias",
+            actor_statement_locators=[],
+            evidence_phrase="Supplement Alias as Character in the cast list.",
+        ), identity_supplement=True, supplement_snapshot_override=b"{}")
 
 
 def test_identity_only_suggestion_requires_source_actor_name_to_match_captured_alias():
@@ -210,9 +285,19 @@ def test_duplicate_candidate_statement_is_rejected():
 
 def test_unknown_candidate_schema_is_rejected():
     report = {"schema": "cinegraph.wikipedia-cast-candidates/v6", "candidates": []}
-    with pytest.raises(ValueError, match="v7"):
+    report_bytes = json.dumps(report, sort_keys=True).encode()
+    with pytest.raises(ValueError, match="v8"):
         build_source_statement_manifest(
-            report, b"{}", {}, b"{}", {}, b"{}", {}, b"{}", {},
+            report, report_bytes, {}, b"{}", {}, b"{}", {}, b"{}", {},
+        )
+
+
+def test_candidate_object_must_match_exact_retained_report_bytes():
+    report = {"schema": "cinegraph.wikipedia-cast-candidates/v8", "candidates": []}
+    with pytest.raises(ValueError, match="exact retained bytes"):
+        build_source_statement_manifest(
+            report, b'{"schema":"cinegraph.wikipedia-cast-candidates/v8","candidates":[{}]}',
+            {}, b"{}", {}, b"{}", {}, b"{}", {},
         )
 
 

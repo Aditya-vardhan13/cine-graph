@@ -58,13 +58,44 @@ def _read_actor_snapshots(label_dir: Path, checkpoint: dict, candidate_report: d
     return payloads
 
 
+def _read_identity_supplement_snapshots(root: Path, manifest: dict) -> dict[str, bytes]:
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError("Identity-supplement snapshot directory must be a local regular directory")
+    resolved_root = root.resolve(strict=True)
+    captured = manifest.get("captured")
+    if not isinstance(captured, dict):
+        raise ValueError("Identity-supplement manifest has no captured people")
+    payloads: dict[str, bytes] = {}
+    for qid, record in captured.items():
+        relative = record.get("snapshot_path") if isinstance(record, dict) else None
+        if not isinstance(relative, str):
+            raise ValueError(f"No retained supplemental person snapshot is recorded for {qid}")
+        rel_path = PurePosixPath(relative)
+        if rel_path.is_absolute() or ".." in rel_path.parts:
+            raise ValueError("Supplemental person snapshot path must remain within its capture directory")
+        candidate_path = resolved_root.joinpath(*rel_path.parts)
+        if candidate_path.is_symlink() or not candidate_path.is_file():
+            raise ValueError(f"Supplemental person snapshot must be a regular file for {qid}")
+        resolved = candidate_path.resolve(strict=True)
+        if resolved_root not in resolved.parents:
+            raise ValueError("Supplemental person snapshot path escapes its capture directory")
+        payloads[qid] = resolved.read_bytes()
+    return payloads
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("candidate_report", type=Path, help="Retained v8 Wikipedia cast candidate report")
     parser.add_argument("capture_manifest", type=Path, help="Exact capture manifest hashed by the candidate report")
     parser.add_argument("credit_target_manifest", type=Path, help="Exact Wikidata P161 target manifest hashed by the candidate report")
     parser.add_argument("output", type=Path, help="New ignored local JSON output; existing files are not overwritten")
+    parser.add_argument("--identity-supplement-manifest", type=Path,
+                        help="Optional retained, hash-bound non-P161 person identity capture manifest")
+    parser.add_argument("--identity-supplement-dir", type=Path,
+                        help="Snapshot directory paired with --identity-supplement-manifest")
     args = parser.parse_args()
+    if bool(args.identity_supplement_manifest) != bool(args.identity_supplement_dir):
+        parser.error("--identity-supplement-manifest and --identity-supplement-dir must be supplied together")
     if args.output.is_symlink():
         raise ValueError("Output cannot be a symlink")
     output_path = args.output.resolve()
@@ -77,9 +108,18 @@ def main() -> None:
     label_dir = args.candidate_report.parent / "credit-labels-v1"
     checkpoint, checkpoint_raw = _read_input(label_dir / "checkpoint.json")
     actor_snapshot_bytes = _read_actor_snapshots(label_dir, checkpoint, report)
+    supplement = supplement_raw = supplement_snapshot_bytes = None
+    if args.identity_supplement_manifest:
+        supplement, supplement_raw = _read_input(args.identity_supplement_manifest)
+        supplement_snapshot_bytes = _read_identity_supplement_snapshots(
+            args.identity_supplement_dir, supplement,
+        )
     result = build_source_statement_manifest(
         report, raw, capture, capture_raw, targets, targets_raw,
         checkpoint, checkpoint_raw, actor_snapshot_bytes,
+        identity_supplement=supplement,
+        identity_supplement_bytes=supplement_raw,
+        identity_supplement_snapshot_bytes=supplement_snapshot_bytes,
     )
     payload = (json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
     _write_immutable(output_path, payload)
