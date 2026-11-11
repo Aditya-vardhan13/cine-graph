@@ -81,12 +81,13 @@ def narrative_section_candidates(*, question_id: str, evidence_class: str | None
     if (evidence_class or "").casefold().strip() != "narrative_extraction":
         return ()
     normalized_id = question_id.casefold().strip()
+    plot_sections = ("plot", "plot-summary", "synopsis")
     if normalized_id in {"story.plot_character_structure", "story.cross_film_comparison"}:
-        return ("plot", "narrative-structure")
+        return (*plot_sections, "narrative-structure")
     if normalized_id.startswith("story."):
-        return ("plot",)
+        return plot_sections
     if normalized_id.startswith("character."):
-        return ("plot", "narrative-structure")
+        return (*plot_sections, "narrative-structure")
     if normalized_id.startswith("structure."):
         return ("narrative-structure", "structure")
     if normalized_id.startswith("craft."):

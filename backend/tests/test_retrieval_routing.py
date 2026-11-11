@@ -41,7 +41,7 @@ def test_unclassified_question_starts_with_exact_evidence() -> None:
 def test_narrative_section_candidates_are_declared_before_ranking() -> None:
     assert narrative_section_candidates(
         question_id="story.return", evidence_class="narrative_extraction",
-    ) == ("plot",)
+    ) == ("plot", "plot-summary", "synopsis")
     assert narrative_section_candidates(
         question_id="structure.circular", evidence_class="narrative_extraction",
     ) == ("narrative-structure", "structure")
@@ -53,7 +53,7 @@ def test_narrative_section_candidates_are_declared_before_ranking() -> None:
     ) == ("production",)
     assert narrative_section_candidates(
         question_id="character.transformation", evidence_class="narrative_extraction",
-    ) == ("plot", "narrative-structure")
+    ) == ("plot", "plot-summary", "synopsis", "narrative-structure")
     assert narrative_section_candidates(
         question_id="reception.legacy", evidence_class="narrative_extraction",
     ) == ("reception", "reception-and-legacy", "legacy", "legacy-and-influence")
