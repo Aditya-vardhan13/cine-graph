@@ -521,21 +521,39 @@ def ingest_selected_credit_labels(
 
 
 def extract_assertions(db: Session, snapshot_id, entity: dict[str, Any]) -> int:
-    inserted = extract_english_label(db, snapshot_id, entity)
+    """Append missing source statements with one existing-locator lookup.
+
+    The unique snapshot/locator/extractor constraint remains authoritative;
+    concurrent writers can still conflict and must roll back rather than
+    silently replacing retained source statements.
+    """
+    existing = set(db.scalars(select(SourceAssertion.statement_locator).where(
+        SourceAssertion.source_snapshot_id == snapshot_id,
+        SourceAssertion.extractor_version == ADAPTER_VERSION,
+    )))
+    inserted = 0
+    english = entity.get("labels", {}).get("en", {})
+    english_text = english.get("value") if isinstance(english, dict) else None
+    if isinstance(english_text, str) and english_text.strip() and "labels.en" not in existing:
+        db.add(SourceAssertion(source_snapshot_id=snapshot_id, statement_locator="labels.en",
+                               source_property="wikidata:label:en", raw_subject={"wikidata_id": entity["id"]},
+                               raw_value={"language": "en", "text": english_text}, raw_qualifiers={},
+                               source_rank=None, extractor_version=ADAPTER_VERSION))
+        existing.add("labels.en")
+        inserted += 1
+    subject = {"wikidata_id": entity["id"], "label": label(entity)}
     for property_id, statements in entity.get("claims", {}).items():
         for position, statement in enumerate(statements):
-            if source_assertion(
-                db,
-                source_snapshot_id=snapshot_id,
-                statement_locator=f"claims.{property_id}[{position}]",
-                source_property=property_id,
-                raw_subject={"wikidata_id": entity["id"], "label": label(entity)},
-                raw_value=statement.get("mainsnak", {}),
-                raw_qualifiers=statement.get("qualifiers", {}),
-                source_rank=statement.get("rank"),
-                extractor_version=ADAPTER_VERSION,
-            ):
-                inserted += 1
+            locator = f"claims.{property_id}[{position}]"
+            if locator in existing:
+                continue
+            db.add(SourceAssertion(source_snapshot_id=snapshot_id, statement_locator=locator,
+                                   source_property=property_id, raw_subject=subject,
+                                   raw_value=statement.get("mainsnak", {}),
+                                   raw_qualifiers=statement.get("qualifiers", {}),
+                                   source_rank=statement.get("rank"), extractor_version=ADAPTER_VERSION))
+            existing.add(locator)
+            inserted += 1
     return inserted
 
 
