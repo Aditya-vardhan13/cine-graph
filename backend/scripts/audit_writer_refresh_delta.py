@@ -22,6 +22,13 @@ def story(locator: str) -> bool:
     return locator.split("/", 1)[0] in {"plot", "plot-summary", "synopsis"}
 
 
+def character_list_section(locator: str) -> bool:
+    parts = locator.split("/")
+    return len(parts) > 1 and story(locator) and parts[-1] in {
+        "characters", "main-characters", "secondary-characters", "cast", "cast-and-characters"
+    }
+
+
 def measurements(passages) -> dict:
     selected = [content for locator, content in passages if story(locator)]
     return {"passages": len(selected), "characters": sum(len(content) for content in selected)}
@@ -39,11 +46,19 @@ def classify(old: dict, new: dict) -> str:
 
 def compare_versions(old_versions: dict, new: dict) -> tuple[str, dict]:
     """Never combine multiple extractions of the same historical snapshot."""
-    versions = {version: measurements(passages) for version, passages in old_versions.items()}
+    versions = {version: {**measurements(passages),
+                          "character_list_characters": sum(len(content) for locator, content in passages
+                                                           if character_list_section(locator))}
+                for version, passages in old_versions.items()}
     if len(versions) > 1:
         return "prior_extraction_ambiguous", versions
     old = next(iter(versions.values()), {"passages": 0, "characters": 0})
-    return classify(old, new), versions
+    classification = classify(old, new)
+    suspected_list = old.get("character_list_characters", 0)
+    if (classification == "possible_story_loss" and suspected_list
+            and new["characters"] >= (old["characters"] - suspected_list) * 0.7):
+        classification = "section_mix_requires_review"
+    return classification, versions
 
 
 def main() -> None:
@@ -83,9 +98,9 @@ def main() -> None:
     counts = defaultdict(int)
     for row in results:
         counts[row["classification"]] += 1
-    report = {"schema": "cinegraph.writer-refresh-story-delta/v2", "review_status": "review_required",
+    report = {"schema": "cinegraph.writer-refresh-story-delta/v3", "review_status": "review_required",
               "audit_sha256": hashlib.sha256(audit_bytes).hexdigest(),
-              "limitations": "Character counts are mechanical leads, not quality or rights approval; old counts depend on retained passage extraction.",
+              "limitations": "Counts and named character-list headings are mechanical leads, not content, quality or rights approval; old counts depend on retained passage extraction.",
               "captured": len(state["captures"]), "compared": len(results), "counts": dict(counts), "entries": results}
     if args.output:
         output = local_output(args.output)

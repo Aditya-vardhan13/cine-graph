@@ -21,3 +21,21 @@ def test_prior_extraction_versions_are_not_silently_combined():
     assert classification == "prior_extraction_ambiguous"
     assert versions["v1"]["characters"] == 3
     assert versions["v2"]["characters"] == 6
+
+
+def test_character_lists_nested_under_plot_do_not_masquerade_as_plot_loss():
+    classification, versions = compare_versions(
+        {"v1": [("plot", "a" * 100), ("plot/main-characters", "b" * 200)]},
+        {"passages": 1, "characters": 90},
+    )
+    assert classification == "section_mix_requires_review"
+    assert versions["v1"]["characters"] == 300
+    assert versions["v1"]["character_list_characters"] == 200
+
+
+def test_smaller_story_still_flagged_when_excluding_character_list():
+    classification, _ = compare_versions(
+        {"v1": [("plot", "a" * 100), ("plot/main-characters", "b" * 200)]},
+        {"passages": 1, "characters": 50},
+    )
+    assert classification == "possible_story_loss"
