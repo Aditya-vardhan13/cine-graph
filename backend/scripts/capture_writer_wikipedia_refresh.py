@@ -31,7 +31,7 @@ def targets(audit: dict) -> list[dict]:
     return selected
 
 
-def verified_checkpoint(output: Path, audit_hash: str, target_qids: set[str]) -> dict:
+def verified_checkpoint(output: Path, audit_hash: str, target_rows: dict[str, dict]) -> dict:
     checkpoint = output / "checkpoint.json"
     if not checkpoint.exists():
         return {"schema": SCHEMA, "audit_sha256": audit_hash, "captures": {}}
@@ -39,17 +39,48 @@ def verified_checkpoint(output: Path, audit_hash: str, target_qids: set[str]) ->
     if state.get("schema") != SCHEMA or state.get("audit_sha256") != audit_hash:
         raise ValueError("Refresh checkpoint does not match the pinned audit")
     captures = state.get("captures")
-    if not isinstance(captures, dict) or set(captures) - target_qids:
+    if not isinstance(captures, dict) or set(captures) - set(target_rows):
         raise ValueError("Refresh checkpoint contains unexpected identities")
     for qid, row in captures.items():
+        prior = target_rows[qid]
+        if (row.get("prior_snapshot_id"), row.get("prior_sha256"), row.get("prior_revision"), row.get("requested_url")) != (
+            prior.get("wikipedia_snapshot_id"), prior.get("wikipedia_sha256"),
+            prior.get("wikipedia_revision"), prior.get("wikipedia_url"),
+        ):
+            raise ValueError(f"Prior source reference changed for {qid}")
+        if (row.get("identity_status") != "review_required" or row.get("rights_status") != "review_required"
+                or row.get("product_ingested") is not False or row.get("status") not in {"not_found", "review_candidate", "quarantined"}):
+            raise ValueError(f"Invalid review status for {qid}")
         if row.get("status") == "not_found":
             continue
         digest = row.get("sha256")
         if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
             raise ValueError(f"Invalid retained content hash for {qid}")
         path = output / "snapshots" / f"{digest}.html"
-        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+        if not path.is_file():
             raise ValueError(f"Retained capture missing or altered for {qid}")
+        payload = path.read_bytes()
+        if hashlib.sha256(payload).hexdigest() != digest or len(payload) != row.get("byte_size"):
+            raise ValueError(f"Retained capture missing or altered for {qid}")
+        issues = []
+        metadata = None
+        sections = []
+        try:
+            doc = parse_article_html(payload, canonical_url=row["canonical_url"])
+            metadata = {"title": doc.metadata.title, "page_id": doc.metadata.page_id,
+                        "wikidata_id": doc.metadata.wikidata_id, "revision_id": doc.metadata.revision_id}
+            if doc.metadata.wikidata_id != qid:
+                issues.append("wikidata_id_mismatch")
+            if f"enwiki:{doc.metadata.page_id}" != prior["wikipedia_page_id"]:
+                issues.append("page_id_mismatch")
+            if not doc.passages:
+                issues.append("no_extracted_passages")
+            sections = sorted({passage.section_locator for passage in doc.passages})
+        except ArticlePageParseError:
+            issues.append("article_parse_failed")
+        status = "review_candidate" if not issues else "quarantined"
+        if (row.get("status"), row.get("issues"), row.get("metadata"), row.get("sections")) != (status, issues, metadata, sections):
+            raise ValueError(f"Retained capture metadata changed for {qid}")
     return state
 
 
@@ -69,7 +100,7 @@ def main() -> None:
     output.mkdir(parents=True, exist_ok=True)
     with (output / "capture.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        state = verified_checkpoint(output, audit_hash, {row["wikidata_id"] for row in rows})
+        state = verified_checkpoint(output, audit_hash, {row["wikidata_id"]: row for row in rows})
         pending = [row for row in rows if row["wikidata_id"] not in state["captures"]][:args.limit]
         if pending:
             if shutil.disk_usage(output).free < 6 * 1024**3:
