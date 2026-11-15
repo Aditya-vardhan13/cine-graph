@@ -119,6 +119,11 @@ def test_retained_hamilton_replay_preserves_old_snapshot_and_no_approval(tmp_pat
                     replay(db, manifest_path=manifest_path, expected_manifest_sha256=manifest_hash,
                            storage_root=tmp_path, existing_entity_without_film=expected_id)
                 db.rollback()
+        else:
+            with pytest.raises(ValueError, match="Existing film identity"):
+                replay(db, manifest_path=manifest_path, expected_manifest_sha256=manifest_hash,
+                       storage_root=tmp_path, existing_entity_without_film=entity_id)
+            db.rollback()
         replay_options = {"existing_entity_without_film": entity_id} if not has_film else {}
         wrong_prior = {**manifest, "prior_sha256": "b" * 64}
         wrong_bytes = json.dumps(wrong_prior, sort_keys=True).encode()
