@@ -151,6 +151,11 @@ for review rather than creating redundant snapshots. Re-running the held
 checkpoint processed no new records. This is source preparation, not a
 semantic-quality or rights approval. The held replay checkpoint SHA-256 is
 `5391a1455a68d11d0dc0554281eee5ef3e3b0485f57590683d87a8016085412c`.
+The four same-revision existing sources were independently rechecked:
+*Baahubali 2*, *A Wednesday!*, *KGF: Chapter 1*, and *Andaz Apna Apna* all
+have verified current source bytes and 104 passages between them. Their current
+snapshots have no semantic-use decisions; different bytes at the same revision
+were not treated as proof of an identical raw response.
 
 ## Refreshed-source retrieval canary
 
@@ -169,8 +174,9 @@ The actual comparison HTTP route also returned a hybrid result when the test
 container was configured with the local embedding endpoint. An earlier test
 run without that endpoint correctly fell back to lexical retrieval; it was a
 test-environment configuration issue, not evidence that hybrid ranking ran.
-The explicit test depends on the current local, uncommitted writer-index work;
-it does not imply that work has been pushed, the live API rebuilt, any working
+At the time of the initial canary, writer-index work was uncommitted. It was
+subsequently committed after 21 focused tests, including isolated pgvector and
+local Ollama checks. This does not imply the live API has been rebuilt, any working
 corpus source approved, or a writer-facing result generated. Test-only
 approvals do not carry into the working database. This diagnostic does not
 justify changing ranking weights on its own; broader source-bound evaluation

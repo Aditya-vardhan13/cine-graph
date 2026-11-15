@@ -145,7 +145,9 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
             from app.services.rag_span_review import bind_review_quotes
             review_bytes = Path("data/evaluation/rag-v2/span-review-development-v1.json").read_bytes()
             review = bind_review_quotes(corpus, json.loads(review_bytes))
-            candidates = json.loads(Path("data/evaluation/rag-v2/refresh-quote-locations-v2.json").read_bytes())
+            candidate_bytes = Path("data/evaluation/rag-v2/refresh-quote-locations-v2.json").read_bytes()
+            assert hashlib.sha256(candidate_bytes).hexdigest() == "d0c05dd41734632a703a02ee1d97555b458721db91155346980d0c808990657a"
+            candidates = json.loads(candidate_bytes)
             assert candidates["source_corpus_fingerprint"] == corpus["fingerprint"]
             assert candidates["review_sha256"] == hashlib.sha256(review_bytes).hexdigest()
             assert all(str(captures[item["film_qid"]]["metadata"]["revision_id"]) == str(item["new_revision"])
