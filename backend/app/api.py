@@ -195,7 +195,7 @@ def catalog_health(db: Session = Depends(get_db)) -> HealthOut:
 
 @router.get("/corpus/quality", response_model=CorpusQualityOut)
 def corpus_quality(db: Session = Depends(get_db)) -> CorpusQualityOut:
-    return CorpusQualityOut(**corpus_quality_report(db, collection_code=settings.research_collection_code))
+    return CorpusQualityOut(**corpus_quality_report(db, collection_code=settings.writer_collection_code))
 
 
 @router.get("/languages", response_model=list[LanguageEditionOut])
@@ -248,7 +248,7 @@ def research_films(
         db,
         query_text=q,
         limit=limit,
-        collection_code=settings.research_collection_code,
+        collection_code=settings.writer_collection_code,
         include_noncommercial=settings.serve_noncommercial_sources,
     )
     return [research_film_item(film) for film in films]
@@ -257,7 +257,7 @@ def research_films(
 @router.get("/research/films/{entity_id}", response_model=ResearchFilmOut)
 def research_film_by_id(entity_id: UUID, db: Session = Depends(get_db)) -> ResearchFilmOut:
     film = get_research_film(
-        db, entity_id, collection_code=settings.research_collection_code,
+        db, entity_id, collection_code=settings.writer_collection_code,
         include_noncommercial=settings.serve_noncommercial_sources,
     )
     if film is None:
@@ -274,14 +274,14 @@ def research_film_passages(
     db: Session = Depends(get_db),
 ) -> ResearchPassagePageOut:
     film = get_research_film(
-        db, entity_id, collection_code=settings.research_collection_code,
+        db, entity_id, collection_code=settings.writer_collection_code,
         include_noncommercial=settings.serve_noncommercial_sources,
     )
     if film is None:
         raise HTTPException(status_code=404, detail="Film is not in the current research collection")
     try:
         page = browse_research_passages(
-            db, entity_id=entity_id, collection_code=settings.research_collection_code,
+            db, entity_id=entity_id, collection_code=settings.writer_collection_code,
             section=section, limit=limit, offset=offset,
         )
     except ValueError as exc:
@@ -344,7 +344,7 @@ def discover_films_for_question(
         db, question=request.question,
         exclude_entity_ids=set(request.exclude_entity_ids),
         limit=request.limit,
-        collection_code=settings.research_collection_code,
+        collection_code=settings.writer_collection_code,
         include_noncommercial=settings.serve_noncommercial_sources,
         embedding_client=OllamaEmbeddingClient(
             base_url=settings.ollama_base_url,
@@ -380,7 +380,7 @@ def compare_film_stories(
                 base_url=settings.ollama_base_url,
                 timeout_seconds=settings.interactive_embedding_timeout_seconds,
             ),
-            collection_code=settings.research_collection_code,
+            collection_code=settings.writer_collection_code,
             include_noncommercial=settings.serve_noncommercial_sources,
         )
     except ValueError as exc:
@@ -437,7 +437,7 @@ def generate_story_brief(request: StoryBriefRequest, db: Session = Depends(get_d
             second_chunk_ids=request.second_chunk_ids, model=settings.story_synthesis_model,
             base_url=settings.story_synthesis_base_url or settings.ollama_base_url,
             timeout_seconds=settings.story_synthesis_timeout_seconds,
-            collection_code=settings.research_collection_code,
+            collection_code=settings.writer_collection_code,
             include_noncommercial=settings.serve_noncommercial_sources,
         )
     except InvalidModelDraft as exc:
@@ -484,7 +484,7 @@ def get_film(film_id: UUID, db: Session = Depends(get_db)) -> FilmDetail:
         raise HTTPException(status_code=404, detail="Film not found")
     item = film_item(film)
     research_film = (get_research_film(
-        db, film.entity_id, collection_code=settings.research_collection_code,
+        db, film.entity_id, collection_code=settings.writer_collection_code,
         include_noncommercial=settings.serve_noncommercial_sources,
     )
                      if film.entity_id else None)

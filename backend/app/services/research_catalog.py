@@ -97,6 +97,7 @@ def _research_entity_query(collection_code: str):
         .options(selectinload(CanonicalEntity.film_profile))
         .where(
             ReferenceCollectionMembership.collection_code == collection_code,
+            ReferenceCollectionMembership.status == "included",
             CanonicalEntity.entity_kind == "film",
             CanonicalEntity.lifecycle_status == "active",
         )

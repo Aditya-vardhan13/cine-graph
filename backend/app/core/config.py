@@ -28,9 +28,15 @@ class Settings(BaseSettings):
     story_synthesis_timeout_seconds: float = Field(default=55.0, ge=5, le=90)
     serve_noncommercial_sources: bool = False
     research_collection_code: str = "english-1000-retained-narrative-v1"
+    # Intake publication is isolated from the frozen evaluation collection.
+    writer_catalog_collection_code: str = "writer-catalog-v1"
+    # Opt in only after the writer collection has an eligible, complete index.
+    # Evaluation tooling continues to use research_collection_code explicitly.
+    active_writer_collection_code: str | None = None
     admin_intake_email: str = "adityavk1310@gmail.com"
     imdb_data_dir: str = "/imports/imdb"
     imdb_index_dir: str = "data/imdb_index"
+    tmdb_token_file: str = "./tmdb_api.env"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -43,6 +49,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.api_cors_origins.split(",") if origin.strip()]
+
+    @property
+    def writer_collection_code(self) -> str:
+        return (self.active_writer_collection_code or "").strip() or self.research_collection_code
 
     @property
     def source_requests_per_minute(self) -> int:

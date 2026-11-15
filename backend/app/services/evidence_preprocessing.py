@@ -32,12 +32,13 @@ from app.models import (
     SourceSnapshot,
 )
 from app.services.narrative_use_decisions import latest_decisions
+from app.services.current_narrative_passages import select_current_extraction_versions
 from app.services.source_rights_policy import (
     NARRATIVE_SEMANTIC_LICENSES, can_use_narrative_semantically,
 )
 
 
-CHUNKER_VERSION = "spacy-sentencizer-evidence-v5-citation-positions"
+CHUNKER_VERSION = "spacy-sentencizer-evidence-v6-film-scoped-dedup"
 NORMALIZATION_VERSION = "unicode-nfc-whitespace-v1"
 WORD = re.compile(r"\b[\w'-]+\b", re.UNICODE)
 
@@ -53,6 +54,7 @@ class ChunkConfiguration:
     normalization_version: str = NORMALIZATION_VERSION
     source_parser_version: str | None = None
     extraction_version: str | None = None
+    current_extractions_per_snapshot: bool = False
 
     def __post_init__(self) -> None:
         if not (0 < self.minimum_words <= self.target_tokens <= self.maximum_tokens):
@@ -63,6 +65,8 @@ class ChunkConfiguration:
             raise ValueError("source_parser_version must be non-empty when specified.")
         if self.extraction_version is not None and not self.extraction_version.strip():
             raise ValueError("extraction_version must be non-empty when specified.")
+        if self.current_extractions_per_snapshot and (self.source_parser_version or self.extraction_version):
+            raise ValueError("Current-per-snapshot selection cannot be combined with explicit parser filters.")
 
     @property
     def payload(self) -> dict[str, int | str]:
@@ -72,6 +76,8 @@ class ChunkConfiguration:
             payload.pop("source_parser_version")
         if self.extraction_version is None:
             payload.pop("extraction_version")
+        if not self.current_extractions_per_snapshot:
+            payload.pop("current_extractions_per_snapshot")
         return payload
 
     @property
@@ -328,12 +334,25 @@ def build_evidence_chunks(
     config = config or ChunkConfiguration()
     _collection(db, collection_code, language_code)
     current = _current_passages_with_snapshots(db, collection_code=collection_code, language_code=language_code)
-    versions = {snapshot.parser_version for _, snapshot in current}
-    if config.source_parser_version is None and len(versions) > 1:
+    if config.current_extractions_per_snapshot:
+        per_snapshot = {}
+        for passage, snapshot in current:
+            entry = per_snapshot.setdefault(snapshot.id, (snapshot.parser_version, set()))
+            entry[1].add(passage.extraction_version)
+        approved = {snapshot_id: select_current_extraction_versions(parser, versions)
+                    for snapshot_id, (parser, versions) in per_snapshot.items()}
+        selected = [(passage, snapshot) for passage, snapshot in current
+                    if passage.extraction_version in approved[snapshot.id]]
+        if len({snapshot.id for _, snapshot in selected}) != len(per_snapshot):
+            raise ValueError("A source snapshot has no configured current extraction.")
+    else:
+        selected = current
+    versions = {snapshot.parser_version for _, snapshot in selected}
+    if not config.current_extractions_per_snapshot and config.source_parser_version is None and len(versions) > 1:
         raise ValueError("Collection contains multiple source parser versions; select one in ChunkConfiguration.")
     if config.source_parser_version is not None and config.source_parser_version not in versions:
         raise ValueError(f"No passages use source parser version {config.source_parser_version!r} in this collection.")
-    selected = [(passage, snapshot) for passage, snapshot in current
+    selected = [(passage, snapshot) for passage, snapshot in selected
                 if config.source_parser_version is None or snapshot.parser_version == config.source_parser_version]
     if config.extraction_version is not None:
         selected = [(passage, snapshot) for passage, snapshot in selected
@@ -373,7 +392,7 @@ def build_evidence_chunks(
         ))
     }
     canonical_by_hash = {
-        item.content_hash: item.id
+        (item.subject_entity_id, item.content_hash): item.id
         for item in existing.values()
         if item.quality_status == "eligible"
     }
@@ -413,9 +432,10 @@ def build_evidence_chunks(
                 status = prepared.quality_status
                 duplicate_of_chunk_id = None
                 flags = list(prepared.quality_flags)
-                if status == "eligible" and prepared.content_hash in canonical_by_hash:
+                duplicate_key = (passage.subject_entity_id, prepared.content_hash)
+                if status == "eligible" and duplicate_key in canonical_by_hash:
                     status = "duplicate"
-                    duplicate_of_chunk_id = canonical_by_hash[prepared.content_hash]
+                    duplicate_of_chunk_id = canonical_by_hash[duplicate_key]
                     flags.append("exact_duplicate_content")
                 chunk = EvidenceChunk(
                     id=uuid4(),
@@ -445,7 +465,7 @@ def build_evidence_chunks(
                 db.add(chunk)
                 existing[key] = chunk
                 if status == "eligible":
-                    canonical_by_hash[prepared.content_hash] = chunk.id
+                    canonical_by_hash[duplicate_key] = chunk.id
                 if status == "excluded":
                     excluded += 1
                 created += 1

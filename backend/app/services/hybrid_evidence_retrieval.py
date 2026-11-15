@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.models import EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding
 from app.services.lexical_retrieval import weighted_reciprocal_rank_fusion
-from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
+from app.services.ollama_embeddings import MANIFEST_REVISION_PREFIX, OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_routing import RetrievalLane, narrative_section_candidates, route_research_question
 from app.services.retrieval_scope import RetrievalScope, resolve_retrieval_scope
 from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
@@ -91,6 +91,8 @@ def embed_narrative_queries(
         model=model.model_name,
         dimensions=model.dimension,
         query_instruction=model.query_instruction,
+        expected_model_digest=(model.model_revision.removeprefix(MANIFEST_REVISION_PREFIX)
+                               if model.model_revision.startswith(MANIFEST_REVISION_PREFIX) else None),
     )
     vectors = (client or OllamaEmbeddingClient()).embed(
         [profile.query_input(question) for question in question_texts],
@@ -230,6 +232,8 @@ def retrieve_narrative_candidates(
             model=model.model_name,
             dimensions=model.dimension,
             query_instruction=model.query_instruction,
+            expected_model_digest=(model.model_revision.removeprefix(MANIFEST_REVISION_PREFIX)
+                                   if model.model_revision.startswith(MANIFEST_REVISION_PREFIX) else None),
         )
         if query_vector is None:
             embedding_started = perf_counter()
