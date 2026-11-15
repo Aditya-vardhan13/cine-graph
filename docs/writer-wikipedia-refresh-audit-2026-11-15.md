@@ -216,7 +216,7 @@ source snapshot and replayed with the guarded same-revision recovery checks.
 The newly stored sources verified and contain 59 and 39 passages respectively;
 neither has a narrative-use decision. These page/QID checks do not resolve the
 separate missing Wikidata source evidence in the original audit or approve
-rights. *Talvar* and *Gangs of Wasseypur 2* remain distinct identity issues.
+rights. *Talvar* remains a distinct identity issue.
 
 Two plot-length exceptions were also inspected: *Pulp Fiction*'s older plot
 hierarchy included character lists, and *X-Men: First Class*'s older plot
@@ -224,3 +224,18 @@ contained cast markup. Their refreshed snapshots were retained as source-only
 records (69 and 45 passages) with verified bytes and no model-use decisions.
 Five other shorter-plot cases remain for source-aware review; older snapshots
 have not been removed.
+
+Four additional missing current source files were replaced with retained newer
+article snapshots, without deleting the older records: *Midnight Express* (19
+passages), *My Sassy Girl* (21), *In a Lonely Place* (18), and *Fantasia* (70).
+These are source captures, not assertions that each film's full research
+needs are covered or that the content is approved for model use.
+
+*Gangs of Wasseypur 2* has an existing active canonical entity but no legacy
+film profile. Its current Wikipedia capture matches Q16248515 and page
+36281191 and was bound to its reviewed prior source. An explicit entity-ID
+override allowed source-only replay: the verified revision contains 21
+passages. It did not create a film profile, approve narrative model use, or
+resolve the outstanding metadata projection. The override rejects missing or
+different IDs and cannot be used for an existing film profile; its checks
+were exercised against isolated PostgreSQL using retained article bytes.

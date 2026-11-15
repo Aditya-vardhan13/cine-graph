@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import shutil
 from urllib.parse import unquote, urlsplit
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -50,7 +51,8 @@ def equivalent_recovered_prior(db: Session, prior: SourceSnapshot, current: Sour
     return projections[0] == projections[1]
 
 
-def replay(db: Session, *, manifest_path: Path, expected_manifest_sha256: str, storage_root: Path) -> dict:
+def replay(db: Session, *, manifest_path: Path, expected_manifest_sha256: str, storage_root: Path,
+           existing_entity_without_film: UUID | None = None) -> dict:
     if not storage_root.is_dir() or shutil.disk_usage(storage_root).free < 6 * 1024**3:
         raise ValueError("Existing snapshot storage requires at least 6 GiB free")
     manifest_bytes = manifest_path.read_bytes()
@@ -85,7 +87,9 @@ def replay(db: Session, *, manifest_path: Path, expected_manifest_sha256: str, s
     qid = metadata["wikidata_id"]
     entity = db.scalar(select(CanonicalEntity).where(CanonicalEntity.wikidata_id == qid).with_for_update())
     film = db.scalar(select(Film).where(Film.entity_id == entity.id)) if entity else None
-    if not entity or entity.entity_kind != "film" or entity.lifecycle_status != "active" or not film or film.wikidata_id != qid:
+    if (not entity or entity.entity_kind != "film" or entity.lifecycle_status != "active"
+            or (film is not None and (film.wikidata_id != qid or existing_entity_without_film is not None))
+            or (film is None and existing_entity_without_film != entity.id)):
         raise ValueError("Existing film identity must match the capture")
     source = source_for_wikipedia(db)
     obj = db.scalar(select(SourceObject).where(SourceObject.source_id == source.id,
@@ -96,7 +100,6 @@ def replay(db: Session, *, manifest_path: Path, expected_manifest_sha256: str, s
     if old.source_object_id != obj.id:
         raise ValueError("The existing QID is not bound to this Wikipedia page")
     if "prior_snapshot_id" in manifest:
-        from uuid import UUID
         prior = db.get(SourceSnapshot, UUID(manifest["prior_snapshot_id"]))
         same_capture = old.content_hash == digest and str(old.source_revision) == str(metadata["revision_id"])
         if (prior is None or prior.source_object_id != obj.id or prior.content_hash != manifest.get("prior_sha256")
@@ -143,6 +146,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--manifest-sha256", required=True)
+    parser.add_argument("--existing-entity-without-film", type=UUID,
+                        help="Explicitly bind an existing film entity that lacks a legacy Film profile")
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
     if not args.apply:
@@ -151,7 +156,8 @@ def main() -> None:
         try:
             result = replay(db, manifest_path=local_output(args.manifest),
                             expected_manifest_sha256=args.manifest_sha256,
-                            storage_root=Path(get_settings().raw_snapshot_root))
+                            storage_root=Path(get_settings().raw_snapshot_root),
+                            existing_entity_without_film=args.existing_entity_without_film)
         except Exception:
             db.rollback()
             raise

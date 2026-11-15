@@ -64,7 +64,8 @@ def test_missing_current_can_use_only_exact_verified_recovered_projection(tmp_pa
 
 
 @pytest.mark.parametrize("encoding", ["identity", "gzip"])
-def test_retained_hamilton_replay_preserves_old_snapshot_and_no_approval(tmp_path, encoding):
+@pytest.mark.parametrize("has_film", [True, False])
+def test_retained_hamilton_replay_preserves_old_snapshot_and_no_approval(tmp_path, encoding, has_film):
     if os.environ.get("CINEGRAPH_HAMILTON_REPLAY_TEST") != "1":
         pytest.skip("explicit local retained Hamilton capture only")
     original_path = Path("data/evaluation/writer-source-audit/hamilton-current-v1/manifest.json").resolve()
@@ -79,8 +80,9 @@ def test_retained_hamilton_replay_preserves_old_snapshot_and_no_approval(tmp_pat
         entity = CanonicalEntity(canonical_label="Hamilton (2020 film)", entity_kind="film", wikidata_id="Q84323848")
         db.add_all([source, entity])
         db.flush()
-        db.add(Film(entity_id=entity.id, canonical_title=entity.canonical_label, wikidata_id=entity.wikidata_id,
-                    original_language_code="en"))
+        if has_film:
+            db.add(Film(entity_id=entity.id, canonical_title=entity.canonical_label, wikidata_id=entity.wikidata_id,
+                        original_language_code="en"))
         obj = SourceObject(source_id=source.id, external_id="enwiki:63015598", object_kind="wiki_page",
                            canonical_url=manifest["canonical_url"])
         db.add(obj)
@@ -111,17 +113,25 @@ def test_retained_hamilton_replay_preserves_old_snapshot_and_no_approval(tmp_pat
         manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
         manifest_path = capture_dir / "manifest.json"
         manifest_path.write_bytes(manifest_bytes)
+        if not has_film:
+            for expected_id in (None, UUID(int=1)):
+                with pytest.raises(ValueError, match="Existing film identity"):
+                    replay(db, manifest_path=manifest_path, expected_manifest_sha256=manifest_hash,
+                           storage_root=tmp_path, existing_entity_without_film=expected_id)
+                db.rollback()
+        replay_options = {"existing_entity_without_film": entity_id} if not has_film else {}
         wrong_prior = {**manifest, "prior_sha256": "b" * 64}
         wrong_bytes = json.dumps(wrong_prior, sort_keys=True).encode()
         wrong_path = capture_dir / "wrong.json"
         wrong_path.write_bytes(wrong_bytes)
         with pytest.raises(ValueError, match="does not match the pinned prior snapshot"):
             replay(db, manifest_path=wrong_path, expected_manifest_sha256=hashlib.sha256(wrong_bytes).hexdigest(),
-                   storage_root=tmp_path)
+                   storage_root=tmp_path, **replay_options)
         db.rollback()
         with pytest.raises(ValueError, match="manifest hash mismatch"):
             replay(db, manifest_path=manifest_path, expected_manifest_sha256="0" * 64, storage_root=tmp_path)
-        report = replay(db, manifest_path=manifest_path, expected_manifest_sha256=manifest_hash, storage_root=tmp_path)
+        report = replay(db, manifest_path=manifest_path, expected_manifest_sha256=manifest_hash, storage_root=tmp_path,
+                        **replay_options)
         assert report["created"] and report["source_revision"] == str(manifest["metadata"]["revision_id"])
         assert report["passages_created"] > 9
         current = current_passage_rows(db, {entity_id})
@@ -134,7 +144,8 @@ def test_retained_hamilton_replay_preserves_old_snapshot_and_no_approval(tmp_pat
         run = db.scalar(select(RawIngestionRun).where(RawIngestionRun.manifest_hash == manifest_hash))
         retained_manifest = Path(unquote(urlsplit(run.manifest_uri).path))
         assert hashlib.sha256(retained_manifest.read_bytes()).hexdigest() == manifest_hash
-        repeated = replay(db, manifest_path=manifest_path, expected_manifest_sha256=manifest_hash, storage_root=tmp_path)
+        repeated = replay(db, manifest_path=manifest_path, expected_manifest_sha256=manifest_hash, storage_root=tmp_path,
+                          **replay_options)
         assert repeated["created"] is False and repeated["passages_created"] == 0
         assert db.scalar(select(func.count()).select_from(SourceSnapshot)) == 2
         db.add(NarrativeUseDecision(source_snapshot_id=UUID(report["snapshot_id"]),
@@ -143,6 +154,7 @@ def test_retained_hamilton_replay_preserves_old_snapshot_and_no_approval(tmp_pat
                                     decision_basis_url="https://creativecommons.org/licenses/by-sa/4.0/"))
         db.commit()
         with pytest.raises(ValueError, match="Previously approved source"):
-            replay(db, manifest_path=manifest_path, expected_manifest_sha256=manifest_hash, storage_root=tmp_path)
+            replay(db, manifest_path=manifest_path, expected_manifest_sha256=manifest_hash, storage_root=tmp_path,
+                   **replay_options)
         db.rollback()
     engine.dispose()
