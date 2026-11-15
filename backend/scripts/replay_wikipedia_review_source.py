@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -18,15 +19,35 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.core.config import get_settings
-from app.models import (CanonicalEntity, Film, NarrativeUseDecision, RawIngestionRun,
+from app.models import (CanonicalEntity, Film, NarrativePassage, NarrativeUseDecision, RawIngestionRun,
                         ReferenceCollectionMembership, SourceObject, SourceSnapshot)
 from app.services.wikipedia_article_html import parse_article_html
 from app.services.raw_snapshots import store_payload
+from app.services.snapshot_integrity import verify_snapshot_file
 from app.services.wikipedia_raw import (ADAPTER_VERSION, persist_article_snapshot,
                                          source_for_wikipedia, validate_article_capture_hashes,
                                          wikipedia_article_html_policy)
 from app.services.wikipedia_research import _snapshot_for_qid, extract_passages
 from scripts.capture_writer_identity_recovery import local_output
+
+
+def equivalent_recovered_prior(db: Session, prior: SourceSnapshot, current: SourceSnapshot) -> bool:
+    """Allow a verified recovered copy only when the missing current projection matches exactly."""
+    if (prior.source_object_id != current.source_object_id or not prior.source_revision
+            or prior.source_revision != current.source_revision
+            or verify_snapshot_file(prior.storage_uri, prior.content_hash, prior.byte_size) != "verified"
+            or verify_snapshot_file(current.storage_uri, current.content_hash, current.byte_size) != "missing"):
+        return False
+    projections = []
+    for snapshot in (prior, current):
+        rows = db.scalars(select(NarrativePassage).where(NarrativePassage.source_snapshot_id == snapshot.id)).all()
+        if not rows or any(hashlib.sha256(row.content.encode("utf-8")).hexdigest() != row.content_hash for row in rows):
+            return False
+        projection = {(row.section_locator, row.ordinal, row.content_hash) for row in rows}
+        if len(projection) != len(rows):
+            return False
+        projections.append(projection)
+    return projections[0] == projections[1]
 
 
 def replay(db: Session, *, manifest_path: Path, expected_manifest_sha256: str, storage_root: Path) -> dict:
@@ -47,7 +68,13 @@ def replay(db: Session, *, manifest_path: Path, expected_manifest_sha256: str, s
     digest = manifest["sha256"]
     if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
         raise ValueError("Invalid capture digest")
-    payload = (manifest_path.parent / f"{digest}.html").read_bytes()
+    encoding = manifest.get("storage_encoding", "identity")
+    if encoding == "identity":
+        payload = (manifest_path.parent / f"{digest}.html").read_bytes()
+    elif encoding == "gzip":
+        payload = gzip.decompress((manifest_path.parent / f"{digest}.html.gz").read_bytes())
+    else:
+        raise ValueError("Unsupported review capture encoding")
     if hashlib.sha256(payload).hexdigest() != digest or len(payload) != manifest["byte_size"]:
         raise ValueError("Captured article bytes do not match the manifest")
     metadata = manifest["metadata"]
@@ -68,6 +95,14 @@ def replay(db: Session, *, manifest_path: Path, expected_manifest_sha256: str, s
     old = _snapshot_for_qid(db, qid)
     if old.source_object_id != obj.id:
         raise ValueError("The existing QID is not bound to this Wikipedia page")
+    if "prior_snapshot_id" in manifest:
+        from uuid import UUID
+        prior = db.get(SourceSnapshot, UUID(manifest["prior_snapshot_id"]))
+        same_capture = old.content_hash == digest and str(old.source_revision) == str(metadata["revision_id"])
+        if (prior is None or prior.source_object_id != obj.id or prior.content_hash != manifest.get("prior_sha256")
+                or str(prior.source_revision) != str(manifest.get("prior_revision"))
+                or (old.id != prior.id and not same_capture and not equivalent_recovered_prior(db, prior, old))):
+            raise ValueError("The current Wikipedia source does not match the pinned prior snapshot; review again")
     if db.scalar(select(NarrativeUseDecision.id).join(SourceSnapshot).where(
             SourceSnapshot.source_object_id == obj.id, NarrativeUseDecision.decision == "approved").limit(1)):
         raise ValueError("Previously approved source requires explicit lifecycle review")
