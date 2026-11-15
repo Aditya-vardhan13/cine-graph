@@ -3,6 +3,8 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from statistics import median
+from time import perf_counter
 
 import pytest
 from fastapi import FastAPI
@@ -16,6 +18,7 @@ from app.models import (CanonicalEntity, DataSource, Film, LanguageEdition, Narr
                         NarrativeUseDecision, ReferenceCollection, ReferenceCollectionMembership,
                         SourceObject, SourceSnapshot)
 from app.services.ollama_embeddings import OllamaEmbeddingClient
+from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod
 from app.services.story_comparison import compare_story_evidence
 from app.services.wikipedia_article_html import parse_article_html
 from app.services.wikipedia_raw import ADAPTER_VERSION
@@ -32,7 +35,9 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
     directory = Path("data/evaluation/writer-source-audit/wikipedia-refresh-v1").resolve()
     captures = json.loads((directory / "checkpoint.json").read_bytes())["captures"]
     films = [("Avengers: Endgame", "Q23781155"), ("The Godfather", "Q47703"),
-             ("Her", "Q788822"), ("WALL-E", "Q104905")]
+             ("Her", "Q788822"), ("WALL-E", "Q104905"),
+             ("The Dark Knight", "Q163872"), ("No Country for Old Men", "Q183081"),
+             ("Jaws", "Q189505"), ("Jurassic Park", "Q167726")]
     ollama = os.environ.get("CINEGRAPH_TEST_OLLAMA_URL", "http://host.docker.internal:11434")
     engine = isolated_postgres_engine()
     Base.metadata.create_all(engine)
@@ -75,9 +80,8 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
                                         decision="approved", decision_version=1, reviewer="isolated-test-only",
                                         decision_notes="Isolated local research, not product approval.",
                                         decision_basis_url="https://creativecommons.org/licenses/by-sa/4.0/"))
-            plot = [passage for passage in doc.passages if passage.section_locator.split("/", 1)[0] in {"plot", "synopsis"}]
-            assert plot
-            for passage in plot:
+            assert any(passage.section_locator.split("/", 1)[0] in {"plot", "synopsis"} for passage in doc.passages)
+            for passage in doc.passages:
                 db.add(NarrativePassage(subject_entity_id=entity.id, source_snapshot_id=snapshot.id,
                                         section_locator=passage.section_locator, section_title=passage.section_title,
                                         ordinal=passage.ordinal, language_code="en", content=passage.content,
@@ -85,7 +89,7 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
                                         extraction_version=doc.parser_version))
         db.commit()
         report = index_writer_catalog(db, collection_code=collection, cache_dir=tmp_path / "vectors", ollama_url=ollama, batch_size=4)
-        assert report["status"] == "complete" and report["films"] == 4
+        assert report["status"] == "complete" and report["films"] == len(films)
         questions = [("Q23781155", "Q47703", "how do these follow the conflicts between family or close people when fighting injustice"),
                      ("Q788822", "Q104905", "How does each film make an artificial companion expose human loneliness?")]
         for first, second, question in questions:
@@ -114,4 +118,56 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
             })
         assert response.status_code == 200
         assert response.json()["retrieval_method"] == "hybrid"
+        if os.environ.get("CINEGRAPH_REFRESHED_DEV_DIAGNOSTIC") == "1":
+            corpus = json.loads(Path("data/evaluation/rag-v2/corpus-first20.json").read_bytes())
+            cases = corpus["cases"]
+            # Do not read reviewed quotations until all rankings are complete.
+            rankings = {}
+            timings = {}
+            methods_seen = {}
+            for method in (NarrativeRetrievalMethod.HYBRID, NarrativeRetrievalMethod.LEXICAL):
+                rankings[method.value] = {}
+                timings[method.value] = []
+                methods_seen[method.value] = []
+                for case in cases:
+                    first, second = case["film_qids"]
+                    started = perf_counter()
+                    result = compare_story_evidence(db, first_entity_id=entities[first], second_entity_id=entities[second],
+                                                    question=case["question"], collection_code=collection,
+                                                    requested_method=method, embedding_client=OllamaEmbeddingClient(base_url=ollama))
+                    timings[method.value].append(round((perf_counter() - started) * 1000, 2))
+                    methods_seen[method.value].append(result.retrieval_method)
+                    lens = result.lenses[0] if result.lenses else None
+                    rankings[method.value][case["case_id"]] = {
+                        first: [item.excerpt for item in lens.first_options] if lens else [],
+                        second: [item.excerpt for item in lens.second_options] if lens else [],
+                    }
+            from app.services.rag_span_review import bind_review_quotes
+            review_bytes = Path("data/evaluation/rag-v2/span-review-development-v1.json").read_bytes()
+            review = bind_review_quotes(corpus, json.loads(review_bytes))
+            candidates = json.loads(Path("data/evaluation/rag-v2/refresh-quote-locations-v2.json").read_bytes())
+            assert candidates["source_corpus_fingerprint"] == corpus["fingerprint"]
+            assert candidates["review_sha256"] == hashlib.sha256(review_bytes).hexdigest()
+            assert all(str(captures[item["film_qid"]]["metadata"]["revision_id"]) == str(item["new_revision"])
+                       for item in candidates["items"])
+            reviewed = [(case["case_id"], evidence) for case in review["cases"] for evidence in case["evidence"]]
+            assert len(reviewed) == len(candidates["items"])
+            for method in rankings:
+                counts = {"reviewed_quotes": 0, "available_candidates": 0, "visible_at_1": 0, "visible_at_3": 0}
+                for (case_id, evidence), candidate in zip(reviewed, candidates["items"], strict=True):
+                    assert (case_id, evidence["chunk_id"], evidence["film_qid"]) == (
+                        candidate["case_id"], candidate["old_chunk_id"], candidate["film_qid"])
+                    counts["reviewed_quotes"] += 1
+                    if candidate["status"] != "unique" and len(candidate["whitespace_candidates"]) != 1:
+                        continue
+                    counts["available_candidates"] += 1
+                    quote = " ".join(evidence["quote"].split())
+                    options = rankings[method][case_id][evidence["film_qid"]]
+                    hits = [quote in " ".join(option.split()) for option in options]
+                    counts["visible_at_1"] += int(any(hits[:1]))
+                    counts["visible_at_3"] += int(any(hits[:3]))
+                latency = sorted(timings[method])
+                counts.update({"method": method, "actual_methods": sorted(set(methods_seen[method])),
+                               "latency_p50_ms": round(median(latency), 2), "latency_p95_ms": latency[18]})
+                print("REFRESHED_DEVELOPMENT_QUOTE_VISIBILITY", json.dumps(counts, sort_keys=True))
     engine.dispose()

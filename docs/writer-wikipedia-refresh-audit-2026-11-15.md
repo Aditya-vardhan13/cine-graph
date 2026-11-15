@@ -175,3 +175,27 @@ corpus source approved, or a writer-facing result generated. Test-only
 approvals do not carry into the working database. This diagnostic does not
 justify changing ranking weights on its own; broader source-bound evaluation
 is needed to avoid overfitting one example.
+
+### Eight-film development diagnostic
+
+An expanded isolated run indexed all selected article sections for eight films
+in the existing 20-question development corpus: 474 eligible chunks with the
+same local `qwen3-embedding:0.6b` model (digest
+`ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d`).
+The 20 questions were ranked before the previous review quotations were read.
+For the 38 of 39 reviewed quotations with an exact or whitespace-only location
+candidate in the new source revisions, the whole quotation was visible in:
+
+| Method | First result | First three | Warm local p50 / p95 |
+| --- | ---: | ---: | --- |
+| Existing hybrid | 15 / 38 | 25 / 38 | 105.91 / 129.77 ms |
+| Existing lexical | 9 / 38 | 14 / 38 | 26.55 / 37.48 ms |
+
+Each question's timing includes the comparison call, not cold model load or
+index construction. These are individual quote-visibility counts in a small,
+previously inspected development set; multiple quotes can belong to the same
+question. They are not 20-question pair success, answer correctness, user
+utility, production latency or held-out accuracy. A candidate location in a
+new revision still requires source-aware review. One unmatched quotation was
+excluded and is not treated as a negative. No settings were changed on the
+basis of these counts, and the isolated test did not approve working sources.
