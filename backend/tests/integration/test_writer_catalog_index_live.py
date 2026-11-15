@@ -15,7 +15,8 @@ from app.models import (CanonicalEntity, DataSource, LanguageEdition, NarrativeP
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_scope import resolve_retrieval_scope
-from app.services.writer_catalog_index import index_writer_catalog
+from app.services.writer_catalog_index import index_writer_catalog, verify_writer_inputs_unchanged
+from app.services.current_narrative_passages import current_passage_rows
 from app.services.embedding_index import _candidate_run, import_embedding_cache
 from app.services.evidence_preprocessing import CHUNKER_VERSION, ChunkConfiguration, build_evidence_chunks
 from app.services.ollama_embeddings import MANIFEST_REVISION_PREFIX
@@ -81,6 +82,33 @@ def test_reviewed_writer_index_builds_and_retrieves_with_real_ollama(tmp_path):
                                       ollama_url=ollama_url, batch_size=2)
         assert result["status"] == "complete"
         assert result["films"] == 2 and result["chunks_completed"] == 2
+        expected_entities = set(subject_ids)
+        expected_passages = {p.id for p, _ in current_passage_rows(db, expected_entities)}
+        verify_writer_inputs_unchanged(db, code, expected_entities, expected_passages)
+        membership = db.scalar(select(ReferenceCollectionMembership).where(
+            ReferenceCollectionMembership.collection_code == code,
+            ReferenceCollectionMembership.entity_id == subject_ids[0],
+        ))
+        membership.status = "review_required"
+        db.flush()
+        with pytest.raises(ValueError, match="membership changed during indexing"):
+            verify_writer_inputs_unchanged(db, code, expected_entities, expected_passages)
+        membership.status = "included"
+        db.flush()
+        original_passage = db.scalar(select(NarrativePassage).where(NarrativePassage.subject_entity_id == subject_ids[0]))
+        extra = NarrativePassage(subject_entity_id=original_passage.subject_entity_id,
+                                 source_snapshot_id=original_passage.source_snapshot_id,
+                                 section_locator="plot", section_title="Plot", ordinal=1,
+                                 language_code="en", content="Additional retained text.",
+                                 content_hash=hashlib.sha256(b"Additional retained text.").hexdigest(),
+                                 citation_markers=[], extraction_version="fixture-v1")
+        db.add(extra)
+        db.flush()
+        with pytest.raises(ValueError, match="passages changed during indexing"):
+            verify_writer_inputs_unchanged(db, code, expected_entities, expected_passages)
+        db.delete(extra)
+        db.flush()
+        verify_writer_inputs_unchanged(db, code, expected_entities, expected_passages)
         original_run = UUID(result["chunk_report"]["run_id"])
         alternate = build_evidence_chunks(db, collection_code=code, config=ChunkConfiguration(
             target_tokens=100, maximum_tokens=120, overlap_tokens=20,

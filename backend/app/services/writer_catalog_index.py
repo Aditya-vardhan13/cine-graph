@@ -59,6 +59,22 @@ def verify_writer_sources(db: Session, collection_code: str) -> int:
     return len(entity_ids)
 
 
+def verify_writer_inputs_unchanged(db: Session, collection_code: str,
+                                   expected_entities: set[UUID], expected_passages: set[UUID]) -> None:
+    """Reject stale work if the collection or current sources changed during embedding."""
+    db.expire_all()
+    entities = set(db.scalars(select(ReferenceCollectionMembership.entity_id).where(
+        ReferenceCollectionMembership.collection_code == collection_code,
+        ReferenceCollectionMembership.status == "included",
+    )))
+    if entities != expected_entities:
+        raise ValueError("Writer collection membership changed during indexing; rerun the job.")
+    passages = {passage.id for passage, _ in current_passage_rows(db, entities)}
+    if passages != expected_passages:
+        raise ValueError("Current writer passages changed during indexing; rerun the job.")
+    verify_writer_sources(db, collection_code)
+
+
 def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
                          ollama_url: str, batch_size: int = 8,
                          source_parser_version: str | None = None,
@@ -112,6 +128,7 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
     del vectors
     if local_model_digest(ollama_url, profile.model) != digest:
         raise ValueError("The Ollama model tag changed during indexing; no vectors were imported.")
+    verify_writer_inputs_unchanged(db, collection_code, included, current_ids)
     index = import_embedding_cache(db, cache_path=cache_path, collection_code=collection_code,
                                    chunker_version=CHUNKER_VERSION, model_name=profile.model,
                                    model_revision=f"{MANIFEST_REVISION_PREFIX}{digest}", dimension=profile.dimensions,
