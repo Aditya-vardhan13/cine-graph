@@ -239,3 +239,16 @@ passages. It did not create a film profile, approve narrative model use, or
 resolve the outstanding metadata projection. The override rejects missing or
 different IDs and cannot be used for an existing film profile; its checks
 were exercised against isolated PostgreSQL using retained article bytes.
+
+## Current-source coverage recheck
+
+After the above source replays, a read-only audit over the same pinned 1,000
+film identities found 1,000 current Wikipedia source files whose size and hash
+verify, and 24,455 current passages on those article objects. None of these
+current snapshots has an eligible semantic-use decision. *Fantasia* has no
+standard plot/plot-summary/synopsis section, and *Gangs of Wasseypur 2* still
+lacks a legacy Film profile. The audit is reproducible with
+`python -m scripts.audit_current_writer_sources <identity-audit> --sha256 <digest>`;
+it uses current-extraction selection and does not write to the database. Its
+counts do not establish article identity approval, story completeness, factual
+accuracy, suitability for a particular question, or retrieval quality.

@@ -16,6 +16,7 @@ from app.models import (CanonicalEntity, DataSource, Film, LanguageEdition, Narr
                         NarrativeUseDecision, RawIngestionRun, SourceAssertion, SourceObject, SourceSnapshot)
 from app.services.current_narrative_passages import current_passage_rows
 from scripts.replay_wikipedia_review_source import equivalent_recovered_prior, replay
+from scripts.audit_current_writer_sources import audit
 from tests.postgres_test_db import isolated_postgres_engine
 
 
@@ -146,6 +147,11 @@ def test_retained_hamilton_replay_preserves_old_snapshot_and_no_approval(tmp_pat
         assert db.get(SourceSnapshot, old_id).source_revision == "1367628810"
         assert db.scalar(select(func.count()).select_from(NarrativeUseDecision)) == 0
         assert db.scalar(select(func.count()).select_from(NarrativePassage)) == report["passages_created"]
+        coverage = audit(db, [{"film_entity_id": str(entity_id), "film_title": "Hamilton",
+                               "wikidata_id": "Q84323848", "wikipedia_page_id": "enwiki:63015598"}])
+        assert coverage["counts"]["current_source_verified"] == 1
+        assert coverage["counts"]["semantic_use_not_approved"] == 1
+        assert bool(coverage["exceptions"]) is (not has_film)
         run = db.scalar(select(RawIngestionRun).where(RawIngestionRun.manifest_hash == manifest_hash))
         retained_manifest = Path(unquote(urlsplit(run.manifest_uri).path))
         assert hashlib.sha256(retained_manifest.read_bytes()).hexdigest() == manifest_hash
