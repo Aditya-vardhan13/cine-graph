@@ -275,3 +275,26 @@ default `127.0.0.1` and fell back to lexical retrieval. Setting both
 made the real HTTP check return hybrid results. This distinction matters when
 running the local pilot; an HTTP 200 or a passing direct service call is not
 proof that the API actually used embeddings.
+
+### Talvar identity cross-check
+
+The two Wikidata items were checked again against the live source pages.
+[Q17492514](https://www.wikidata.org/wiki/Q17492514) describes the 2015 Meghna
+Gulzar film and records its director, writers, cast and release information.
+[Q141776793](https://www.wikidata.org/wiki/Q141776793) describes a 2015 film
+by the same director and has the English Wikipedia sitelink for
+[*Talvar (film)*](https://en.wikipedia.org/wiki/Talvar_(film)); the article
+itself links to Q141776793. This is strong evidence of a duplicate-item
+candidate, but the two identifiers have not been merged by Wikidata, and the
+second item has very few statements. The discrepancy is not a failed file
+integrity check, nor is it permission to rewrite the current source identity.
+Keep the older source and flag the current article for a separately recorded
+identity resolution rather than silently relabelling its QID.
+
+The current article was then captured with the existing robots-checked
+review-only fetcher. It matched page ID 43433839 and Q141776793 at revision
+1380716655; its exact HTML SHA-256 is
+`c4e625a99d4035b870b80b86c95460c1226c664abc02a444acb226cc573798f3`.
+The local manifest remains marked `review_required` for identity and rights,
+with `product_ingested` false. The prior Q17492514 association and article
+snapshot were not replaced, and no operational assertions were created.
