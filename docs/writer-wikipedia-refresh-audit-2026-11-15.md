@@ -109,3 +109,31 @@ files verified, and both revisions belong to the same source object. These
 are candidate locations, not migrated labels, independent reviews, or a new
 retrieval score. The local v2 report SHA-256 is
 `d0c05dd41734632a703a02ee1d97555b458721db91155346980d0c808990657a`.
+
+## Guarded source-only batch
+
+The source-only batch selected the 987 entries whose automated comparison found
+story sections in both revisions. This is a selection heuristic, not evidence
+that the text is unchanged or accurate. The batch processed all 987: 937 new
+snapshots were created, 20 earlier canary snapshots were reused, and 30 were
+held for a current-versus-pinned source mismatch. The nine other article
+comparison exceptions and the four original identity exceptions remain outside
+this batch; categories have not been merged or silently approved.
+
+An independent read-only verification checked all 957 created or reused
+snapshot files against their stored hashes and byte sizes: 957 verified. These
+snapshots have 23,218 source-linked passages and **zero** narrative-use
+decisions. The 30 held candidates remain review-required. The source-only
+checkpoint is local, SHA-256
+`15a7c07a6b802d8c3bf5b21b0d687644d4948cacde402e8940880c9a2cfaa007`.
+These counts do not establish passage accuracy, writer usefulness, source-use
+approval, embeddings, or availability in the site.
+
+Read-only follow-up of all 30 held candidates found an intact current source
+and the same source object in each case, but a different revision than the
+original audit baseline. The refreshed capture is newer than the current source
+for 26; for four it has the same revision but different captured bytes. Eleven
+of the 30 current passage projections match the older baseline by locator,
+ordinal, and stored content hash; this alone does not establish source-byte
+equivalence or approve a new revision. No held record was changed. Comparisons
+against their actual current revisions are needed before any further replay.
