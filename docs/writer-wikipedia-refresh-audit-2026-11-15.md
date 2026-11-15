@@ -137,3 +137,17 @@ of the 30 current passage projections match the older baseline by locator,
 ordinal, and stored content hash; this alone does not establish source-byte
 equivalence or approve a new revision. No held record was changed. Comparisons
 against their actual current revisions are needed before any further replay.
+
+### Follow-up against actual current revisions
+
+The 30 held captures were compared against the actual verified current
+snapshots, rather than the older audit baselines. All had story sections in
+both versions under the same character-count heuristic. Twenty-six captured
+revisions were newer and were replayed with manifests pinned to the actual
+current snapshot ID, hash and revision. Their 26 stored source files verified,
+and they added 653 source-linked passages with zero model-use decisions. Four
+captures had the same revision as an existing verified source and were left
+for review rather than creating redundant snapshots. Re-running the held
+checkpoint processed no new records. This is source preparation, not a
+semantic-quality or rights approval. The held replay checkpoint SHA-256 is
+`5391a1455a68d11d0dc0554281eee5ef3e3b0485f57590683d87a8016085412c`.
