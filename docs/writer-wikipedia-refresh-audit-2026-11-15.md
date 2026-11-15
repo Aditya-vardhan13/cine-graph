@@ -272,6 +272,12 @@ The previously noted *Talvar* QID discrepancy remains unresolved even though a
 current stored file for its existing source object passes the byte-integrity
 check. Wikipedia articles can also contain third-party quotations; the page's
 general text license alone is not a rights determination for every quotation.
+The current *Fantasia* `program` section has three retained passages (3,153
+characters) describing the film's animated and musical segments, including
+the Sorcerer's Apprentice. It is useful narrative context, not missing text.
+However, `program` alone is not a safe global synonym for plot: another film's
+program could describe a screening rather than its story. It remains outside
+the story-only route until section-role binding can be reviewed and evaluated.
 An additional read-only check found zero content-hash mismatches across the
 24,455 current passages. The writer indexing gate now verifies both retained
 source bytes and each approved current passage's own content hash before
