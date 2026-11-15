@@ -321,3 +321,16 @@ this run. A span-aware or parent-context comparison and an independent
 writer-question evaluation remain necessary. The alternative chunk profile is
 only selected explicitly by the local canary; the writer index default remains
 unchanged, and no working-corpus index or approvals were created.
+
+The follow-up checked the full original passage behind each ranked small chunk,
+verifying its film, source snapshot and Unicode-normalized content binding.
+For the same 38 available reviewed quotes, hybrid parent passages contained
+15 at rank one and 22 in the top three, compared with 9 and 21 in the small
+chunks themselves. Parent expansion recovers some boundary-split quotes, but
+still does not exceed the earlier 15/25 default-chunk result and can return a
+longer passage. These are development quote-visibility counts, not independent
+relevance judgments; parent proximity does not establish that every sentence
+supports the question. The first attempted check compared unnormalized text and
+failed on a Unicode normalization difference; it was corrected to use the
+chunker's NFC/whitespace policy before this completed run. The live API and
+index remain unchanged.

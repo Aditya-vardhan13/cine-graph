@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from statistics import median
 from time import perf_counter
+from uuid import UUID
 
 import pytest
 from fastapi import FastAPI
@@ -14,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.api import router
 from app.core.config import get_settings
 from app.db import Base, get_db
-from app.models import (CanonicalEntity, DataSource, Film, LanguageEdition, NarrativePassage,
+from app.models import (CanonicalEntity, DataSource, EvidenceChunk, Film, LanguageEdition, NarrativePassage,
                         NarrativeUseDecision, ReferenceCollection, ReferenceCollectionMembership,
                         SourceObject, SourceSnapshot)
 from app.services.ollama_embeddings import OllamaEmbeddingClient
@@ -32,7 +33,7 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
     if os.environ.get("CINEGRAPH_REFRESHED_SOURCE_CANARY") != "1":
         pytest.skip("explicit retained-source and local Ollama canary only")
     from app.services.writer_catalog_index import index_writer_catalog
-    from app.services.evidence_preprocessing import ChunkConfiguration
+    from app.services.evidence_preprocessing import ChunkConfiguration, normalize_content
     directory = Path("data/evaluation/writer-source-audit/wikipedia-refresh-v1").resolve()
     captures = json.loads((directory / "checkpoint.json").read_bytes())["captures"]
     films = [("Avengers: Endgame", "Q23781155"), ("The Godfather", "Q47703"),
@@ -131,10 +132,12 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
             cases = corpus["cases"]
             # Do not read reviewed quotations until all rankings are complete.
             rankings = {}
+            parent_rankings = {}
             timings = {}
             methods_seen = {}
             for method in (NarrativeRetrievalMethod.HYBRID, NarrativeRetrievalMethod.LEXICAL):
                 rankings[method.value] = {}
+                parent_rankings[method.value] = {}
                 timings[method.value] = []
                 methods_seen[method.value] = []
                 for case in cases:
@@ -150,6 +153,19 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
                         first: [item.excerpt for item in lens.first_options] if lens else [],
                         second: [item.excerpt for item in lens.second_options] if lens else [],
                     }
+                    parent_rankings[method.value][case["case_id"]] = {}
+                    for qid, options in ((first, lens.first_options if lens else ()),
+                                         (second, lens.second_options if lens else ())):
+                        parents = []
+                        for item in options:
+                            chunk = db.get(EvidenceChunk, UUID(item.chunk_id))
+                            passage = db.get(NarrativePassage, chunk.narrative_passage_id)
+                            assert chunk.subject_entity_id == entities[qid]
+                            assert passage.subject_entity_id == chunk.subject_entity_id
+                            assert passage.source_snapshot_id == chunk.source_snapshot_id
+                            assert normalize_content(item.excerpt) in normalize_content(passage.content)
+                            parents.append(passage.content)
+                        parent_rankings[method.value][case["case_id"]][qid] = parents
             from app.services.rag_span_review import bind_review_quotes
             review_bytes = Path("data/evaluation/rag-v2/span-review-development-v1.json").read_bytes()
             review = bind_review_quotes(corpus, json.loads(review_bytes))
@@ -163,7 +179,8 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
             reviewed = [(case["case_id"], evidence) for case in review["cases"] for evidence in case["evidence"]]
             assert len(reviewed) == len(candidates["items"])
             for method in rankings:
-                counts = {"reviewed_quotes": 0, "available_candidates": 0, "visible_at_1": 0, "visible_at_3": 0}
+                counts = {"reviewed_quotes": 0, "available_candidates": 0, "visible_at_1": 0, "visible_at_3": 0,
+                          "parent_visible_at_1": 0, "parent_visible_at_3": 0}
                 for (case_id, evidence), candidate in zip(reviewed, candidates["items"], strict=True):
                     assert (case_id, evidence["chunk_id"], evidence["film_qid"]) == (
                         candidate["case_id"], candidate["old_chunk_id"], candidate["film_qid"])
@@ -176,6 +193,10 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
                     hits = [quote in " ".join(option.split()) for option in options]
                     counts["visible_at_1"] += int(any(hits[:1]))
                     counts["visible_at_3"] += int(any(hits[:3]))
+                    parents = parent_rankings[method][case_id][evidence["film_qid"]]
+                    parent_hits = [quote in " ".join(parent.split()) for parent in parents]
+                    counts["parent_visible_at_1"] += int(any(parent_hits[:1]))
+                    counts["parent_visible_at_3"] += int(any(parent_hits[:3]))
                 latency = sorted(timings[method])
                 counts.update({"method": method, "actual_methods": sorted(set(methods_seen[method])),
                                "latency_p50_ms": round(median(latency), 2), "latency_p95_ms": latency[18]})
