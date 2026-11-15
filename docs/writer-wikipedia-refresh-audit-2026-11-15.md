@@ -239,6 +239,13 @@ passages. It did not create a film profile, approve narrative model use, or
 resolve the outstanding metadata projection. The override rejects missing or
 different IDs and cannot be used for an existing film profile; its checks
 were exercised against isolated PostgreSQL using retained article bytes.
+The retained Wikidata snapshot for Q16248515 was subsequently checked for a
+profile repair: its source assertions include an English label, `P31=Q11424`
+(film) and `P364=Q1568` (Hindi). The article page and Wikidata item describe
+the second part, not the distinct first-part identity. These are source
+observations rather than a completed profile; a reusable repair must bind the
+profile's fields to those exact source assertions and keep review status
+explicit. No film row or operational assertion was created by this check.
 
 ## Current-source coverage recheck
 
