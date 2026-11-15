@@ -43,6 +43,12 @@ def audit(db, entries: list[dict]) -> dict:
                     if objects[s.source_object_id].external_id == entry["wikipedia_page_id"]]
             snapshots = {s.id: s for _, s in wiki}
             issues = []
+            invalid_passages = sum(
+                hashlib.sha256(p.content.encode("utf-8")).hexdigest() != p.content_hash for p, _ in wiki
+            )
+            counts["passage_hash_mismatches"] += invalid_passages
+            if invalid_passages:
+                issues.append("passage_hash_mismatch")
             if entity_id not in profiles:
                 issues.append("film_profile_missing")
             if len(snapshots) != 1:

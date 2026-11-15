@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import replace
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -50,6 +51,8 @@ def verify_writer_sources(db: Session, collection_code: str) -> int:
                 raise ValueError(f"Approved snapshot {snapshot.id} failed integrity verification.")
             checked[snapshot.id] = approved and snapshot.fetch_status == "success"
         if checked[snapshot.id]:
+            if hashlib.sha256(passage.content.encode("utf-8")).hexdigest() != passage.content_hash:
+                raise ValueError(f"Approved passage {passage.id} failed content integrity verification.")
             eligible_entities.add(passage.subject_entity_id)
     if entity_ids - eligible_entities:
         raise ValueError(f"{len(entity_ids - eligible_entities)} included films lack an intact approved narrative source.")

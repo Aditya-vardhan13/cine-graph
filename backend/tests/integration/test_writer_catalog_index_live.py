@@ -3,6 +3,7 @@ import hashlib
 import os
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -107,6 +108,14 @@ def test_reviewed_writer_index_builds_and_retrieves_with_real_ollama(tmp_path):
                         question_id="story.plot_character_structure", question_text="How does family loyalty conflict with justice?",
                         method=NarrativeRetrievalMethod.SEMANTIC, scope=scope, client=OllamaEmbeddingClient(base_url=ollama_url))
             assert found.evidence and found.evidence[0].subject_entity_id == str(entity_id)
+        passage = db.scalar(select(NarrativePassage).where(NarrativePassage.subject_entity_id == subject_ids[0]))
+        original_content = passage.content
+        passage.content = original_content + " Altered after extraction."
+        db.flush()
+        with pytest.raises(ValueError, match="passage .* failed content integrity"):
+            index_writer_catalog(db, collection_code=code, cache_dir=tmp_path / "vectors", ollama_url=ollama_url)
+        passage.content = original_content
+        db.flush()
         with pytest.raises(ValueError, match="no longer matches"):
             OllamaEmbeddingClient(base_url=ollama_url).embed(["A query"], profile=OllamaEmbeddingProfile(expected_model_digest="0" * 64))
         path.write_bytes(b"tampered test fixture")
