@@ -4,6 +4,7 @@ import os
 
 import pytest
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.core.config import get_settings
 from app.db import Base
@@ -14,6 +15,9 @@ from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, ret
 from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_scope import resolve_retrieval_scope
 from app.services.writer_catalog_index import index_writer_catalog
+from app.services.embedding_index import _candidate_run, import_embedding_cache
+from app.services.evidence_preprocessing import CHUNKER_VERSION, ChunkConfiguration, build_evidence_chunks
+from app.services.ollama_embeddings import MANIFEST_REVISION_PREFIX
 from tests.postgres_test_db import isolated_postgres_engine
 
 
@@ -76,6 +80,24 @@ def test_reviewed_writer_index_builds_and_retrieves_with_real_ollama(tmp_path):
                                       ollama_url=ollama_url, batch_size=2)
         assert result["status"] == "complete"
         assert result["films"] == 2 and result["chunks_completed"] == 2
+        original_run = UUID(result["chunk_report"]["run_id"])
+        alternate = build_evidence_chunks(db, collection_code=code, config=ChunkConfiguration(
+            target_tokens=100, maximum_tokens=120, overlap_tokens=20,
+            current_extractions_per_snapshot=True,
+        ))
+        assert UUID(alternate["run_id"]) != original_run
+        assert _candidate_run(db, collection_code=code, chunker_version=CHUNKER_VERSION).id == UUID(alternate["run_id"])
+        assert _candidate_run(db, collection_code=code, chunker_version=CHUNKER_VERSION, run_id=original_run).id == original_run
+        with pytest.raises(ValueError, match="No completed evidence chunk run"):
+            _candidate_run(db, collection_code="other-collection", chunker_version=CHUNKER_VERSION, run_id=original_run)
+        cache_path = next((tmp_path / "vectors").rglob("*.npy"))
+        profile = OllamaEmbeddingProfile()
+        import_args = dict(cache_path=cache_path, collection_code=code, chunker_version=CHUNKER_VERSION,
+                           model_name=profile.model, model_revision=MANIFEST_REVISION_PREFIX + result["model_digest"],
+                           dimension=profile.dimensions, query_instruction=profile.query_instruction)
+        with pytest.raises(ValueError, match="Embedding cache identity"):
+            import_embedding_cache(db, **import_args)
+        assert str(import_embedding_cache(db, chunk_run_id=original_run, **import_args).id) == result["index_run_id"]
         second = index_writer_catalog(db, collection_code=code, cache_dir=tmp_path / "vectors",
                                       ollama_url=ollama_url, batch_size=2)
         assert second["cache_reused"] and second["index_run_id"] == result["index_run_id"]

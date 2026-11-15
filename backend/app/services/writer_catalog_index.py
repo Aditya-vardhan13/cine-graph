@@ -5,6 +5,7 @@ import argparse
 import json
 import shutil
 from pathlib import Path
+from uuid import UUID
 
 import numpy as np
 from sqlalchemy import select
@@ -87,7 +88,8 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
         source_parser_version=source_parser_version, extraction_version=extraction_version,
         current_extractions_per_snapshot=current_per_snapshot,
     ))
-    run = _candidate_run(db, collection_code=collection_code, chunker_version=CHUNKER_VERSION)
+    run = _candidate_run(db, collection_code=collection_code, chunker_version=CHUNKER_VERSION,
+                         run_id=UUID(report["run_id"]))
     chunks, contents = _ordered_chunks_and_contents(db, run)
     if not chunks or len({chunk.subject_entity_id for chunk in chunks}) != films:
         raise ValueError("Every included film needs at least one eligible approved chunk in the selected run.")
@@ -107,7 +109,7 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
     index = import_embedding_cache(db, cache_path=cache_path, collection_code=collection_code,
                                    chunker_version=CHUNKER_VERSION, model_name=profile.model,
                                    model_revision=f"{MANIFEST_REVISION_PREFIX}{digest}", dimension=profile.dimensions,
-                                   query_instruction=profile.query_instruction)
+                                   query_instruction=profile.query_instruction, chunk_run_id=run.id)
     return {"films": films, "chunk_report": report, "model_digest": digest,
             "cache_reused": reused, **index_status(db, str(index.id))}
 

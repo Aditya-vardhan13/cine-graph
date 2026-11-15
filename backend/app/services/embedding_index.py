@@ -36,12 +36,16 @@ def instruction_hash(instruction: str) -> str:
     return hashlib.sha256(instruction.encode("utf-8")).hexdigest()
 
 
-def _candidate_run(db: Session, *, collection_code: str, chunker_version: str) -> EvidenceChunkRun:
-    run = db.scalar(select(EvidenceChunkRun).where(
+def _candidate_run(db: Session, *, collection_code: str, chunker_version: str,
+                   run_id: UUID | None = None) -> EvidenceChunkRun:
+    query = select(EvidenceChunkRun).where(
         EvidenceChunkRun.collection_code == collection_code,
         EvidenceChunkRun.chunker_version == chunker_version,
         EvidenceChunkRun.status == "complete",
-    ).order_by(EvidenceChunkRun.completed_at.desc()))
+    )
+    if run_id is not None:
+        query = query.where(EvidenceChunkRun.id == run_id)
+    run = db.scalar(query.order_by(EvidenceChunkRun.completed_at.desc()))
     if run is None:
         raise ValueError("No completed evidence chunk run matches the requested collection and version.")
     return run
@@ -108,11 +112,13 @@ def import_embedding_cache(
     dimension: int = STORAGE_DIMENSION,
     query_instruction: str = QWEN_FILM_RETRIEVAL_INSTRUCTION,
     batch_size: int = 250,
+    chunk_run_id: UUID | None = None,
 ) -> EmbeddingIndexRun:
     """Import an exact evaluator cache, resuming safely after each DB batch."""
     if dimension != STORAGE_DIMENSION:
         raise ValueError(f"The v1 pgvector index requires {STORAGE_DIMENSION} dimensions.")
-    run = _candidate_run(db, collection_code=collection_code, chunker_version=chunker_version)
+    run = _candidate_run(db, collection_code=collection_code, chunker_version=chunker_version,
+                         run_id=chunk_run_id)
     chunks, contents = _ordered_chunks_and_contents(db, run)
     expected_cache_key = document_cache_key(
         provider="ollama",
