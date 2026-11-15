@@ -81,3 +81,19 @@ legal clearance of every passage, or writer-facing quality. For reuse
 considerations, Wikimedia's [developer guidelines](https://foundation.wikimedia.org/wiki/Legal:Wikimedia_Developer_App_Guidelines/en)
 describe attribution, licence and share-alike requirements; individual source
 and downstream usage still need review.
+
+## Twenty-film development source expansion
+
+The remaining 18 films in the existing ten-pair development question set were
+replayed through the same source-only guard. Together with the two-film canary,
+all 20 current selected snapshots passed a fresh stored-byte integrity check and
+contain 1,047 source-linked passages in total. This includes *Her*, *WALL-E*,
+*The Dark Knight*, *Spider-Man: Into the Spider-Verse*, *Interstellar* and
+*Parasite*. All 18 new replays reported success; no source-use decisions exist
+for any of these 20 current snapshots.
+
+These are source preparation results only. The frozen development relevance
+labels were authored against different revisions and must not be assumed valid
+for these new passages without source-bound rebinding and review. The separate
+held-out set remains separate. No new writer collection membership, embedding
+index, or production retrieval accuracy claim follows from this expansion.
