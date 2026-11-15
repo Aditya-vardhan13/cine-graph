@@ -245,7 +245,16 @@ profile repair: its source assertions include an English label, `P31=Q11424`
 the second part, not the distinct first-part identity. These are source
 observations rather than a completed profile; a reusable repair must bind the
 profile's fields to those exact source assertions and keep review status
-explicit. No film row or operational assertion was created by this check.
+explicit. No film row or operational assertion was created by that check.
+
+The reusable `stage_missing_profile` path was subsequently tested with that
+exact retained response in isolated PostgreSQL, then applied locally to this
+one identity. It created the missing Hindi-language Film profile and three
+`review_required` operational assertions, each linked to the exact retained
+source assertion; the profile is also `review_required`. It did not add a
+narrative-use decision or writer-catalog membership. A repeat read-only audit
+now finds a Film row for all 1,000 audited identities, but does not establish
+that those profiles are complete, published, accurate or ready for retrieval.
 
 ## Current-source coverage recheck
 
