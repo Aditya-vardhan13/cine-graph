@@ -199,3 +199,22 @@ utility, production latency or held-out accuracy. A candidate location in a
 new revision still requires source-aware review. One unmatched quotation was
 excluded and is not treated as a negative. No settings were changed on the
 basis of these counts, and the isolated test did not approve working sources.
+
+## Follow-up source exceptions
+
+Two articles initially excluded by their recorded URL/title discrepancies were
+recaptured through the robots-checked article fetcher. *Lost in Translation*
+matched Wikidata Q107270 and Wikipedia page 369682; *Minority Report* matched
+Q244604 and page 142049. Each capture was bound to the exact previously audited
+source snapshot and replayed with the guarded same-revision recovery checks.
+The newly stored sources verified and contain 59 and 39 passages respectively;
+neither has a narrative-use decision. These page/QID checks do not resolve the
+separate missing Wikidata source evidence in the original audit or approve
+rights. *Talvar* and *Gangs of Wasseypur 2* remain distinct identity issues.
+
+Two plot-length exceptions were also inspected: *Pulp Fiction*'s older plot
+hierarchy included character lists, and *X-Men: First Class*'s older plot
+contained cast markup. Their refreshed snapshots were retained as source-only
+records (69 and 45 passages) with verified bytes and no model-use decisions.
+Five other shorter-plot cases remain for source-aware review; older snapshots
+have not been removed.
