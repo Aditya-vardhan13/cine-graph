@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import fcntl
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -18,6 +19,29 @@ from scripts.capture_writer_identity_recovery import local_output
 
 
 SCHEMA = "cinegraph.writer-wikipedia-refresh/v1"
+
+
+def retained_payload(output: Path, row: dict) -> bytes:
+    """Decode stored bytes without changing the hash of the source response."""
+    digest = row["sha256"]
+    encoding = row.get("storage_encoding", "identity")
+    if encoding == "identity":
+        path = output / "snapshots" / f"{digest}.html"
+        return path.read_bytes()
+    if encoding == "gzip":
+        path = output / "snapshots" / f"{digest}.html.gz"
+        return gzip.decompress(path.read_bytes())
+    raise ValueError("Unsupported retained capture encoding")
+
+
+def retain_compressed(output: Path, digest: str, payload: bytes) -> None:
+    """Retain a lossless compressed copy keyed by the uncompressed source hash."""
+    path = output / "snapshots" / f"{digest}.html.gz"
+    if path.exists():
+        if gzip.decompress(path.read_bytes()) != payload:
+            raise ValueError("Existing compressed capture is inconsistent")
+        return
+    _write_immutable(path, gzip.compress(payload, mtime=0))
 
 
 def targets(audit: dict) -> list[dict]:
@@ -56,10 +80,10 @@ def verified_checkpoint(output: Path, audit_hash: str, target_rows: dict[str, di
         digest = row.get("sha256")
         if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
             raise ValueError(f"Invalid retained content hash for {qid}")
-        path = output / "snapshots" / f"{digest}.html"
-        if not path.is_file():
-            raise ValueError(f"Retained capture missing or altered for {qid}")
-        payload = path.read_bytes()
+        try:
+            payload = retained_payload(output, row)
+        except (OSError, EOFError, gzip.BadGzipFile) as exc:
+            raise ValueError(f"Retained capture missing or altered for {qid}") from exc
         if hashlib.sha256(payload).hexdigest() != digest or len(payload) != row.get("byte_size"):
             raise ValueError(f"Retained capture missing or altered for {qid}")
         issues = []
@@ -125,7 +149,7 @@ def main() -> None:
                         print(f"not found {qid}: {len(state['captures'])}/{len(rows)}", flush=True)
                         continue
                     digest = hashlib.sha256(payload).hexdigest()
-                    _write_immutable(output / "snapshots" / f"{digest}.html", payload)
+                    retain_compressed(output, digest, payload)
                     issues = []
                     metadata = None
                     sections = []
@@ -144,6 +168,7 @@ def main() -> None:
                         issues.append("article_parse_failed")
                     state["captures"][qid] = {**common, "status": "review_candidate" if not issues else "quarantined",
                                                "issues": issues, "sha256": digest, "byte_size": len(payload),
+                                               "storage_encoding": "gzip",
                                                "canonical_url": canonical_url, "media_type": media_type,
                                                "metadata": metadata, "sections": sections}
                     save_checkpoint(output / "checkpoint.json", state)

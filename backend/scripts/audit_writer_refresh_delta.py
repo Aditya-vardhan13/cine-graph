@@ -15,7 +15,7 @@ from app.models import NarrativePassage, SourceSnapshot
 from app.services.wikipedia_article_html import parse_article_html
 from scripts.capture_credit_targets import save_checkpoint
 from scripts.capture_writer_identity_recovery import local_output
-from scripts.capture_writer_wikipedia_refresh import targets, verified_checkpoint
+from scripts.capture_writer_wikipedia_refresh import retained_payload, targets, verified_checkpoint
 
 
 def story(locator: str) -> bool:
@@ -86,7 +86,7 @@ def main() -> None:
             prior = snapshots.get(capture["prior_snapshot_id"])
             if prior is None or prior.content_hash != capture["prior_sha256"]:
                 raise ValueError(f"Pinned old snapshot absent or changed: {qid}")
-            payload = (args.capture_dir / "snapshots" / f"{capture['sha256']}.html").read_bytes()
+            payload = retained_payload(args.capture_dir, capture)
             document = parse_article_html(payload, canonical_url=capture["canonical_url"], expected_qid=qid)
             new = measurements((passage.section_locator, passage.content) for passage in document.passages)
             classification, old_versions = compare_versions(old_passages[capture["prior_snapshot_id"]], new)

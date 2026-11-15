@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from scripts.capture_credit_targets import save_checkpoint
-from scripts.capture_writer_wikipedia_refresh import SCHEMA, targets, verified_checkpoint
+from scripts.capture_writer_wikipedia_refresh import SCHEMA, retained_payload, retain_compressed, targets, verified_checkpoint
 
 
 def test_only_mechanically_consistent_rows_become_review_candidates():
@@ -35,6 +35,14 @@ def test_checkpoint_resume_requires_exact_audit_and_retained_bytes(tmp_path):
                                                   "captures": {"Q163872": capture}})
     rows = {"Q163872": target}
     assert "Q163872" in verified_checkpoint(tmp_path, "pinned", rows)["captures"]
+    retain_compressed(tmp_path, digest, payload)
+    capture["storage_encoding"] = "gzip"
+    save_checkpoint(tmp_path / "checkpoint.json", {"schema": SCHEMA, "audit_sha256": "pinned", "captures": {"Q163872": capture}})
+    assert "Q163872" in verified_checkpoint(tmp_path, "pinned", rows)["captures"]
+    (tmp_path / "snapshots" / f"{digest}.html.gz").write_bytes(b"corrupted")
+    with pytest.raises(ValueError, match="missing or altered"):
+        verified_checkpoint(tmp_path, "pinned", rows)
+    del capture["storage_encoding"]
     with pytest.raises(ValueError, match="pinned audit"):
         verified_checkpoint(tmp_path, "other", rows)
     capture["metadata"]["page_id"] = 1
@@ -44,3 +52,16 @@ def test_checkpoint_resume_requires_exact_audit_and_retained_bytes(tmp_path):
     path.write_bytes(b"tampered")
     with pytest.raises(ValueError, match="missing or altered"):
         verified_checkpoint(tmp_path, "pinned", rows)
+
+
+def test_compressed_capture_round_trips_source_bytes_and_preserves_original_hash(tmp_path):
+    payload = (Path(__file__).parent / "fixtures" / "wikipedia-article-html-slice-v1.html").read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+    retain_compressed(tmp_path, digest, payload)
+    retain_compressed(tmp_path, digest, payload)
+    assert retained_payload(tmp_path, {"sha256": digest, "storage_encoding": "gzip"}) == payload
+    assert (tmp_path / "snapshots" / f"{digest}.html.gz").stat().st_size < len(payload)
+    with pytest.raises(ValueError, match="inconsistent"):
+        retain_compressed(tmp_path, digest, b"different source bytes")
+    with pytest.raises(ValueError, match="Unsupported"):
+        retained_payload(tmp_path, {"sha256": digest, "storage_encoding": "unknown"})
