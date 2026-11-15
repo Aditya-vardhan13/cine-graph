@@ -151,3 +151,27 @@ for review rather than creating redundant snapshots. Re-running the held
 checkpoint processed no new records. This is source preparation, not a
 semantic-quality or rights approval. The held replay checkpoint SHA-256 is
 `5391a1455a68d11d0dc0554281eee5ef3e3b0485f57590683d87a8016085412c`.
+
+## Refreshed-source retrieval canary
+
+In an isolated PostgreSQL schema, an explicit test-only approval allowed the
+current plot passages for *Avengers: Endgame*, *The Godfather*, *Her* and
+*WALL-E* to be chunked and indexed using local `qwen3-embedding:0.6b`
+(Q8_0, 1,024 dimensions). The four articles produced 16 chunks. The first two
+films returned plausible source leads for the user's family/conflict question.
+For the user's *Her* / *WALL-E* loneliness question, *Her*'s leading passage
+covered Theodore and Samantha, but the top *WALL-E* passage mostly described
+events aboard the Axiom. A more pertinent passage about WALL-E's isolation and
+meeting EVE appeared second. This is a real ranking failure in one inspected
+case, not a representative accuracy rate or a resolved product issue.
+
+The actual comparison HTTP route also returned a hybrid result when the test
+container was configured with the local embedding endpoint. An earlier test
+run without that endpoint correctly fell back to lexical retrieval; it was a
+test-environment configuration issue, not evidence that hybrid ranking ran.
+The explicit test depends on the current local, uncommitted writer-index work;
+it does not imply that work has been pushed, the live API rebuilt, any working
+corpus source approved, or a writer-facing result generated. Test-only
+approvals do not carry into the working database. This diagnostic does not
+justify changing ranking weights on its own; broader source-bound evaluation
+is needed to avoid overfitting one example.
