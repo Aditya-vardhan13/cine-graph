@@ -97,3 +97,15 @@ labels were authored against different revisions and must not be assumed valid
 for these new passages without source-bound rebinding and review. The separate
 held-out set remains separate. No new writer collection membership, embedding
 index, or production retrieval accuracy claim follows from this expansion.
+
+For the 20-question development subset, a source-bound, read-only comparison
+located 36 of 39 previously reviewed quotations byte-for-byte in the new
+revision passages. Three were not exact matches. Two of those have unique
+whitespace-only candidates caused by paragraph breaks (*The Godfather* and
+*No Country for Old Men*); the *Jaws* candidate also changes punctuation and
+needs individual inspection. Offsets refer to the actual retained passages.
+The old review and source fingerprints were checked, both old and new snapshot
+files verified, and both revisions belong to the same source object. These
+are candidate locations, not migrated labels, independent reviews, or a new
+retrieval score. The local v2 report SHA-256 is
+`d0c05dd41734632a703a02ee1d97555b458721db91155346980d0c808990657a`.
