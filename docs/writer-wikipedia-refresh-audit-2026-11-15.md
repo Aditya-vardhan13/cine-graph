@@ -298,3 +298,26 @@ review-only fetcher. It matched page ID 43433839 and Q141776793 at revision
 The local manifest remains marked `review_required` for identity and rights,
 with `product_ingested` false. The prior Q17492514 association and article
 snapshot were not replaced, and no operational assertions were created.
+
+### Smaller-chunk development comparison
+
+An isolated experiment used the same eight refreshed articles, 20 known
+development questions and local `qwen3-embedding:0.6b` model. The default
+300-token target produced 474 indexed chunks; a 120-token target with 30-token
+overlap produced 1,021. On 38 reviewed quotes that could be located in the
+refreshed passages, the default hybrid results contained the complete quote
+15 times at rank one and 25 times in the top three; the smaller chunks contained
+it 9 and 21 times respectively. Warm local hybrid p50/p95 were 103.84/133.09 ms
+and 113.15/140.98 ms. These are 20-query development diagnostics, not a
+representative accuracy estimate or production latency measurement.
+
+The comparison penalizes a smaller chunk when a reviewed quote crosses chunk
+boundaries, even if partial evidence is present; it does not score semantic
+relevance or completeness. The smaller top result was visibly better for the
+*Her* / *WALL-E* loneliness example, but dropped the Nebula family conflict
+from the first *Endgame* result. Given the lower full-quote visibility and
+roughly 2.15 times as many vectors, do not switch the live chunk size based on
+this run. A span-aware or parent-context comparison and an independent
+writer-question evaluation remain necessary. The alternative chunk profile is
+only selected explicitly by the local canary; the writer index default remains
+unchanged, and no working-corpus index or approvals were created.

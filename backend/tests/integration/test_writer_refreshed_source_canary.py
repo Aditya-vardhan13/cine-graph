@@ -32,6 +32,7 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
     if os.environ.get("CINEGRAPH_REFRESHED_SOURCE_CANARY") != "1":
         pytest.skip("explicit retained-source and local Ollama canary only")
     from app.services.writer_catalog_index import index_writer_catalog
+    from app.services.evidence_preprocessing import ChunkConfiguration
     directory = Path("data/evaluation/writer-source-audit/wikipedia-refresh-v1").resolve()
     captures = json.loads((directory / "checkpoint.json").read_bytes())["captures"]
     films = [("Avengers: Endgame", "Q23781155"), ("The Godfather", "Q47703"),
@@ -88,7 +89,14 @@ def test_refreshed_articles_retrieve_against_user_questions(tmp_path):
                                         content_hash=passage.content_hash, citation_markers=list(passage.citation_markers),
                                         extraction_version=doc.parser_version))
         db.commit()
-        report = index_writer_catalog(db, collection_code=collection, cache_dir=tmp_path / "vectors", ollama_url=ollama, batch_size=4)
+        size = os.environ.get("CINEGRAPH_REFRESHED_CHUNK_PROFILE", "default")
+        if size not in {"default", "small"}:
+            raise ValueError("Unknown isolated chunk profile")
+        config = (ChunkConfiguration(target_tokens=120, maximum_tokens=160, overlap_tokens=30, minimum_words=20)
+                  if size == "small" else None)
+        report = index_writer_catalog(db, collection_code=collection, cache_dir=tmp_path / "vectors", ollama_url=ollama,
+                                      batch_size=4, chunk_config=config)
+        print("REFRESHED_CHUNK_PROFILE", size, report["chunks_completed"])
         assert report["status"] == "complete" and report["films"] == len(films)
         questions = [("Q23781155", "Q47703", "how do these follow the conflicts between family or close people when fighting injustice"),
                      ("Q788822", "Q104905", "How does each film make an artificial companion expose human loneliness?")]

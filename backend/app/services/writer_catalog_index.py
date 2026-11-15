@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import json
 import shutil
 from pathlib import Path
@@ -58,7 +59,8 @@ def verify_writer_sources(db: Session, collection_code: str) -> int:
 def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
                          ollama_url: str, batch_size: int = 8,
                          source_parser_version: str | None = None,
-                         extraction_version: str | None = None) -> dict:
+                         extraction_version: str | None = None,
+                         chunk_config: ChunkConfiguration | None = None) -> dict:
     settings = get_settings()
     if collection_code != settings.writer_catalog_collection_code or collection_code == settings.research_collection_code:
         raise ValueError("Only the distinct configured writer catalog may be indexed by this job.")
@@ -84,7 +86,8 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
     cache_dir.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(cache_dir).free < 2 * 1024**3:
         raise RuntimeError("At least 2 GiB free space is required for local indexing.")
-    report = build_evidence_chunks(db, collection_code=collection_code, config=ChunkConfiguration(
+    report = build_evidence_chunks(db, collection_code=collection_code, config=replace(
+        chunk_config or ChunkConfiguration(),
         source_parser_version=source_parser_version, extraction_version=extraction_version,
         current_extractions_per_snapshot=current_per_snapshot,
     ))
