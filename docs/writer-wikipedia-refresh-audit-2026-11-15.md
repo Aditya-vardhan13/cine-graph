@@ -252,3 +252,26 @@ lacks a legacy Film profile. The audit is reproducible with
 it uses current-extraction selection and does not write to the database. Its
 counts do not establish article identity approval, story completeness, factual
 accuracy, suitability for a particular question, or retrieval quality.
+The previously noted *Talvar* QID discrepancy remains unresolved even though a
+current stored file for its existing source object passes the byte-integrity
+check. Wikipedia articles can also contain third-party quotations; the page's
+general text license alone is not a rights determination for every quotation.
+
+### Original question: isolated API recheck
+
+The retained-source two-film canary was rerun with the user's original
+family/injustice question, local `qwen3-embedding:0.6b`, and a separate
+`cinegraph_test` schema. The leading *Endgame* passage includes Nebula,
+Gamora and Thanos, while the leading *Godfather* passage describes Michael
+protecting Vito and killing Sollozzo and McCluskey. These are plausible leads,
+but each is long and neither alone resolves the question. This single known
+development case is not an accuracy score or proof of a useful final answer.
+No working-corpus permissions were granted.
+
+The first run exposed a local configuration mistake: the direct test passed
+the host Ollama URL explicitly, while the HTTP handler inherited the container
+default `127.0.0.1` and fell back to lexical retrieval. Setting both
+`CINEGRAPH_TEST_OLLAMA_URL` and `OLLAMA_BASE_URL` to the reachable host URL
+made the real HTTP check return hybrid results. This distinction matters when
+running the local pilot; an HTTP 200 or a passing direct service call is not
+proof that the API actually used embeddings.
