@@ -394,6 +394,27 @@ disabled. These are runtime preparations, not completed model evaluations.
 
 ## Initial executions and source-level diagnostic
 
+### Six remaining development pairs: top-one source review
+
+The first question from each of P05–P10 in the existing frozen 50-question
+hybrid baseline was reviewed against its first displayed passage on each
+film side: 12 judgments over six known development questions. One model
+reviewer judged three passages directly supportive, six partial and three
+without the requested event in the first passage. For example, a passage can
+introduce a mentor without showing the mentor's loss, or establish a character's
+original identity without showing their later choice. This inspection is
+restricted to the top result: a miss does not prove evidence is absent from
+later results or the full corpus. It is not independent review or a 50-case
+score; the old baseline uses earlier source revisions and must not be silently
+compared with the refreshed corpus.
+
+The local review file is
+`data/evaluation/pair-relevance-50/top1-source-review-p05-p10-v1.json`
+(SHA-256 `ccdfc89a696df00a5b302435eea5c055d740a643fc982a8124f1e0771fdf1750`),
+bound to baseline SHA-256
+`3ecaa15f0fc8a656caf9a0a20cf7e711158c18bc59908ddff073ec5cd0123feb`.
+No user-facing ranking, model weights, corpus data or gold labels were changed.
+
 The cleaned eight-film / first-20 corpus export contains 465 eligible passages.
 Full-film exact dense retrieval is complete for Qwen 4B (native 2,560 dimensions)
 and Qwen 0.6B (1,024 dimensions). Neither trial restricts source sections.
