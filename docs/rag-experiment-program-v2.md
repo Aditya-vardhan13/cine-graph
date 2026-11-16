@@ -415,6 +415,19 @@ bound to baseline SHA-256
 `3ecaa15f0fc8a656caf9a0a20cf7e711158c18bc59908ddff073ec5cd0123feb`.
 No user-facing ranking, model weights, corpus data or gold labels were changed.
 
+The same reviewer then inspected ranks two and three for those six questions.
+Seven of the 12 film sides had a directly supportive passage somewhere in the
+top three, while five remained partial under the question's full wording. Only
+one of the six questions had direct support on both film sides under that
+strict first-pass rubric. In several cases an important event appeared below
+rank one, showing a ranking opportunity; in others the passages showed related
+events but did not establish the asserted causal or relationship detail. This
+is not a 50-question or independent quality estimate, and the partial cases
+need source-aware review rather than automatic negative labels. The local
+top-three notes are SHA-256
+`6a761933f48071f93223fe913b95926f5edf5747a0eae6094592a047fabc1345` at
+`data/evaluation/pair-relevance-50/top3-source-review-p05-p10-v1.json`.
+
 The cleaned eight-film / first-20 corpus export contains 465 eligible passages.
 Full-film exact dense retrieval is complete for Qwen 4B (native 2,560 dimensions)
 and Qwen 0.6B (1,024 dimensions). Neither trial restricts source sections.
