@@ -428,6 +428,20 @@ top-three notes are SHA-256
 `6a761933f48071f93223fe913b95926f5edf5747a0eae6094592a047fabc1345` at
 `data/evaluation/pair-relevance-50/top3-source-review-p05-p10-v1.json`.
 
+As a limited ranking diagnostic, the seven passages marked directly supportive
+above were matched by exact chunk ID against the retained lexical and hybrid
+routed baseline outputs. All seven appear in the hybrid top three; three appear
+in the lexical top three, two at rank one. For P05-Q1 and P06-Q1 the saved
+lexical response had no paired leads. The matching cases use the same question,
+film IDs and preprocessing run. This is selection-biased toward passages found
+by hybrid: other lexical passages were not reviewed, so it is **not** a fair
+model comparison, a precision score, or evidence that lexical alternatives
+are wrong. The output files were generated earlier and may reflect different
+historical routing behavior; no current source or rights eligibility is implied.
+The routed hybrid and lexical file SHA-256 values are respectively
+`c85519f0489f6738c76274321aa7897ac2f7a5c3af778aa425f793d2b9c85575` and
+`4f6732112e96a3ded952826d5e0502559874f844c9e2e396dc7bed8b17467d81`.
+
 The cleaned eight-film / first-20 corpus export contains 465 eligible passages.
 Full-film exact dense retrieval is complete for Qwen 4B (native 2,560 dimensions)
 and Qwen 0.6B (1,024 dimensions). Neither trial restricts source sections.
