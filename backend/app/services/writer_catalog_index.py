@@ -59,8 +59,15 @@ def verify_writer_sources(db: Session, collection_code: str) -> int:
     return len(entity_ids)
 
 
+def writer_passage_fingerprints(rows) -> dict[UUID, tuple]:
+    """Bind embeddings and citation context to exact current passage fields."""
+    return {p.id: (s.id, p.subject_entity_id, p.content_hash, p.section_locator, p.section_title,
+                   p.ordinal, p.extraction_version, json.dumps(p.citation_positions or [], sort_keys=True))
+            for p, s in rows}
+
+
 def verify_writer_inputs_unchanged(db: Session, collection_code: str,
-                                   expected_entities: set[UUID], expected_passages: set[UUID]) -> None:
+                                   expected_entities: set[UUID], expected_passages: dict[UUID, tuple]) -> None:
     """Reject stale work if the collection or current sources changed during embedding."""
     db.expire_all()
     entities = set(db.scalars(select(ReferenceCollectionMembership.entity_id).where(
@@ -69,7 +76,7 @@ def verify_writer_inputs_unchanged(db: Session, collection_code: str,
     )))
     if entities != expected_entities:
         raise ValueError("Writer collection membership changed during indexing; rerun the job.")
-    passages = {passage.id for passage, _ in current_passage_rows(db, entities)}
+    passages = writer_passage_fingerprints(current_passage_rows(db, entities))
     if passages != expected_passages:
         raise ValueError("Current writer passages changed during indexing; rerun the job.")
     verify_writer_sources(db, collection_code)
@@ -90,7 +97,8 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
         ReferenceCollectionMembership.collection_code == collection_code,
         ReferenceCollectionMembership.status == "included",
     )))
-    current_ids = {passage.id for passage, _ in current_passage_rows(db, included)}
+    current_passages = writer_passage_fingerprints(current_passage_rows(db, included))
+    current_ids = set(current_passages)
     current_per_snapshot = source_parser_version is None and extraction_version is None
     selected = [(passage, snapshot) for passage, snapshot in _current_passages_with_snapshots(
         db, collection_code=collection_code, language_code="en",
@@ -128,7 +136,7 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
     del vectors
     if local_model_digest(ollama_url, profile.model) != digest:
         raise ValueError("The Ollama model tag changed during indexing; no vectors were imported.")
-    verify_writer_inputs_unchanged(db, collection_code, included, current_ids)
+    verify_writer_inputs_unchanged(db, collection_code, included, current_passages)
     index = import_embedding_cache(db, cache_path=cache_path, collection_code=collection_code,
                                    chunker_version=CHUNKER_VERSION, model_name=profile.model,
                                    model_revision=f"{MANIFEST_REVISION_PREFIX}{digest}", dimension=profile.dimensions,
