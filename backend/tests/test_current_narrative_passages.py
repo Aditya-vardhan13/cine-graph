@@ -34,6 +34,10 @@ def test_known_source_parser_keeps_only_its_approved_extraction_version() -> Non
     assert select_current_extraction_versions(
         "enwiki-article-html-capture-v1", {"enwiki-article-html-extraction-v1"},
     ) == {"enwiki-article-html-extraction-v1"}
+    assert select_current_extraction_versions(
+        "enwiki-article-html-capture-v1",
+        {"enwiki-article-html-extraction-v7", "enwiki-article-html-extraction-v8-reference-filter"},
+    ) == {"enwiki-article-html-extraction-v8-reference-filter"}
 
 
 def test_unknown_source_parser_fails_closed_if_multiple_extractions_exist() -> None:

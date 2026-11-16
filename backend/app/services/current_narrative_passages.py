@@ -17,6 +17,7 @@ _PREFERRED_EXTRACTIONS_BY_SOURCE_PARSER = {
     "enwiki-revision-snapshot-v1": ("enwiki-section-passages-v1",),
     "enwiki-pinned-revision-recovery-v1": ("enwiki-section-passages-recovered-v1",),
     "enwiki-article-html-capture-v1": (
+        "enwiki-article-html-extraction-v8-reference-filter",
         "enwiki-article-html-extraction-v7",
         "enwiki-article-html-extraction-v6",
         "enwiki-article-html-extraction-v1",

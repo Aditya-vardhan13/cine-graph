@@ -15,9 +15,14 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 
 PARSER_VERSION = "enwiki-article-html-extraction-v6"
+COMBINED_REFERENCES_PARSER_VERSION = "enwiki-article-html-parser-v7-combined-references"
 SKIP_TOP_LEVEL = {
     "notes", "references", "external links", "see also", "bibliography",
     "works cited", "further reading", "external links", "sources",
+}
+COMBINED_REFERENCE_HEADINGS = {
+    "notes and references", "references and notes", "notes and sources", "sources and notes",
+    "citations and references", "references and citations", "notes and citations", "citations and notes",
 }
 SKIP_CLASSES = {
     "ambox", "coordinates", "editsection", "hatnote", "infobox",
@@ -127,7 +132,7 @@ def _slug(value: str) -> str:
 class _ArticleContentParser(HTMLParser):
     """Extract prose blocks from mw-parser-output, excluding chrome and tables."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, skip_combined_references: bool = False) -> None:
         super().__init__(convert_charrefs=True)
         self.content_depth = 0
         self.main_depth = 0
@@ -140,6 +145,7 @@ class _ArticleContentParser(HTMLParser):
         self.current_title = "Lead"
         self.current_locator = "lead"
         self.section_blocked = False
+        self.skip_combined_references = skip_combined_references
         self.paragraph_tag: str | None = None
         self.paragraph_parts: list[str] = []
         self.citation: list[str] | None = None
@@ -208,7 +214,9 @@ class _ArticleContentParser(HTMLParser):
                 self.current_title = " / ".join(path)
                 self.current_locator = "/".join(_slug(part) for part in path)
                 if level == 2:
-                    self.section_blocked = title.casefold() in SKIP_TOP_LEVEL
+                    heading = title.casefold()
+                    self.section_blocked = heading in SKIP_TOP_LEVEL or (
+                        self.skip_combined_references and heading in COMBINED_REFERENCE_HEADINGS)
             self.heading_level = None
             self.heading_parts = []
         if self.paragraph_tag == tag:
@@ -256,7 +264,7 @@ class _ArticleContentParser(HTMLParser):
 
 
 def parse_article_html(payload: bytes, *, canonical_url: str, expected_qid: str | None = None,
-                       chunk_limit: int = 1500) -> ArticleDocument:
+                       chunk_limit: int = 1500, parser_version: str = PARSER_VERSION) -> ArticleDocument:
     """Extract bounded prose from a retained article response, validating identity."""
     if not payload or len(payload) > MAX_HTML_BYTES:
         raise ArticlePageParseError("Article HTML is empty or exceeds the 15 MiB safety limit.")
@@ -270,7 +278,9 @@ def parse_article_html(payload: bytes, *, canonical_url: str, expected_qid: str 
         raise ArticlePageParseError(
             f"Article QID {metadata.wikidata_id} does not match expected film QID {expected_qid}."
         )
-    parser = _ArticleContentParser()
+    if parser_version not in {PARSER_VERSION, COMBINED_REFERENCES_PARSER_VERSION}:
+        raise ValueError("Unsupported Wikipedia article parser version")
+    parser = _ArticleContentParser(skip_combined_references=parser_version == COMBINED_REFERENCES_PARSER_VERSION)
     parser.feed(html)
     parser.close()
     # Record layout is section id, locator, title, markers, content and offsets.
@@ -314,4 +324,4 @@ def parse_article_html(payload: bytes, *, canonical_url: str, expected_qid: str 
             ))
     if not passages:
         raise ArticlePageParseError("Article page has no extractable prose passages.")
-    return ArticleDocument(metadata, tuple(passages))
+    return ArticleDocument(metadata, tuple(passages), parser_version=parser_version)

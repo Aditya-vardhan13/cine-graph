@@ -24,6 +24,8 @@ from app.models import (
     CanonicalEntity,
     DataSource,
     NarrativePassage,
+    NarrativeUseDecision,
+    ReferenceCollectionMembership,
     ResearchAnswer,
     ResearchAnswerEvidence,
     SourceAssertion,
@@ -34,13 +36,16 @@ from app.models import (
 )
 from app.services.snapshot_integrity import verify_snapshot_file
 from app.services.wikipedia_revision_recovery import ADAPTER_VERSION as RECOVERY_ADAPTER_VERSION
-from app.services.wikipedia_article_html import parse_article_html
+from app.services.wikipedia_article_html import (COMBINED_REFERENCES_PARSER_VERSION, PARSER_VERSION,
+                                                  parse_article_html)
+from app.core.config import get_settings
 
 
 # The passage derivative schema now stores exact marker coordinates. Keep its
 # identity separate from the pure parser version so a replay can materialize
 # those coordinates without pretending the source parser itself changed.
 ARTICLE_HTML_EXTRACTION_VERSION = "enwiki-article-html-extraction-v7"
+ARTICLE_HTML_REFERENCE_FILTER_VERSION = "enwiki-article-html-extraction-v8-reference-filter"
 
 
 EXTRACTION_VERSION = "enwiki-section-passages-v1"
@@ -197,7 +202,8 @@ def _entity_for_snapshot(db: Session, qid: str, payload: dict) -> CanonicalEntit
     return entity
 
 
-def extract_passages(db: Session, qid: str, *, recovered_snapshot_id: UUID | None = None) -> dict[str, object]:
+def extract_passages(db: Session, qid: str, *, recovered_snapshot_id: UUID | None = None,
+                     article_parser_version: str = PARSER_VERSION) -> dict[str, object]:
     """Persist all non-reference English Wikipedia sections for one film QID."""
     snapshot = _snapshot_for_qid(db, qid)
     if recovered_snapshot_id is not None:
@@ -219,14 +225,33 @@ def extract_passages(db: Session, qid: str, *, recovered_snapshot_id: UUID | Non
         snapshot = candidate
     if snapshot.license != "CC BY-SA 4.0" or not snapshot.attribution_url:
         raise ValueError("Narrative extraction requires an attributable CC BY-SA Wikipedia snapshot.")
+    if article_parser_version != PARSER_VERSION and snapshot.media_type not in {"text/html", "application/xhtml+xml"}:
+        raise ValueError("Article parser selection requires an HTML snapshot")
     if snapshot.media_type in {"text/html", "application/xhtml+xml"}:
+        if article_parser_version not in {PARSER_VERSION, COMBINED_REFERENCES_PARSER_VERSION}:
+            raise ValueError("Unsupported Wikipedia article parser version")
+        extraction_version = (ARTICLE_HTML_REFERENCE_FILTER_VERSION
+                              if article_parser_version == COMBINED_REFERENCES_PARSER_VERSION
+                              else ARTICLE_HTML_EXTRACTION_VERSION)
+        if article_parser_version == COMBINED_REFERENCES_PARSER_VERSION:
+            if db.scalar(select(NarrativeUseDecision.id).join(SourceSnapshot).where(
+                SourceSnapshot.source_object_id == snapshot.source_object_id,
+                NarrativeUseDecision.decision == "approved").limit(1)):
+                raise ValueError("Previously approved source requires explicit lifecycle review")
+            subject = db.scalar(select(CanonicalEntity).where(CanonicalEntity.wikidata_id == qid))
+            if not subject or db.scalar(select(ReferenceCollectionMembership.id).where(
+                ReferenceCollectionMembership.entity_id == subject.id,
+                ReferenceCollectionMembership.collection_code == get_settings().writer_catalog_collection_code,
+                ReferenceCollectionMembership.status == "included").limit(1)):
+                raise ValueError("Existing unpublished film identity is required for candidate extraction")
         document = parse_article_html(
             _snapshot_bytes(snapshot), canonical_url=snapshot.canonical_url, expected_qid=qid,
+            parser_version=article_parser_version,
         )
         entity = _entity_for_snapshot(db, qid, {"page": {"title": document.metadata.title}})
         existing_passages = list(db.scalars(select(NarrativePassage).where(
             NarrativePassage.source_snapshot_id == snapshot.id,
-            NarrativePassage.extraction_version == ARTICLE_HTML_EXTRACTION_VERSION,
+            NarrativePassage.extraction_version == extraction_version,
         )))
         existing = {
             (item.section_locator, item.ordinal, item.content_hash): item
@@ -262,21 +287,21 @@ def extract_passages(db: Session, qid: str, *, recovered_snapshot_id: UUID | Non
                 {"marker_id": marker, "paragraph_index": paragraph_index, "char_offset": char_offset}
                 for marker, paragraph_index, char_offset in item.citation_positions
             ],
-            extraction_version=ARTICLE_HTML_EXTRACTION_VERSION,
+            extraction_version=extraction_version,
         ) for key, item in expected.items() if key not in existing]
         db.add_all(to_store)
         db.commit()
         passages_by_locator: dict[str, list[NarrativePassage]] = {}
         for item in db.scalars(select(NarrativePassage).where(
             NarrativePassage.source_snapshot_id == snapshot.id,
-            NarrativePassage.extraction_version == ARTICLE_HTML_EXTRACTION_VERSION,
+            NarrativePassage.extraction_version == extraction_version,
         ).order_by(NarrativePassage.section_locator, NarrativePassage.ordinal)):
             passages_by_locator.setdefault(item.section_locator, []).append(item)
         return {
             "qid": qid, "entity_id": str(entity.id),
             "source_revision": snapshot.source_revision,
             "passages_created": len(to_store), "passages": passages_by_locator,
-            "extraction_version": ARTICLE_HTML_EXTRACTION_VERSION,
+            "extraction_version": extraction_version,
         }
     payload = _snapshot_payload(snapshot)
     wikitext, _, extraction_version = snapshot_wikitext(payload)

@@ -15,6 +15,8 @@ from app.db import Base
 from app.models import (CanonicalEntity, DataSource, Film, LanguageEdition, NarrativePassage,
                         NarrativeUseDecision, RawIngestionRun, SourceAssertion, SourceObject, SourceSnapshot)
 from app.services.current_narrative_passages import current_passage_rows
+from app.services.wikipedia_article_html import COMBINED_REFERENCES_PARSER_VERSION
+from app.services.wikipedia_research import ARTICLE_HTML_REFERENCE_FILTER_VERSION, extract_passages
 from scripts.replay_wikipedia_review_source import equivalent_recovered_prior, replay
 from scripts.audit_current_writer_sources import audit
 from tests.postgres_test_db import isolated_postgres_engine
@@ -159,6 +161,12 @@ def test_retained_hamilton_replay_preserves_old_snapshot_and_no_approval(tmp_pat
                           **replay_options)
         assert repeated["created"] is False and repeated["passages_created"] == 0
         assert db.scalar(select(func.count()).select_from(SourceSnapshot)) == 2
+        candidate = extract_passages(db, "Q84323848", article_parser_version=COMBINED_REFERENCES_PARSER_VERSION)
+        assert candidate["extraction_version"] == ARTICLE_HTML_REFERENCE_FILTER_VERSION
+        assert candidate["passages_created"] == report["passages_created"]
+        assert all(p.extraction_version == ARTICLE_HTML_REFERENCE_FILTER_VERSION
+                   for p, _ in current_passage_rows(db, {entity_id}))
+        assert extract_passages(db, "Q84323848", article_parser_version=COMBINED_REFERENCES_PARSER_VERSION)["passages_created"] == 0
         db.add(NarrativeUseDecision(source_snapshot_id=UUID(report["snapshot_id"]),
                                     use_case="semantic_index_and_model_input", decision="approved",
                                     decision_version=1, reviewer="test-only", decision_notes="Isolated fixture.",
@@ -167,5 +175,8 @@ def test_retained_hamilton_replay_preserves_old_snapshot_and_no_approval(tmp_pat
         with pytest.raises(ValueError, match="Previously approved source"):
             replay(db, manifest_path=manifest_path, expected_manifest_sha256=manifest_hash, storage_root=tmp_path,
                    **replay_options)
+        db.rollback()
+        with pytest.raises(ValueError, match="Previously approved source"):
+            extract_passages(db, "Q84323848", article_parser_version=COMBINED_REFERENCES_PARSER_VERSION)
         db.rollback()
     engine.dispose()

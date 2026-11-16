@@ -375,3 +375,23 @@ last flushed cache checkpoint for a later retry; it does not delete source
 snapshots or model weights. Tests cover the guard before cache creation and
 model calls; an actual mid-run disk exhaustion was not induced. On the latest
 local check, free space was below this reserve, so no new model run was started.
+
+### Combined reference-heading correction
+
+A read-only comparison of both article parser versions ran against 996
+hash-verified retained refresh captures. Only *Paprika* (Q578595, revision
+1384471946) changed: nine passages under `notes-and-references` were removed;
+the 23 other passages and their citation metadata were unchanged. No parse
+errors or changes outside the configured combined-reference headings were
+reported. The local audit report is SHA-256
+`b54577ce2a3d65dc93a5828f8b1ec320b78db573ac02e1db86e567893f4d6502`.
+This compares these captures only and does not establish parser completeness.
+
+After isolated PostgreSQL tests, the corrected extraction was added for that
+exact unapproved snapshot as `enwiki-article-html-extraction-v8-reference-filter`.
+The previous v7 extraction remains intact with 32 passages; v8 has 23, with
+zero reference-section passages. Current-extraction selection prefers v8 where
+present; an idempotent repeat added zero rows. The candidate path refuses
+previously approved sources or included writer films, requiring separate
+lifecycle review for those. No narrative-use approval, writer membership or
+embedding was added, and the existing running API image has not been rebuilt.
