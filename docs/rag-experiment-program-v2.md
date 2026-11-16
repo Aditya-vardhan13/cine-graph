@@ -668,6 +668,27 @@ validated answers. This subset derives from the release's official test data and
 is no longer an untouched test set. The frozen contract and results remain local
 under `data/evaluation/external-prepared/`.
 
+The existing blind sample selected two claim arms per film by case-ID hash,
+ten total. A first source-aware review of the six displayed lexical leads per
+claim, without opening the benchmark gold, found two with direct support in
+the displayed leads, seven with partial or ambiguous support, and one with no
+relevant landing evidence among those six. The direct support appeared at
+ranks two and six. For example, a passage may establish a death without
+establishing how a character learned of it; an unlabelled transcript can
+mention a person without proving who spoke. A broad "always" or "never"
+claim cannot be established from one excerpt. The local notes are
+`data/evaluation/external-prepared/mf2-lexical-dev-run1/source-review-codex-v1.json`;
+its SHA-256 is `492842cea05af2cf4482e5638b6a1e56f39418a56f659eb350d019a69facbd02`
+and its case IDs were checked against the frozen sample. No excerpt, annotation,
+or claim was added to the product corpus.
+
+This is one model reviewer's non-independent first pass on ten claim arms,
+not a retrieval-accuracy score, a full-source search, or a test of writer-pair
+comparison. Partial/not-found does not prove that support is absent elsewhere;
+some cases may require visual evidence. Independent review and source-bound
+labels are needed before using these observations to select a model or claim a
+percentage improvement.
+
 ### Whole-story embedding development control
 
 The project-local Qwen3 embedding 0.6B Q8_0 model (digest
