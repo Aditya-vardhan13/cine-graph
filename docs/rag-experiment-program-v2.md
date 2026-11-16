@@ -442,6 +442,21 @@ The routed hybrid and lexical file SHA-256 values are respectively
 `c85519f0489f6738c76274321aa7897ac2f7a5c3af778aa425f793d2b9c85575` and
 `4f6732112e96a3ded952826d5e0502559874f844c9e2e396dc7bed8b17467d81`.
 
+The same reviewer then inspected the actual lexical alternatives for those six
+questions, rather than counting only hybrid-selected chunk IDs. Of 12 film
+sides, three had direct support in the returned top three, four had partial
+support, one returned a passage without the requested event, and four sides
+were not returned because the saved API emitted no pair for two questions.
+One question had direct support on both sides. The corresponding earlier
+hybrid review found seven supported sides and one fully supported pair. These
+are deliberately small, non-blind, single-reviewer development observations;
+the saved methods may differ in historical routing, and missing response sides
+are not negative labels for the entire corpus. They do not establish a model
+winner, current production performance or the 80% release target. The local
+review record is
+`data/evaluation/pair-relevance-50/lexical-top3-source-review-p05-p10-v1.json`,
+SHA-256 `218b271b171d338e1fe429dc5a9ee55ca7952f0d25b681d8cc527e0894106f68`.
+
 The cleaned eight-film / first-20 corpus export contains 465 eligible passages.
 Full-film exact dense retrieval is complete for Qwen 4B (native 2,560 dimensions)
 and Qwen 0.6B (1,024 dimensions). Neither trial restricts source sections.
