@@ -9,6 +9,7 @@ database, so it cannot touch the working corpus or the API fixture in
 from __future__ import annotations
 
 import os
+import re
 from uuid import uuid4
 
 import pytest
@@ -17,6 +18,7 @@ from sqlalchemy.engine import Engine
 
 
 DEFAULT_TEST_DATABASE_URL = "postgresql+psycopg://postgres:postgres@127.0.0.1:5433/cinegraph_test"
+_TEST_SCHEMAS: list[tuple[Engine, Engine, str]] = []
 
 
 def isolated_postgres_engine() -> Engine:
@@ -31,6 +33,7 @@ def isolated_postgres_engine() -> Engine:
     with admin.begin() as connection:
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
     engine = create_engine(database_url).execution_options(schema_translate_map={None: schema})
+    _TEST_SCHEMAS.append((admin, engine, schema))
 
     @event.listens_for(engine, "connect")
     def set_test_schema(dbapi_connection, _connection_record) -> None:
@@ -43,3 +46,17 @@ def isolated_postgres_engine() -> Engine:
             cursor.close()
 
     return engine
+
+
+def cleanup_created_test_schemas() -> None:
+    """Drop only isolated schemas created by this test process, never preexisting data."""
+    while _TEST_SCHEMAS:
+        admin, engine, schema = _TEST_SCHEMAS[-1]
+        if not (admin.url.database or "").endswith("_test") or not re.fullmatch(r"persistence_[0-9a-f]{32}", schema):
+            raise RuntimeError("Refusing to drop an unverified test schema")
+        engine.dispose()
+        with admin.begin() as connection:
+            connection.execute(text("SET LOCAL statement_timeout = '10s'"))
+            connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        admin.dispose()
+        _TEST_SCHEMAS.pop()
