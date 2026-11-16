@@ -26,3 +26,29 @@ Next: design a provenance-preserving extraction for relevant tables, including
 headers, row relationships, citations and duplicate handling; compare the
 result against retained sources before any refresh. Avoid treating raw table
 rows or generated summaries as reviewed facts.
+
+## Review-only table extraction
+
+An offline, versioned adapter now retains `wikitable` captions, rows, cells,
+cell kind, explicit row/column spans, scope and cell citation marker IDs.
+Nested tables and visual content are flagged; spans are not automatically
+expanded into inferred relationships. Each local output records the source
+URL, QID, page and revision IDs, capture and checkpoint hashes, and remains
+marked for identity and rights review. It does not write to the database,
+create retrieval passages, or prove that all table content was captured.
+
+On the two pinned HTML captures, the adapter produced two tables for
+Baahubali 2 (9 distribution rows and 15 box-office rows) and one for KGF
+(29 awards rows). No nested-table or visual-content warning was emitted for
+these three. This is structural extraction, not validation of award winners,
+distributors, row-span interpretation or citation support. Those comparisons
+and a policy for citation-bearing table-derived evidence remain necessary;
+neither source refresh is promoted. The outputs are local and immutable:
+
+- Baahubali 2, v2 table review SHA-256 `2dc44b2c42fc2f9a0337c540be90978673f25bd4f5cdb1c5283972e26ccc4892`.
+- KGF Chapter 1, v2 table review SHA-256 `bd6e0a497ae606388984a29b79481ea1013e1b98113f37fa84676636e1ef9397`.
+
+The test suite checks retained-source identity and hashes, table structure,
+spans, citation markers, explicit review status and malformed spans. It is not
+an independent completeness audit. Relevant parser and isolated replay tests:
+24 passed on 16 November 2026.
