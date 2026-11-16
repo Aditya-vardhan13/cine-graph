@@ -323,6 +323,14 @@ def compare_story_evidence(
         )
         retrieved = retrieve_all(actual_method)
 
+    program_fallback = any(
+        result.fallback_kind == "program_lexical"
+        for _, _, first_result, second_result in retrieved
+        for result in (first_result, second_result)
+    )
+    if program_fallback:
+        notice = "A film has no eligible plot section; its program lead uses lexical matching and needs review."
+        fallback_reason = f"{fallback_reason} {notice}" if fallback_reason else notice
     all_evidence = [
         evidence
         for _, _, first_result, second_result in retrieved
@@ -355,7 +363,7 @@ def compare_story_evidence(
         second=second,
         requested_method=requested_method.value,
         retrieval_method=actual_method.value,
-        degraded=actual_method != requested_method,
+        degraded=actual_method != requested_method or program_fallback,
         fallback_reason=fallback_reason,
         summary=(
             f"{paired} paired research lead{'s' if paired != 1 else ''} found; relevance needs review."

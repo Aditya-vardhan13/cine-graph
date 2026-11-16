@@ -30,6 +30,9 @@ from app.services.research_passages import browse_research_passages
 from app.services.retrieval_scope import resolve_retrieval_scope
 from app.services.wikipedia_passages_v2 import materialise_passages
 from app.services.wikipedia_text_v2 import EXTRACTION_VERSION
+from app.services.wikipedia_article_html import parse_article_html
+from app.services.retrieval_scope import RetrievalScope
+from app.services.story_comparison import compare_story_evidence
 from tests.postgres_test_db import isolated_postgres_engine
 
 
@@ -88,6 +91,79 @@ def research_db():
         db.commit()
         yield db
     engine.dispose()
+
+
+def test_anthology_program_fallback_is_source_labeled_and_lexical(research_db):
+    db = research_db
+    digest = "2b0a9aff5852304a4cabf7be14b21e887b0ca8af76c26657c2e5941e26336fc4"
+    path = Path(f"data/evaluation/writer-source-audit/wikipedia-refresh-v1/snapshots/{digest}.html")
+    if not path.exists():
+        pytest.skip("retained local Fantasia article is unavailable")
+    payload = path.read_bytes()
+    assert hashlib.sha256(payload).hexdigest() == digest
+    url = "https://en.wikipedia.org/wiki/Fantasia_(1940_film)"
+    article = parse_article_html(payload, canonical_url=url, expected_qid="Q943192")
+    entity = CanonicalEntity(canonical_label="Fantasia", entity_kind="film", wikidata_id="Q943192")
+    source = db.scalar(select(DataSource).where(DataSource.name == "English Wikipedia"))
+    db.add(entity); db.flush()
+    db.add(ReferenceCollectionMembership(collection_code=COLLECTION, entity_id=entity.id,
+                                         source_reference=url, status="included"))
+    obj = SourceObject(source_id=source.id, external_id=f"enwiki:{article.metadata.page_id}", object_kind="wiki_page", canonical_url=url)
+    db.add(obj); db.flush()
+    snapshot = SourceSnapshot(source_object_id=obj.id, source_revision=str(article.metadata.revision_id),
+                              canonical_url=url, attribution_url=url, content_hash=digest, byte_size=len(payload),
+                              storage_uri=path.resolve().as_uri(), license="CC BY-SA 4.0", fetch_status="success",
+                              parser_version="retained-fixture-v1")
+    db.add(snapshot); db.flush()
+    db.add(NarrativeUseDecision(source_snapshot_id=snapshot.id, use_case="semantic_index_and_model_input",
+                                decision="approved", decision_version=1, reviewer="test-only",
+                                decision_notes="Isolated evaluation only, not a product approval.",
+                                decision_basis_url="https://creativecommons.org/licenses/by-sa/4.0/"))
+    for passage in article.passages:
+        if passage.section_locator == "program":
+            db.add(NarrativePassage(subject_entity_id=entity.id, source_snapshot_id=snapshot.id,
+                                    section_locator=passage.section_locator, section_title=passage.section_title,
+                                    ordinal=passage.ordinal, content=passage.content, content_hash=passage.content_hash,
+                                    citation_markers=[], extraction_version="retained-test-v1"))
+    db.commit()
+    report = build_evidence_chunks(db, collection_code=COLLECTION, config=ChunkConfiguration())
+    from uuid import UUID
+    scope = RetrievalScope(UUID(report["run_id"]), None, None)
+    def retrieve(question):
+        return retrieve_narrative_candidates(db, subject_entity_id=entity.id, question_id="story.writer_focus",
+                 question_text=question, method=NarrativeRetrievalMethod.LEXICAL, scope=scope)
+    result = retrieve("How does the sorcerer's apprentice use magic?")
+    assert result.evidence and result.evidence[0].section_locator == "program"
+    assert result.evidence[0].matched_by == ("lexical",) and "requires review" in result.reason
+    assert not retrieve("astrophysics quantum galaxies").evidence
+    assert not retrieve("Compare these two films and their stories").evidence
+    her = db.scalar(select(CanonicalEntity).where(CanonicalEntity.wikidata_id == "Q788822"))
+    comparison = compare_story_evidence(db, first_entity_id=her.id, second_entity_id=entity.id,
+        question="How do magic and love shape relationships?", collection_code=COLLECTION,
+        requested_method=NarrativeRetrievalMethod.LEXICAL)
+    assert comparison.degraded and "program lead uses lexical" in comparison.fallback_reason
+    assert comparison.lenses[0].second_evidence.section_locator == "program"
+    db.add(NarrativeUseDecision(source_snapshot_id=snapshot.id, use_case="semantic_index_and_model_input",
+                                decision="denied", decision_version=2, reviewer="test-only",
+                                decision_notes="Revoked in isolated test."))
+    db.commit()
+    assert not retrieve("sorcerer apprentice magic").evidence
+    db.add(NarrativeUseDecision(source_snapshot_id=snapshot.id, use_case="semantic_index_and_model_input",
+                                decision="approved", decision_version=3, reviewer="test-only",
+                                decision_notes="Restored in isolated test, not a product approval.",
+                                decision_basis_url="https://creativecommons.org/licenses/by-sa/4.0/"))
+    db.commit()
+    passage = db.scalar(select(NarrativePassage).where(NarrativePassage.subject_entity_id == entity.id))
+    plot_content = passage.content + " The plot section is separately designated in this isolated test."
+    other = NarrativePassage(subject_entity_id=entity.id, source_snapshot_id=snapshot.id,
+                             section_locator="plot", section_title="Plot", ordinal=99,
+                             content=plot_content, content_hash=hashlib.sha256(plot_content.encode()).hexdigest(),
+                             citation_markers=[], extraction_version="retained-test-v1")
+    db.add(other); db.commit()
+    updated = build_evidence_chunks(db, collection_code=COLLECTION, config=ChunkConfiguration())
+    scope = RetrievalScope(UUID(updated["run_id"]), None, None)
+    assert all(item.section_locator == "plot" for item in retrieve("sorcerer apprentice magic").evidence)
+    assert not retrieve("Chernabog").evidence
 
 
 def test_canonical_metadata_works_without_legacy_profile(research_db):

@@ -28,6 +28,8 @@ _LEXICAL_STOPWORDS = frozenset({
     "how", "in", "into", "is", "it", "its", "of", "on", "or", "that", "the", "their", "to",
     "was", "were", "what", "when", "which", "while", "who", "why", "with",
 })
+_PROGRAM_BOILERPLATE = frozenset({"film", "films", "movie", "movies", "story", "stories", "compare",
+                                   "comparison", "both", "each", "these", "those", "two", "different"})
 
 
 def lexical_tsquery(question_text: str) -> str:
@@ -70,6 +72,7 @@ class HybridRetrievalResult:
     database_ranking_milliseconds: float
     evidence: tuple[HybridRetrievedEvidence, ...]
     preprocessing_run_id: str = ""
+    fallback_kind: str | None = None
 
 
 def embed_narrative_queries(
@@ -126,6 +129,7 @@ def _lexical_rows(
     candidate_limit: int,
     preprocessing_run_id: UUID,
     restrict_sections: bool,
+    program_only: bool = False,
 ) -> list[tuple[EvidenceChunk, float]]:
     english = literal_column("'english'::regconfig")
     query = func.to_tsquery(english, lexical_tsquery(question_text))
@@ -138,7 +142,8 @@ def _lexical_rows(
         EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
         score > 0,
     )
-    section_conditions = _section_conditions(question_id=question_id, evidence_class=evidence_class) if restrict_sections else ()
+    section_conditions = ((func.lower(EvidenceChunk.section_locator) == "program",) if program_only else
+                          _section_conditions(question_id=question_id, evidence_class=evidence_class) if restrict_sections else ())
     if section_conditions:
         statement = statement.where(or_(*section_conditions))
     return [(chunk, float(row_score)) for chunk, row_score in db.execute(
@@ -268,6 +273,28 @@ def retrieve_narrative_candidates(
         restrict_sections=restrict_sections,
     ) if index_run is not None and query_vector is not None else []
 
+    # An anthology can describe its content under "program" instead of a plot.
+    # Only use a lexical match as a source lead when no approved conventional
+    # story section exists for this film; never relabel the section as plot.
+    used_program_fallback = False
+    if (restrict_sections and question_id.casefold().strip().startswith("story.")
+            and evidence_class == "narrative_extraction" and not lexical_rows and not semantic_rows
+            and method in {NarrativeRetrievalMethod.LEXICAL, NarrativeRetrievalMethod.HYBRID}):
+        conditions = _section_conditions(question_id=question_id, evidence_class=evidence_class)
+        has_story = db.scalar(select(EvidenceChunk.id).where(
+            EvidenceChunk.subject_entity_id == subject_entity_id,
+            EvidenceChunk.preprocessing_run_id == scope.preprocessing_run_id,
+            EvidenceChunk.quality_status == "eligible",
+            EvidenceChunk.id.in_(semantically_approved_chunk_ids()), or_(*conditions),
+        ).limit(1)) if conditions else None
+        terms = [term for term in lexical_tsquery(question_text).split(" | ")
+                 if term not in _PROGRAM_BOILERPLATE and term != "cinegraph"]
+        if not has_story and terms:
+            lexical_rows = _lexical_rows(db, subject_entity_id=subject_entity_id, question_id=question_id,
+                question_text=" ".join(terms), evidence_class=evidence_class, candidate_limit=candidate_limit,
+                preprocessing_run_id=scope.preprocessing_run_id, restrict_sections=True, program_only=True)
+            used_program_fallback = bool(lexical_rows)
+
     lexical_ids = [str(chunk.id) for chunk, _ in lexical_rows]
     semantic_ids = [str(chunk.id) for chunk, _ in semantic_rows]
     if method == NarrativeRetrievalMethod.LEXICAL:
@@ -308,10 +335,11 @@ def retrieve_narrative_candidates(
     return HybridRetrievalResult(
         lane=route.primary.value,
         method=method.value,
-        reason=route.reason,
+        reason=("lexical program-section lead; source context requires review" if used_program_fallback else route.reason),
         index_run_id=str(index_run.id) if index_run is not None else None,
         query_embedding_milliseconds=round(embedding_milliseconds, 3),
         database_ranking_milliseconds=round(ranking_milliseconds, 3),
         evidence=evidence,
         preprocessing_run_id=str(scope.preprocessing_run_id),
+        fallback_kind="program_lexical" if used_program_fallback else None,
     )

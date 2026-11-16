@@ -276,8 +276,14 @@ The current *Fantasia* `program` section has three retained passages (3,153
 characters) describing the film's animated and musical segments, including
 the Sorcerer's Apprentice. It is useful narrative context, not missing text.
 However, `program` alone is not a safe global synonym for plot: another film's
-program could describe a screening rather than its story. It remains outside
-the story-only route until section-role binding can be reviewed and evaluated.
+program could describe a screening rather than its story. The story route now
+offers an explicitly labeled, lexical-only `program` lead when no eligible
+conventional story section exists and a non-boilerplate query term matches.
+The comparison reports this as a degraded fallback, not an established plot
+or answer. An isolated PostgreSQL test replayed the retained Fantasia source,
+checked an unrelated and a generic prompt, source revocation and suppression
+when a conventional plot exists. This is one source example, not a general
+relevance evaluation, and it does not approve the working-corpus snapshot.
 An additional read-only check found zero content-hash mismatches across the
 24,455 current passages. The writer indexing gate now verifies both retained
 source bytes and each approved current passage's own content hash before
