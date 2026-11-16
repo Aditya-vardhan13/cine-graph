@@ -5,7 +5,6 @@ import argparse
 from dataclasses import replace
 import hashlib
 import json
-import shutil
 from pathlib import Path
 from uuid import UUID
 
@@ -17,6 +16,7 @@ from app.core.config import get_settings
 from app.db import SessionLocal
 from app.models import ReferenceCollectionMembership
 from app.services.current_narrative_passages import current_passage_rows
+from app.services.disk_headroom import require_free_space
 from app.services.embedding_evaluation import _cached_ollama_document_embeddings, _document_cache_key
 from app.services.embedding_index import _candidate_run, _ordered_chunks_and_contents, import_embedding_cache, index_status
 from app.services.evidence_preprocessing import CHUNKER_VERSION, ChunkConfiguration, _current_passages_with_snapshots, build_evidence_chunks
@@ -111,8 +111,8 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
     digest = local_model_digest(ollama_url, profile.model)
     cache_dir = cache_dir / digest
     cache_dir.mkdir(parents=True, exist_ok=True)
-    if shutil.disk_usage(cache_dir).free < 2 * 1024**3:
-        raise RuntimeError("At least 2 GiB free space is required for local indexing.")
+    minimum_free_bytes = 6 * 1024**3
+    require_free_space(cache_dir, minimum_free_bytes)
     report = build_evidence_chunks(db, collection_code=collection_code, config=replace(
         chunk_config or ChunkConfiguration(),
         source_parser_version=source_parser_version, extraction_version=extraction_version,
@@ -127,7 +127,7 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
     cache_path = cache_dir / f"{profile.model.replace('/', '--').replace(':', '--')}-{key}.npy"
     vectors, reused = _cached_ollama_document_embeddings(
         OllamaEmbeddingClient(base_url=ollama_url), contents, profile=profile,
-        run=run, batch_size=batch_size, cache_dir=cache_dir,
+        run=run, batch_size=batch_size, cache_dir=cache_dir, minimum_free_bytes=minimum_free_bytes,
     )
     for offset in range(0, len(vectors), 256):
         batch = vectors[offset:offset + 256]

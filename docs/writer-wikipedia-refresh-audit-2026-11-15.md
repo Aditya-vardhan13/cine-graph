@@ -368,3 +368,10 @@ supports the question. The first attempted check compared unnormalized text and
 failed on a Unicode normalization difference; it was corrected to use the
 chunker's NFC/whitespace policy before this completed run. The live API and
 index remain unchanged.
+
+The writer index now requires 6 GiB free before starting and checks that
+reserve again between document-embedding batches. A low-space stop leaves the
+last flushed cache checkpoint for a later retry; it does not delete source
+snapshots or model weights. Tests cover the guard before cache creation and
+model calls; an actual mid-run disk exhaustion was not induced. On the latest
+local check, free space was below this reserve, so no new model run was started.

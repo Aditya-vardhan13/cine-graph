@@ -35,6 +35,7 @@ from app.services.embedding_artifacts import DOCUMENT_REPRESENTATION, document_c
 from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_routing import narrative_section_candidates
 from app.services.semantic_evidence_scope import semantically_approved_chunk_ids
+from app.services.disk_headroom import require_free_space
 
 
 MODEL_CANDIDATES = (
@@ -374,10 +375,12 @@ def _cached_ollama_document_embeddings(
     run: EvidenceChunkRun,
     batch_size: int,
     cache_dir: Path | None,
+    minimum_free_bytes: int = 0,
 ) -> tuple[np.ndarray, bool]:
     if cache_dir is None:
         return _batch_ollama_embeddings(client, contents, profile=profile, batch_size=batch_size, label="evidence chunks"), False
     cache_dir.mkdir(parents=True, exist_ok=True)
+    require_free_space(cache_dir, minimum_free_bytes)
     key = _document_cache_key(profile=profile, run=run, contents=contents)
     vector_path = cache_dir / f"{profile.model.replace('/', '--').replace(':', '--')}-{key}.npy"
     partial_path = vector_path.with_suffix(".partial.npy")
@@ -412,6 +415,7 @@ def _cached_ollama_document_embeddings(
         matrix = np.lib.format.open_memmap(partial_path, mode="w+", dtype=np.float32, shape=expected_shape)
 
     for offset in range(next_offset, len(contents), batch_size):
+        require_free_space(cache_dir, minimum_free_bytes)
         batch = contents[offset: offset + batch_size]
         vectors = np.asarray(client.embed(batch, profile=profile), dtype=np.float32)
         expected_batch_shape = (len(batch), profile.dimensions)
