@@ -541,6 +541,11 @@ function ComparisonResult({ result, saveNote }: { result: StoryComparison; saveN
         <BriefReading title={result.second.title} reading={brief.second} />
       </div><div className="story-brief-contrast"><BriefReading title="The difference" reading={brief.contrast} /><p><b>A move to try:</b> {brief.writing_move}</p></div><small className="story-brief-caution">{brief.caution}</small></>}
     </section>}
+    {!result.model_draft_available && <section className="story-brief story-brief-unavailable" aria-label="Drafting availability">
+      <div className="story-brief-head"><div><p className="eyebrow">Evidence-first workspace</p><h3>Local AI drafting is not enabled</h3></div><small>Evidence comparison is available</small></div>
+      <p className="story-brief-status">This local build is showing sourced passages only; it has not generated an interpretation. Pin evidence from both films, then make and save your own writing move in the canvas.</p>
+      <button className="story-brief-trigger" onClick={() => setPanel("canvas")}>Open writer canvas →</button>
+    </section>}
     <div className="comparison-column-headings"><span>{result.first.title}</span><i>Question evidence</i><span>{result.second.title}</span></div>
     {focus && <div className="comparison-lenses"><article className="comparison-lens focus-lens">
       <EvidenceChoices evidence={focus.first_evidence} options={focus.first_options} filmTitle={result.first.title} pinned={pinned} onPin={(evidence) => toggleEvidence(result.first.entity_id, evidence)} />

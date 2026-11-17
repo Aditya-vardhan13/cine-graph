@@ -89,3 +89,51 @@ sample, not an 80% result and not the two-reviewer product gate above. The
 current MVP gate remains open: source-specific rights review and publication,
 a reproducible writer-catalog index, a selected local generator, and held-out
 human-rated writer tasks are still required before MCP exposure.
+
+### Local pilot follow-up (2026-11-18)
+
+This supersedes the zero-rights-decision and pre-retrieval-abstention statements
+above; those describe the earlier checkpoint, not the current local state.
+Four exact English Wikipedia snapshots now have snapshot-scoped
+`semantic_index_and_model_input` decisions: the indexed revisions of *The
+Godfather* (1367608322) and *Avengers: Endgame* (1369169587), plus their newer
+captured revisions. Only the two older, already indexed snapshots have
+embeddings in the active research index. Decisions are local-pilot permissions
+recorded after per-snapshot identity, revision, attribution and licence review;
+they are not legal advice or commercial clearance. The newer snapshots have
+not been chunked or indexed.
+
+After approval of the indexed snapshots, the real API comparison for
+*Avengers: Endgame* × *The Godfather* and “How do these follow conflicts
+between family or close people when fighting injustice?” returned one paired
+candidate lead rather than abstaining. The selected *Endgame* plot passage
+covers Nebula/Gamora and the final battle; the selected *Godfather* plot
+passage covers Connie's abuse, Sonny's revenge and Vito's response, then
+Michael/Fredo. These excerpts are plausibly on-question and materially better
+than the prior unrelated chunks, but this is one inspected development query,
+not a blinded human label, pair-relevance score, or retrieval-quality estimate.
+The UI still correctly calls it a lead needing review.
+
+The selected generator gap remains open. The local 2.1 GB Qwen3-4B-Instruct
+MLX checkpoint and its Python environment are present, but a direct runtime
+check in this session fails because no Metal device is available. The actual
+Mac Terminal is not exposed to this agent session, so host-side MLX inference
+could not be checked. The local API reports `model_draft_available=false`;
+no generator was started and no generated answer was verified. Prior saved 4B
+generation trials contain character-attribution and citation-support errors;
+they are not evidence that this feature is ready. The local health endpoint is
+ready and reports 2,587 films; the active research collection reports 1,000
+films, 74,053 narrative passages and 24,194 indexed chunks. The active
+collection is still `english-1000-retained-narrative-v1`;
+`writer-catalog-v1` has not been created/indexed. Free disk observed in this
+session is about 4.9 GiB, below the documented 6 GiB indexing reserve. Do not
+index the newer two snapshots or replace the active collection until a safe,
+separate, reproducible writer-collection build is available.
+
+Consequently this follow-up closes only the immediate two-film retrieval
+diagnostic. It does not close the MVP gate: rights must be reviewed for each
+source asset, the writer collection and end-to-end intake/index flow need
+verification, generation must be run and evaluated rather than merely
+configured, and the held-out two-reviewer writer-task gate remains unmeasured.
+Do not expose the service as an MCP or describe the local pilot as production
+ready on this evidence.
