@@ -211,6 +211,17 @@ def _both_films_have_question_anchor(
     return first.entity_id in matched_subjects and second.entity_id in matched_subjects
 
 
+def _films_with_eligible_evidence(db: Session, *, film_ids: tuple[UUID, UUID],
+                                  preprocessing_run_id: UUID) -> set[UUID]:
+    """Distinguish missing reviewed corpus coverage from a question mismatch."""
+    return set(db.scalars(select(EvidenceChunk.subject_entity_id).where(
+        EvidenceChunk.preprocessing_run_id == preprocessing_run_id,
+        EvidenceChunk.subject_entity_id.in_(film_ids),
+        EvidenceChunk.quality_status == "eligible",
+        EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
+    ).distinct()).all())
+
+
 def compare_story_evidence(
     db: Session,
     *,
@@ -247,6 +258,22 @@ def compare_story_evidence(
             caution="No film relationship or factual conclusion was inferred from unrelated passages.",
             answerability_status="insufficient_evidence",
             answerability_reason=requirement.explanation,
+            lenses=(), preprocessing_run_id=str(scope.preprocessing_run_id), index_run_id=None,
+        )
+    available = _films_with_eligible_evidence(
+        db, film_ids=(first.entity_id, second.entity_id), preprocessing_run_id=scope.preprocessing_run_id,
+    )
+    missing = [film.title for film in (first, second) if film.entity_id not in available]
+    if missing:
+        return StoryComparisonResult(
+            question=question.strip(), first=first, second=second,
+            requested_method=requested_method.value,
+            retrieval_method="not_run", degraded=False, fallback_reason=None,
+            summary="Reviewed source evidence is not available for both films yet.",
+            caution="This is a catalog coverage gap, not a judgment about the films or your question.",
+            answerability_status="insufficient_evidence",
+            answerability_reason=(f"No eligible reviewed evidence is available in the active collection for: "
+                                  f"{', '.join(missing)}. A source may exist but still need review or indexing."),
             lenses=(), preprocessing_run_id=str(scope.preprocessing_run_id), index_run_id=None,
         )
     if not _both_films_have_question_anchor(
