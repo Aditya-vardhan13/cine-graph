@@ -1,5 +1,8 @@
 from app.services.hybrid_evidence_retrieval import HybridRetrievedEvidence
-from app.services.story_comparison import COMPARISON_LENSES, _evidence_options, _first_unique, focus_evidence_question_id
+from app.services.story_comparison import (
+    COMPARISON_LENSES, _evidence_options, _first_unique,
+    focus_evidence_question_id, writer_comparison_prompt,
+)
 from app.services.comparison_answerability import substantive_question_terms, unmet_source_requirement
 from app.services.research_catalog import display_film_title
 
@@ -25,6 +28,14 @@ def test_comparison_focuses_on_the_writer_question_only() -> None:
     assert identifiers == ["central_question"]
     assert all("artificial companion" in lens.query("artificial companion") for lens in COMPARISON_LENSES)
     assert all(lens.writer_prompt for lens in COMPARISON_LENSES)
+
+
+def test_writer_comparison_prompt_follows_the_actual_question_without_assuming_a_plot_shape() -> None:
+    prompt = writer_comparison_prompt("  How do critics disagree about the ending?  ")
+    assert "How do critics disagree about the ending?" in prompt
+    assert "protagonist" not in prompt
+    assert "cited passages" in prompt
+    assert "does not answer" in prompt
 
 
 def test_writer_focus_routes_by_requested_evidence_kind_without_film_topic_rules() -> None:

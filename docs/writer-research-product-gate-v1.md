@@ -56,3 +56,36 @@ This is intentionally not a promise that 70% is a production target; it is a dec
 Kreminski and Martens identify unmet writing-support needs beyond getting unstuck: consistency, overall arc, reader experience, and expressive intent. Their paper includes film narrative in its scope, but it is not a user study of CineGraph; the workflow above is our design inference ([ACL 2022](https://aclanthology.org/2022.in2writing-1.11/)). MovieQA demonstrates that plot/story questions include why/how reasoning and that multiple text sources can matter; its benchmark does not validate our film-study UI ([MovieQA](https://arxiv.org/abs/1512.02902)). Recent research also finds creativity metrics disagree across domains, strengthening the case for human writer-task review rather than a single automated novelty score ([EACL 2026](https://aclanthology.org/2026.eacl-long.297/)).
 
 Remaining assumptions: that cited film comparison changes writers' decisions; that two-film contrast is usually more useful than one deep film or a larger set; and that Wikipedia plus selectively licensed criticism supplies enough evidence for the chosen tasks. The 20-task study must test these rather than treating them as established truths.
+
+## Local pilot checkpoint (2026-11-18)
+
+The local Compose stack was rebuilt and migrated from `20261106_20` to
+`20261107_23`; the API and web containers are healthy, and TMDb title search
+returns attributed candidate results. This verifies the admin search surface,
+not a complete movie-ingestion run. No new film was enqueued.
+
+The working database contains 103,876 evidence chunks and 48,388 vectors, but
+has **zero** `semantic_index_and_model_input` rights decisions. The serving
+research collection has 1,000 memberships; the separate `writer-catalog-v1`
+publication collection is not yet created. These aggregate vector counts do
+not mean the user-facing corpus is eligible or ready. The live
+Endgame × The Godfather query for family conflict while fighting injustice
+returns `insufficient_evidence` before retrieval because neither film has an
+approved snapshot. No retrieval score can be claimed for that current request.
+
+The local story-generation setting is unset, and the configured secondary
+generation port is unreachable from the API container. The local Ollama
+inventory includes embedding models and a 15.7B coder model, but no selected,
+evaluated small story-writing model. Thus the writer-facing generated brief is
+not currently available.
+Question-specific comparison guidance now echoes the writer's actual question
+and avoids presuming a protagonist/risk structure; this is a presentation
+correction, not a retrieval-quality gain.
+
+The latest retained P05–P10 top-three source-support review found 7 of 12
+film-side leads fully supported and 5 partially supported (one reviewer, six
+development questions). That's 58% direct support in this small non-held-out
+sample, not an 80% result and not the two-reviewer product gate above. The
+current MVP gate remains open: source-specific rights review and publication,
+a reproducible writer-catalog index, a selected local generator, and held-out
+human-rated writer tasks are still required before MCP exposure.

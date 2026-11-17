@@ -352,7 +352,7 @@ export function StoryComparisonWorkbench({ mode }: { mode: "study" | "evidence" 
       {discovery.leads.some((lead) => lead.film.entity_id !== first?.entity_id && lead.film.entity_id !== second?.entity_id) ? <div className="discovery-grid">{discovery.leads.filter((lead) => lead.film.entity_id !== first?.entity_id && lead.film.entity_id !== second?.entity_id).map((lead) => <article key={lead.film.entity_id}>
         <h3>{lead.film.title}</h3><small>{lead.film.release_year ?? year(lead.film.release_date)} · {lead.section_title}</small>
         <p>{lead.excerpt.slice(0, 340)}{lead.excerpt.length > 340 ? "…" : ""}</p>
-        <a href={lead.source_url} target="_blank" rel="noopener noreferrer">Inspect source · {lead.source_license} · revision {lead.source_revision || "unavailable"} ↗</a>
+        <SourceAttribution url={lead.source_url} license={lead.source_license} revision={lead.source_revision} />
         <button onClick={() => chooseFilm(lead.film)}>Add to comparison</button>
       </article>)}</div> : <p>{discovery.method === "not_run" ? "No film leads were suggested without the required evidence." : "No attributable film leads were found for this question. Try a more specific dramatic situation."}</p>}
     </section>}
@@ -400,7 +400,7 @@ export function FilmDossier({ film }: { film: ResearchFilm }) {
     {loading && <p className="dossier-status">Loading source passages…</p>}
     {error && <p className="dossier-status" role="alert">{error}</p>}
     {page && <><p className="dossier-status">{page.total} source passage{page.total === 1 ? "" : "s"} in this section · showing {page.total ? offset + 1 : 0}–{Math.min(offset + page.limit, page.total)} · corpus version {page.preprocessing_run_id.slice(0, 8)}</p>
-      {page.passages.length ? <div className="dossier-passages">{page.passages.map((passage) => <article key={passage.chunk_id}><small>{passage.section_title}</small><p>{passage.excerpt}</p><a href={passage.source_url} target="_blank" rel="noopener noreferrer">Inspect source · {passage.source_license} · revision {passage.source_revision || "unavailable"} ↗</a></article>)}</div> : <p className="dossier-status">No eligible source passages are available in this section.</p>}
+      {page.passages.length ? <div className="dossier-passages">{page.passages.map((passage) => <article key={passage.chunk_id}><small>{passage.section_title}</small><p>{passage.excerpt}</p><SourceAttribution url={passage.source_url} license={passage.source_license} revision={passage.source_revision} /></article>)}</div> : <p className="dossier-status">No eligible source passages are available in this section.</p>}
       {page.total > page.limit && <div className="dossier-pagination"><button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - page.limit))}>← Previous</button><button disabled={offset + page.limit >= page.total} onClick={() => setOffset(offset + page.limit)}>Next passages →</button></div>}
     </>}
   </section>;
@@ -427,7 +427,7 @@ function StudyLibrary({ notes, error, importMessage, onImport, onDownload, onReo
       {note.contrast && <p><b>Difference:</b> {note.contrast}</p>}
       <p><b>My move:</b> {note.decision}</p>
       <small>{(note.evidence || []).length} pinned passage{(note.evidence || []).length === 1 ? "" : "s"}</small>
-      {note.evidence && <details><summary>Inspect pinned sources</summary>{note.evidence.map((item) => <div key={item.chunk_id}><a href={item.source_url} target="_blank" rel="noopener noreferrer">{item.section_title} · {item.source_revision || "source revision unavailable"} ↗</a>{item.passage_preview && <p>{item.passage_preview}</p>}</div>)}</details>}
+      {note.evidence && <details><summary>Inspect pinned sources</summary>{note.evidence.map((item) => <div key={item.chunk_id}><SourceAttribution url={item.source_url} license={item.source_license || "License unavailable"} revision={item.source_revision} /> <small>· {item.section_title}</small>{item.passage_preview && <p>Passage preview (may be truncated): {item.passage_preview}</p>}</div>)}</details>}
     </article>)}</div> : <p className="study-library-empty">No studies saved yet. Compare two films, pin a source passage from each, and write a creative decision.</p>}
   </section>;
 }
@@ -560,7 +560,17 @@ function ComparisonResult({ result, saveNote }: { result: StoryComparison; saveN
 }
 
 function BriefReading({ title, reading }: { title: string; reading: StoryBriefReading }) {
-  return <article><h4>{title}</h4><p>{reading.text}</p><div className="story-brief-sources">{reading.sources.map((source) => <details key={source.chunk_id}><summary>Source {source.ref} · {source.section_title}</summary><p>{source.excerpt}</p><a href={source.source_url} target="_blank" rel="noopener noreferrer">Open original · {source.source_license} · revision {source.source_revision || "unavailable"} ↗</a></details>)}</div></article>;
+  return <article><h4>{title}</h4><p>{reading.text}</p><div className="story-brief-sources">{reading.sources.map((source) => <details key={source.chunk_id}><summary>Source {source.ref} · {source.section_title}</summary><p>{source.excerpt}</p><SourceAttribution url={source.source_url} license={source.source_license} revision={source.source_revision} /></details>)}</div></article>;
+}
+
+function SourceAttribution({ url, license, revision }: { url: string; license: string; revision: string | null }) {
+  return <span className="source-attribution">
+    <a href={url} target="_blank" rel="noopener noreferrer">Original source · revision {revision || "unavailable"} ↗</a>
+    {" · "}{license === "CC BY-SA 4.0"
+      ? <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0 ↗</a>
+      : <span>{license}</span>}
+    {" · excerpt, formatting may differ"}
+  </span>;
 }
 
 function EvidenceChoices({ evidence, options, filmTitle, pinned, onPin }: {
@@ -650,5 +660,5 @@ function WriterDecisionPad({ result, pinned, saveNote }: { result: StoryComparis
 
 function EvidenceCard({ evidence, filmTitle, pinned, onPin }: { evidence: StoryComparisonEvidence | null; filmTitle: string; pinned: boolean; onPin: () => void }) {
   if (!evidence) return <div className="evidence-card empty-evidence"><span>No additional passage</span><p>No distinct passage was available for {filmTitle} under this lens. Related evidence may already appear above.</p></div>;
-  return <div className="evidence-card"><div><span>{evidence.section_title}</span><small>Source passage</small></div><p>{evidence.excerpt}</p><div className="evidence-actions"><a href={evidence.source_url} target="_blank" rel="noopener noreferrer">Source · {evidence.source_license} · revision {evidence.source_revision || "unavailable"} ↗</a><button aria-pressed={pinned} onClick={onPin}>{pinned ? "Pinned to study ✓" : "Pin as evidence +"}</button></div></div>;
+  return <div className="evidence-card"><div><span>{evidence.section_title}</span><small>Source passage</small></div><p>{evidence.excerpt}</p><div className="evidence-actions"><SourceAttribution url={evidence.source_url} license={evidence.source_license} revision={evidence.source_revision} /><button aria-pressed={pinned} onClick={onPin}>{pinned ? "Pinned to study ✓" : "Pin as evidence +"}</button></div></div>;
 }

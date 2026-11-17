@@ -77,8 +77,10 @@ export function renderWriterDecisionsMarkdown(notes: WriterDecision[]): string {
     if (note.evidence?.length) {
       for (const item of note.evidence) {
         const film = note.films.find((candidate) => candidate.entity_id === item.film_entity_id);
-        lines.push(`- ${film?.title || "Film"}, ${item.section_title}: <${item.source_url}> (revision: ${item.source_revision || "unavailable"}; passage: ${item.chunk_id}; licence: ${item.source_license || "unavailable"})`);
-        if (item.passage_preview) lines.push(`  - Passage preview: ${item.passage_preview.replace(/\s+/g, " ").slice(0, 240)}`);
+        const license = item.source_license || "unavailable";
+        const licenseLink = license === "CC BY-SA 4.0" ? "; licence details: https://creativecommons.org/licenses/by-sa/4.0/" : "";
+        lines.push(`- ${film?.title || "Film"}, ${item.section_title}: <${item.source_url}> (revision: ${item.source_revision || "unavailable"}; passage: ${item.chunk_id}; licence: ${license}${licenseLink})`);
+        if (item.passage_preview) lines.push(`  - Passage preview (may be truncated; inspect the original source): ${item.passage_preview.replace(/\s+/g, " ").slice(0, 240)}`);
       }
     } else {
       for (const source of note.sources) lines.push(`- <${source}>`);

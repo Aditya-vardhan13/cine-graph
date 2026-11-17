@@ -82,6 +82,16 @@ def focus_evidence_question_id(question: str) -> str:
     return "story.writer_focus"
 
 
+def writer_comparison_prompt(question: str) -> str:
+    """Keep the on-screen writing task tied to the user's actual question."""
+    focused_question = " ".join(question.split())
+    return (
+        f"For each film, identify the specific choices and consequences that answer: “{focused_question}” "
+        "Compare only what the cited passages support. Separate a source fact from your interpretation, "
+        "and say when the available evidence does not answer part of the question."
+    )
+
+
 @dataclass(frozen=True)
 class ComparisonEvidence:
     chunk_id: str
@@ -375,7 +385,7 @@ def compare_story_evidence(
             identifier=lens.identifier,
             label=lens.label,
             research_question=research_question,
-            writer_prompt=lens.writer_prompt,
+            writer_prompt=writer_comparison_prompt(question),
             first_evidence=_evidence_dto(first_primary, source_details),
             second_evidence=_evidence_dto(second_primary, source_details),
             first_options=_evidence_options(first_primary, first_result.evidence, source_details),

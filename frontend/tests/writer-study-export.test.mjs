@@ -21,7 +21,8 @@ test("exports writer interpretation with provenance, without claiming film fact"
   assert.match(markdown, /https:\/\/example\.org\/first/);
   assert.match(markdown, /revision: 123; passage: chunk-1/);
   assert.match(markdown, /licence: CC BY-SA 4\.0/);
-  assert.match(markdown, /Passage preview: The choice has a public cost/);
+  assert.match(markdown, /licence details: https:\/\/creativecommons\.org\/licenses\/by-sa\/4\.0\//);
+  assert.match(markdown, /Passage preview \(may be truncated; inspect the original source\): The choice has a public cost/);
 });
 
 test("archive import validates notes before accepting any of them", () => {
