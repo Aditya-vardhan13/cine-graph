@@ -42,18 +42,22 @@ def bind_review(corpus, annotations):
         "source_corpus_fingerprint":corpus["fingerprint"],
         "reviewer":"codex-single-source-aware-reviewer",
         "independently_adjudicated":False,"release_gold":False,
+        "reviewed_cases":len(output), "total_cases":len(cases),
+        "pending_case_ids":sorted(set(cases)-seen),
         "caution":"Exact spans prove source binding, not annotation correctness or independent film truth.",
         "cases":output}
 
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    for key in ("corpus","annotations","output"):
+    for key in ("corpus","output"):
         p.add_argument("--"+key,type=Path,required=True)
+    p.add_argument("--annotations",type=Path,action="append",required=True)
     args=p.parse_args()
     if args.output.exists():
         raise FileExistsError(args.output)
-    result=bind_review(json.loads(args.corpus.read_text()),json.loads(args.annotations.read_text()))
+    annotations=[row for path in args.annotations for row in json.loads(path.read_text())]
+    result=bind_review(json.loads(args.corpus.read_text()),annotations)
     with args.output.open("x") as h:
         json.dump(result,h,ensure_ascii=False,indent=2)
         h.write("\n")

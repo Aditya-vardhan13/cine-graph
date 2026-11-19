@@ -23,6 +23,7 @@ def test_review_binds_exact_spans_and_refuses_wrong_film():
         {"passage_id":qid,"quote":qid+" makes"} for qid in ("Q1","Q2")]}]
     result=module.bind_review(corpus,notes)
     assert result["release_gold"] is False
+    assert result["reviewed_cases"] == 1 and result["pending_case_ids"] == []
     assert all(e["start"]==0 for e in result["cases"][0]["evidence"])
     notes[0]["evidence"][0]["quote"]="not in source"
     with pytest.raises(ValueError,match="quote"):

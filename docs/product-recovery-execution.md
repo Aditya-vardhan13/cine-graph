@@ -315,3 +315,22 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   twenty held-out questions remain unlabelled and unscored.
 - These judgments are provisional, not a claim that all other passages in
   the corpus lack support or that a percent of the product is accurate.
+
+### Source review extended to Jaws/Jurassic Park and 12 Angry Men/Shawshank
+
+- Read all retained plot passages for these four films, independently of
+  retrieved ranks for the new questions. Added six explicit source reviews:
+  R03.choice complete, R03.consequence partial, R03.premise_check negative;
+  R04.choice complete, R04.consequence partial, R04.premise_check negative.
+- Important distinctions: investor certification/bribery vs the mayor's refusal
+  to close beaches; sabotage vs a simple ignored-warning causal chain; doubt/
+  acquittal vs proof of innocence; reported confession vs formal exoneration;
+  interpersonal confrontation vs suppression of a witness by the warden.
+- Each review records exact source spans and limitations. No claim is made
+  that source summaries independently establish all film facts or legal rules.
+- Binder now accepts multiple non-overlapping review batches and explicitly
+  reports reviewed/total and pending case IDs. Combined local output:
+  data/evaluation/recovery-oracle-review-combined-v1.json.
+- Ten of thirty development cases now reviewed, twenty still pending. All
+  twenty question-holdout cases remain unlabelled/unscored; no aggregate
+  product accuracy or independently adjudicated gold is claimed.
