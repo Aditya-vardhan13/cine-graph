@@ -1,7 +1,21 @@
 import numpy as np
 import pytest
 
-from app.services.rag_dense_trial import pack_parent_context, rank_windows, source_windows
+from app.services.rag_dense_trial import aligned_windows, pack_parent_context, rank_windows, source_windows
+
+
+def test_aligned_windows_preserve_entire_source_and_do_not_split_long_sentence():
+    text = "First sentence ends here. Second sentence is intact.\n\nThird paragraph."
+    windows = aligned_windows(text, target_words=5)
+    assert "".join(w["text"] for w in windows) == text
+    assert all(w["text"] == text[w["start"]:w["end"]] for w in windows)
+    assert windows[0]["text"].strip() == "First sentence ends here."
+    long = "This is one unusually long sentence with no acceptable internal boundary."
+    assert aligned_windows(long, target_words=3) == [
+        {"start": 0, "end": len(long), "text": long, "oversize_sentence": True}]
+    assert aligned_windows("  ") == []
+    with pytest.raises(ValueError):
+        aligned_windows(text, target_words=0)
 
 
 def test_windows_preserve_exact_source_spans_and_cover_tail():

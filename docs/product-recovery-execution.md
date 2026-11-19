@@ -155,3 +155,23 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   development query, without independent labels, reranking or synthesis.
 - Next: improve evidence packing, expand to the reviewed ten-film pilot and
   frozen questions, then compare model arms on the same complete corpus.
+
+### Aligned-window ablation: not a retrieval win
+
+- Added opt-in aligned400 policy with independent cache representation.
+  Exact offsets and all source characters are preserved, oversized heuristic
+  sentences remain whole and flagged; regex boundaries are not linguistic gold.
+  Default fixed-window history remains reproducible. Four policy tests passed.
+- On the same 79 passages and question the aligned run produced 79 windows;
+  embedding batches totalled 102.99 seconds. Fewer/larger windows and cache/load
+  effects differ, so this is not a model speed comparison.
+- Her's opening plot remains first; production and introductory context displace
+  the separation plot from the top three. WALL·E's animation/intent/design
+  passages occupy the top three rather than the requested character choices.
+- Therefore sentence-boundary preservation helped source readability but
+  **did not establish better question coverage**. Do not promote this candidate
+  to serving on the basis of cleaner text or fewer windows. Next evaluate
+  query-facet selection, lexical/dense fusion and parent-context diversity
+  against full-source support, before claiming success.
+- Result: data/evaluation/recovery-her-walle-qwen4b-aligned-v1.json; sources
+  and question unchanged, no live retrieval/index modification.

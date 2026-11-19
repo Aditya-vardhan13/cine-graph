@@ -27,6 +27,33 @@ def source_windows(content: str, *, words: int = 128, overlap: int = 32) -> list
     return result
 
 
+def aligned_windows(content: str, *, target_words: int = 400) -> list[dict]:
+    """Contiguous source spans; heuristic boundaries, never a hard sentence cut."""
+    if target_words < 1:
+        raise ValueError("target_words must be positive")
+    if not content.strip():
+        return []
+    boundaries = [0]
+    boundaries.extend(m.end() for m in re.finditer(r"\n\s*\n|(?<=[.!?])\s+(?=[A-Z])", content))
+    boundaries.append(len(content))
+    result = []
+    start = end = count = 0
+    for a, b in zip(boundaries, boundaries[1:]):
+        if a == b:
+            continue
+        size = len(content[a:b].split())
+        if count and count + size > target_words:
+            result.append({"start": start, "end": end, "text": content[start:end],
+                           "oversize_sentence": count > target_words})
+            start, count = a, 0
+        end = b
+        count += size
+    if end > start:
+        result.append({"start": start, "end": end, "text": content[start:end],
+                       "oversize_sentence": count > target_words})
+    return result
+
+
 def digest(value: object) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False,
                                       separators=(",", ":")).encode()).hexdigest()
@@ -84,6 +111,7 @@ def main() -> None:
     parser.add_argument("--device", choices=("cpu", "mps"), default="cpu")
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--window-policy", choices=("fixed128", "aligned400"), default="fixed128")
     args = parser.parse_args()
     if args.output.exists():
         raise FileExistsError("Refusing to overwrite an existing experiment result")
@@ -100,8 +128,10 @@ def main() -> None:
     expected = corpus.pop("fingerprint")
     if digest(corpus) != expected:
         raise ValueError("Frozen corpus fingerprint failed.")
+    representation = ("source-window-128w-overlap32-v1" if args.window_policy == "fixed128"
+                      else "source-aligned400-nooverlap-v1")
     contract = {"provider": args.provider, "model": args.model, "revision": args.revision,
-                "dimension": args.dimensions, "representation": "source-window-128w-overlap32-v1",
+                "dimension": args.dimensions, "representation": representation,
                 "pooling": {"ollama": "model-native", "e5": "masked-mean-l2", "bge": "cls-l2"}[args.provider],
                 "device": "ollama-managed" if args.provider == "ollama" else args.device,
                 "corpus": expected}
@@ -111,7 +141,9 @@ def main() -> None:
                   "chunk_id": doc["chunk_id"], "film_qid": doc["film_qid"],
                   "source_snapshot_id": doc["source_snapshot_id"], **span,
                   "input": f"Film: {doc['film_title']}\nSection: {doc['section_title']}\nEvidence: {span['text']}"}
-                 for doc in corpus["documents"] for span in source_windows(doc["content"])]
+                 for doc in corpus["documents"] for span in (
+                     source_windows(doc["content"]) if args.window_policy == "fixed128"
+                     else aligned_windows(doc["content"]))]
     load_start = perf_counter()
     if args.provider == "ollama":
         import httpx
