@@ -29,3 +29,19 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   that a mapped capture verifies and an out-of-scope source stays unmapped.
 - Deployment configuration is documented in snapshot-root-mapping.md; this
   commit does not silently mount a host directory or change the running API.
+
+## Phase 3: immutable build-input inventory
+
+- Added a repeatable-read, read-only corpus manifest builder with source and
+  passage hash checks, decision versions, explicit exclusions, and stable
+  canonical payload digest. It cannot approve or activate anything.
+- Real local run inside the API namespace: 1,000 film rows, two build-eligible
+  films; payload SHA-256
+  `1597ae269aa11be743c0ce6376eb57087047cceee5186548e2dbc37a931d8ee8`.
+  Full report remains ignored/local at
+  `data/reports/corpus-build-input-2026-11-20-v2.json`.
+- Host namespace run returned zero because Docker snapshots were inaccessible;
+  retained separately as v1, not misreported as data loss.
+- Pure admission and manifest stability checks: two passed. Existing full
+  catalog was read, not changed. Target CSV identity reconciliation and model
+  index construction remain separate unfinished gates.
