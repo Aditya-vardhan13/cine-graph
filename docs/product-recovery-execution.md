@@ -622,3 +622,25 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   hash by this diagnostic; treat all search results as review leads.
 - IMDb TSVs remain uncompressed: their sparse index uses uncompressed byte
   offsets and plain gzip would break efficient random access. No data deleted.
+
+### Identity lead spot checks
+
+- AFI describes the 1950 film as Sunset Blvd. and notes the expanded title
+  Sunset Boulevard: https://catalog.afi.com/Film/26513-SUNSET-BLVD . This
+  supports rank 83's spelling variant, but the retained QID/IMDb binding must
+  still be verified through its original assertions before acceptance.
+- Hong Kong Film Archive identifies the 2008 Donnie Yen film as Ip Man:
+  https://www.filmarchive.gov.hk/en/web/hkfa/2024/martial/pe-event-2024-martial-fs-film17.html .
+  The festival listing uses Yip Man for the same director, actor and year:
+  https://iffr.com/en/iffr/2011/films/yip-man . This supports rank 352's
+  variant; the separate Iron Man fuzzy candidate is not evidence of identity.
+- ZEE5 lists Uri: The Surgical Strike's theatrical release as 11 January 2019:
+  https://www.zee5.com/movies/details/uri-the-surgical-strike/0-0-33204 .
+  The frozen CSV says 2018. This is a discrepancy requiring review, not a
+  reason to silently rewrite the source CSV or conflate release territories.
+- Sony identifies Kung Fu Hustle as Stephen Chow's 2004 film:
+  https://www.sonypictures.com/movies/kungfuhustle . The abbreviated CSV title
+  `Kung fu` is still ambiguous by itself; retain alternative candidates until
+  the CSV's other fields corroborate the intended work.
+- No identity approval, canonical merge, snapshot acquisition or corpus
+  membership change occurred in these checks.
