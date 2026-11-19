@@ -1,0 +1,122 @@
+{
+  "schema": "cinegraph.recovery-question-design/v1",
+  "status": "question-design-only-source-labels-pending",
+  "independent_gold": false,
+  "popularity_verified": false,
+  "origin": "Original paraphrased comparative questions informed by public film discussion themes and the user's stated research tasks; not copied answer keys.",
+  "source_policy": "URLs are discovery context, not admitted evidence or gold. Confirm support against exact approved source revisions before scoring. Public theme recurrence has not been established for every question.",
+  "split_policy": "Thirty development questions and twenty question-holdout cases on distinct pairs. Films overlap across splits; this is not film-disjoint or independently adjudicated. Do not tune after opening held-out model outputs.",
+  "facets": ["choice", "consequence", "craft", "reception", "premise_check"],
+  "pairs": [
+    {
+      "id": "R01", "split": "development", "films": ["Q788822", "Q104905"],
+      "discovery_urls": ["https://www.bfi.org.uk/lists/10-great-films-about-life-digital-age", "https://www.pixar.com/wall-e"],
+      "questions": [
+        "Which actions turn isolation into a relationship in Her and WALL-E, and what does each character risk?",
+        "When do the companions misunderstand each other, and which decisions change the relationship afterward?",
+        "What documented voice, visual-performance or sound choices make a nonhuman companion emotionally legible in each film?",
+        "What do attributed critics find convincing or troubling about the relationships, and where is the available reception evidence asymmetric?",
+        "Do both films actually depict a human falling in love with an AI? Correct the premise before comparing them."
+      ]
+    },
+    {
+      "id": "R02", "split": "development", "films": ["Q23781155", "Q47703"],
+      "discovery_urls": ["https://en.wikipedia.org/wiki/Avengers:_Endgame", "https://www.oscars.org/collection-highlights/godfather?fid=57036"],
+      "questions": [
+        "How does protecting family or close allies create a conflict with fighting a wider injustice?",
+        "Which acts of loyalty cost someone a personal relationship, and how does each story handle the consequences?",
+        "Which documented writing or staging choices place private family life beside public conflict?",
+        "Do available critics interpret the central sacrifices as heroic, corrupting or something more ambiguous? Attribute each reading.",
+        "Can the retained sources establish the exact percentage of viewers who changed their family priorities after watching these films?"
+      ]
+    },
+    {
+      "id": "R03", "split": "development", "films": ["Q189505", "Q167726"],
+      "discovery_urls": ["https://catalog.afi.com/Film/55193-JAWS", "https://www.loc.gov/programs/national-film-preservation-board/film-registry/descriptions-and-essays/"],
+      "questions": [
+        "How do financial incentives interfere with decisions about danger, and who resists them?",
+        "Which ignored warning changes the stakes for a character, and what follows from it in each film?",
+        "What documented uses of practical effects, sound or concealment shape suspense rather than merely display the threat?",
+        "How do attributed retrospective accounts distinguish the films' industry impact from their original critical reception?",
+        "Does Hammond knowingly keep an already-open park operating in the same way the mayor keeps the beaches open? Identify the limits of that analogy."
+      ]
+    },
+    {
+      "id": "R04", "split": "development", "films": ["Q2345", "Q172241"],
+      "discovery_urls": ["https://teachwithmovies.org/12-angry-men/", "https://en.wikipedia.org/wiki/The_Shawshank_Redemption"],
+      "questions": [
+        "What does a character do when an institution treats uncertainty as settled fact?",
+        "How does challenging the accepted account put another person at risk?",
+        "Which documented camera, setting or narrative-structure choices make confinement productive for the drama?",
+        "How do attributed reception accounts distinguish initial response from later reputation?",
+        "Do both endings formally prove the accused innocent in court, or does each establish something different?"
+      ]
+    },
+    {
+      "id": "R05", "split": "development", "films": ["Q229633", "Q7117022"],
+      "discovery_urls": ["https://en.wikipedia.org/wiki/3_Idiots", "https://en.wikipedia.org/wiki/PK_(film)"],
+      "questions": [
+        "What gives the outsider leverage to challenge an institution's authority?",
+        "Who close to the outsider bears the cost of that challenge, and how does the protagonist respond?",
+        "Which documented writing choices mix comedy with serious institutional criticism?",
+        "Where do attributed sources discuss social response rather than box-office success, and what do they actually substantiate?",
+        "Does the shared director establish that both films endorse the same solution to authority? Separate credits from supported interpretation."
+      ]
+    },
+    {
+      "id": "R06", "split": "development", "films": ["Q47703", "Q172241"],
+      "discovery_urls": ["https://en.wikipedia.org/wiki/The_Godfather", "https://en.wikipedia.org/wiki/The_Shawshank_Redemption"],
+      "questions": [
+        "How does accepting a role inside a corrupt system help each protagonist survive?",
+        "When does a protective arrangement become a form of control, and what choices expose that change?",
+        "Which documented adaptation or narrative-framing choices make institutional power personal?",
+        "What evidence distinguishes later audience reputation from the original release response?",
+        "Can the sources prove that Michael and Andy have the same moral motive simply because each uses an institution's financial systems?"
+      ]
+    },
+    {
+      "id": "R07", "split": "question_holdout", "films": ["Q104905", "Q167726"],
+      "discovery_urls": ["https://www.pixar.com/wall-e", "https://en.wikipedia.org/wiki/Jurassic_Park"],
+      "questions": [
+        "Which choices reveal that a system designed for convenience or safety has become dangerous?",
+        "How does a character's attempt to restore control create an unexpected consequence?",
+        "What documented design decisions make technology readable as a dramatic force rather than background equipment?",
+        "Where do attributed accounts praise spectacle while questioning the film's message or storytelling?",
+        "Does either film establish that all technology is harmful? Distinguish a source's observation from an absolute conclusion."
+      ]
+    },
+    {
+      "id": "R08", "split": "question_holdout", "films": ["Q788822", "Q172241"],
+      "discovery_urls": ["https://www.bfi.org.uk/sight-and-sound/reviews/film-week-her", "https://en.wikipedia.org/wiki/The_Shawshank_Redemption"],
+      "questions": [
+        "How does a friendship or intimate relationship change what an isolated protagonist believes is possible?",
+        "Which concrete act makes hope costly rather than merely comforting?",
+        "What documented use of voice, letters or narration shapes how the audience understands private feelings?",
+        "How do attributed critics discuss sentimentality or emotional credibility in these films?",
+        "Do the endings resolve loneliness in the same way, or is that shared label concealing different outcomes?"
+      ]
+    },
+    {
+      "id": "R09", "split": "question_holdout", "films": ["Q2345", "Q229633"],
+      "discovery_urls": ["https://teachwithmovies.org/12-angry-men/", "https://en.wikipedia.org/wiki/3_Idiots"],
+      "questions": [
+        "How does a dissenter persuade others to question the institution's default answer?",
+        "When do personal fears or prejudices alter a group's decision, and what reverses that pressure?",
+        "Which documented structural or performance choices keep debate dramatically active?",
+        "What attributed evidence supports claims about influence on public discussion rather than just popularity?",
+        "Does persuading the group prove the dissenter is right about every factual issue? State what the source does and does not show."
+      ]
+    },
+    {
+      "id": "R10", "split": "question_holdout", "films": ["Q23781155", "Q7117022"],
+      "discovery_urls": ["https://en.wikipedia.org/wiki/Avengers:_Endgame", "https://en.wikipedia.org/wiki/PK_(film)"],
+      "questions": [
+        "How does someone outside an established group earn enough trust to change its course?",
+        "Which loss changes a character's strategy toward protecting others?",
+        "What documented writing choices balance an extraordinary premise with an ordinary emotional relationship?",
+        "Where do attributed sources distinguish commercial reach from controversy or cultural response?",
+        "Can shared themes alone establish direct influence between these films, or would that require different evidence?"
+      ]
+    }
+  ]
+}

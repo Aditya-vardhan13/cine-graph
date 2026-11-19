@@ -255,3 +255,22 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   switch, held-out evaluation, or quality certification is implied.
 - Generator is now unloaded (local /api/ps returned no models), but free disk
   is about 5.4 GiB. New inference/download work remains capacity-gated.
+
+## Fifty-question recovery design
+
+- Added ten distinct pairs over the ten admitted pilot film identities, with
+  five question facets per pair: choice, consequence, craft, attributed
+  reception and premise/answerability checks.
+- Thirty questions are development diagnostics; twenty are question-holdout
+  inputs on different pairs. Films overlap, so this is not a film-disjoint
+  generalization test. Old independently frozen question sets remain untouched.
+- Inputs include public-topic discovery URLs. Most comparative wording is
+  original and not established as a recurring/popular query. No answer keys
+  were copied into evidence; no source labels or accuracy scores exist yet.
+- The packet explicitly marks popularity_verified=false and
+  independent_gold=false. Source-oracle review, external adjudication,
+  source-version binding and scoring must precede any release-quality claim.
+- One structural contract test passed: 50 distinct questions, 10 distinct
+  pairs, ten film IDs, correct split counts and required provenance fields.
+- File: backend/tests/fixtures/recovery-question-design-v1.json. This is a
+  small question-only fixture, not raw film data or a test-label corpus.
