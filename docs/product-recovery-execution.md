@@ -175,3 +175,23 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   against full-source support, before claiming success.
 - Result: data/evaluation/recovery-her-walle-qwen4b-aligned-v1.json; sources
   and question unchanged, no live retrieval/index modification.
+
+### Explicit evidence-facet packing diagnostic
+
+- Added a pure bounded packing policy and an offline retained-ranking adapter.
+  Only an explicit operator/evaluation request reserves a narrative lead;
+  there is no new automatic keyword intent classifier or hard plot-only filter.
+- Preserves the original dense rank, broad context, source identity, and an
+  explicit support_validated=false label. Deduplicates repeated parent leads,
+  fails on cross-film/missing parents, and reports absent facets.
+- Two policy tests passed. On the aligned Her/WALL·E development result,
+  selected ranks are Her 1–5 and WALL·E 1,2,3,4,8.
+- Manually inspected the reserved WALL·E passage: it describes intervention
+  at diagnostics, conflict with EVE, the plant retrieval and reconciliation.
+  Those actions are relevant to the relationship-change facet, but do not
+  alone establish isolation or validate a generated interpretation.
+- This is improved visibility of a known relevant source, not a new dense
+  recall/model score, a trained relevance label, or a serving change. The
+  operator-provided facet is a limitation; automatic question interpretation,
+  wider query classes and held-out evaluation are still required.
+- Local result: data/evaluation/recovery-her-walle-facet-packing-v1.json.
