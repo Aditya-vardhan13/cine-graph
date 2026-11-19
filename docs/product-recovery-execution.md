@@ -653,3 +653,20 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   retains the 2018/2019 year discrepancy. These independent fields support
   the proposed matches; they do not mutate the frozen CSV or themselves prove
   the retained QID assertion chain and collection admission.
+
+## Local 4B reranker run resumed
+
+- At the user's direction, removed the unloaded `qwen3:8b` generation model
+  through the Ollama server on port 11435, after verifying that server's model
+  store was this project's `data/ollama-models`. The 4B generation model and
+  the global Ollama store were untouched. The removed model is recoverable by
+  downloading it again; its model weight is not in Git. Free disk measured
+  12.45 GiB after removal (previously 7.59 GiB).
+- Started the existing quantized Qwen 4B MLX reranker against the fixed
+  twenty-parent-per-film, thirty-question development pool, with film title
+  and source section context, checkpoint/resume enabled. Output is local at
+  `data/evaluation/recovery-ten-qwen4b-reranker-development-v1.json` and the
+  live execution session is 44487. The first sandboxed launch could not
+  access Metal and exited before output; the GPU-enabled retry is running.
+  No quality result or live-site change is claimed until it completes and
+  its selected passages are evaluated against the source-bound review.
