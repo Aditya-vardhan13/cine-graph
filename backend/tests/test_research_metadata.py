@@ -49,6 +49,31 @@ def test_year_precision_does_not_invent_a_day():
     assert [event["precision"] for event in result["release_events"]] == [9, 11]
 
 
+def test_source_year_and_minutes_shapes_preserve_precision_and_conflicts():
+    imdb_year = fact("release_event", {"year": 2008, "precision": "year"}, source_name="IMDb")
+    imdb_runtime = fact("runtime", {"minutes": 152}, source_name="IMDb")
+    wikidata_runtime = fact("runtime", {"amount": "+153", "unit": "Q7727"}, source_name="Wikidata")
+    result = display_metadata([imdb_year, release("+2008-07-18T00:00:00Z"), imdb_runtime,
+                               wikidata_runtime], genre_labels={})
+    assert result["release_year"] == 2008
+    assert result["release_date"] is None
+    assert [event["precision"] for event in result["release_events"]] == [9, 11]
+    assert result["runtime_minutes"] is None
+    assert [option["minutes"] for option in result["runtime_options"]] == [152, 153]
+    assert "release_value_not_displayable" not in result["metadata_issues"]
+    assert "runtime_requires_version_or_value_resolution" in result["metadata_issues"]
+
+
+def test_malformed_source_shapes_are_not_accepted():
+    for value in ({"year": True, "precision": "year"}, {"year": 2008, "precision": "year", "extra": 1}):
+        result = display_metadata([fact("release_event", value)], genre_labels={})
+        assert result["release_year"] is None
+    for value in ({"minutes": True}, {"minutes": 0}, {"minutes": "152"}):
+        result = display_metadata([fact("runtime", value)], genre_labels={})
+        assert result["runtime_minutes"] is None
+        assert "runtime_requires_version_or_value_resolution" in result["metadata_issues"]
+
+
 def test_unsupported_subday_precision_is_not_truncated_to_a_date():
     result = display_metadata([release("+2005-11-18T00:00:00Z", 12)], genre_labels={})
     assert result["release_events"] == ()

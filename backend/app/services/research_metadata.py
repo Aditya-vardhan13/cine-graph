@@ -82,15 +82,20 @@ def display_metadata(
     release_events: list[dict[str, Any]] = []
     for item in groups["release_event"]:
         value = item.value
+        # IMDb title.basics stores only a start year; never invent a month/day.
+        year_only = (set(value) == {"year", "precision"}
+                     and value.get("precision") == "year"
+                     and type(value.get("year")) is int
+                     and 1 <= value["year"] <= 9999)
         raw = str(value.get("time", ""))
         match = re.fullmatch(r"\+?(\d{4})-(\d{2})-(\d{2})T00:00:00Z", raw)
-        precision = value.get("precision")
-        if (not match or not isinstance(precision, int) or precision not in {9, 10, 11}
+        precision = 9 if year_only else value.get("precision")
+        if (not year_only and (not match or type(precision) is not int or precision not in {9, 10, 11}
                 or value.get("calendar_model") != "Q1985727"
-                or value.get("before") or value.get("after")):
+                or value.get("before") or value.get("after"))):
             issues.add("release_value_not_displayable")
             continue
-        year, month, day = map(int, match.groups())
+        year, month, day = (value["year"], 0, 0) if year_only else map(int, match.groups())
         if not 1 <= year <= 9999:
             continue
         try:
@@ -134,7 +139,9 @@ def display_metadata(
     for item in groups["runtime"]:
         value = item.value
         unit = value.get("unit")
-        minutes = _minute_value(value.get("amount"), unit=unit)
+        minutes = (_minute_value(value["minutes"], unit="Q7727")
+                   if set(value) == {"minutes"} and type(value["minutes"]) is int
+                   else _minute_value(value.get("amount"), unit=unit))
         lower = (_minute_value(value.get("lower_bound"), unit=unit)
                  if value.get("lower_bound") is not None else None)
         upper = (_minute_value(value.get("upper_bound"), unit=unit)
