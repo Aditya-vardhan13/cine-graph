@@ -458,3 +458,43 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   live progress observations, not completion or throughput estimates.
 - No serving switch or production index creation. Continue polling this same
   job; a quiet or expired observation does not justify another worker.
+
+## Completed pinned 4B pilot and matched-input comparison
+
+- Session 8953 exited successfully after 487/487 parents and 30/30 development
+  questions. Retained ranking contract matches the frozen corpus fingerprint
+  and exact pinned 4B digest above. Recorded embedding batches sum to 764.42
+  seconds (not end-to-end API latency or steady-state per-query latency).
+- Extended the existing inclusion scorer to validate retained rankings against
+  exact questions, film scope, corpus fingerprint, finite scores and original
+  source windows. A span counts only when its entire annotated range is inside
+  a retrieved window. Seven pure scorer checks passed; these are integrity
+  safeguards, not semantic quality proof.
+- Top-five complete-case annotated-span inclusion: Qwen 4B **28/47**, compared
+  with BM25 **15/47**. Partial-case spans: **21/33** versus **13/33**. Negative
+  case evidence: **7/13** versus **2/13**, not a correct-abstention score.
+- Reused the existing weighted RRF policy at the existing 3:1 dense/lexical
+  weights and k=60, with ten retained candidates per lane. No new embeddings,
+  model downloads, changed questions or annotation tuning. This control gave
+  **28/47** complete, **20/33** partial and **7/13** negative spans: no overall
+  improvement over dense alone. Do not promote this fusion as a quality win.
+- Local result files: recovery-qwen4b-development-v1.json (initial v1 scorer
+  metadata), recovery-hybrid4b-development-ranking-v1.json and
+  recovery-hybrid4b-development-score-v1.json. The scorer now emits v2 metadata
+  explicitly describing whole-span inclusion and non-inference scoring timing.
+  Nine combined scorer/fusion policy checks passed. Raw prose/results stay local.
+- Inspected concrete misses: R03.choice ranks thematic criticism over the Jaws
+  mayor's beach/economy decision (annotated parent rank eight); Jurassic Park's
+  investor-certification setup is outside retained top ten. R04.choice returns
+  some genuinely relevant juror evidence but not the annotated opening vote;
+  Shawshank's Tommy confession is outside top ten. Therefore annotation coverage
+  is not exhaustive relevance accuracy, and deeper candidate retrieval plus
+  query-specific evidence selection need evaluation before generation.
+- R02.choice now retrieves Michael's protective killing proposal first and the
+  Endgame Barton-family setup fifth, but Endgame's first two results are cast
+  descriptions. The user's original failure is improved only in this offline
+  diagnostic, not resolved in the running UI or certified as a useful answer.
+- Disk measured about 5.1 GiB after completion. No further inference started
+  below the six-GiB reserve; no source data or useful candidate models deleted
+  to force a run. Held-out twenty questions remain unscored; live serving still
+  has not switched to this candidate index. Goal remains incomplete.
