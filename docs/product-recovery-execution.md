@@ -699,3 +699,21 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   the same development evidence without tuning on the held-out questions;
   separately fix grounded generation. Neither serving nor user-facing answers
   have been changed by this offline experiment.
+
+### Candidate-depth latency diagnostic
+
+- Replayed the completed full-pool scores while restricting each film to the
+  first 5, 8, 10, 15 or 20 dense candidates before selecting five. For the 13
+  provisionally complete development cases, annotated-span inclusion was
+  respectively **28/47, 36/47, 38/47, 42/47, 42/47**. These are retrospective
+  development simulations, not an unbiased model-selection evaluation.
+- Directly reran `R03.choice` at depth 10 on the same 4B reranker: **43.2 s**
+  summed two-film scoring versus **118.5 s** in the depth-20 run. Both sides'
+  top-five IDs agreed with the restricted replay for this question. This is
+  one pair, not a latency distribution or an end-to-end request benchmark;
+  even this timing is too high for the intended interactive workflow.
+- The result supports exploring a smaller reranker pool, but does not prove
+  equivalent quality across questions or justify promoting it. The explicit
+  question-holdout remains unused for tuning. Local retained capture:
+  `recovery-ten-qwen4b-depth10-reranker-pool-v1.json`; single-question result:
+  `recovery-rerank4b-depth10-r03-choice-v1.json`.
