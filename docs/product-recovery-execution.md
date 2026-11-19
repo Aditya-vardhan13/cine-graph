@@ -334,3 +334,31 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - Ten of thirty development cases now reviewed, twenty still pending. All
   twenty question-holdout cases remain unlabelled/unscored; no aggregate
   product accuracy or independently adjudicated gold is claimed.
+
+### Plot-based development review: sixteen cases bound
+
+- Read all retained 3 Idiots and PK plot passages; completed R05 choice,
+  consequence and premise review, plus R06 Godfather/Shawshank equivalents.
+- Provisional judgments: R05.choice/consequence complete, R05.premise_check
+  negative; R06.choice complete, R06.consequence partial, R06.premise_check
+  negative. Narrative and moral comparisons remain interpretations, not facts.
+- PK's bombing account does not name who ordered it; no review invents that
+  attribution. Shared Hirani credit is not evidence of identical ideological
+  conclusions. Andy's financial activity is not treated as Michael's motive.
+- Combined local review v2 now has sixteen cases, with fourteen development
+  cases pending (craft/reception and two remaining premise checks). All twenty
+  question-holdout cases remain unreviewed/unscored. Source-bound evidence
+  spans passed the existing binder without changing the corpus.
+
+### Remove duplicate project-local 0.6B model, preserve serving rollback
+
+- Confirmed project story-server /api/ps had no loaded models. Removed its
+  unused qwen3-embedding:0.6b tag through Ollama on **11435** only; model
+  manager reported deletion. Its published stored size was 639,150,858 bytes.
+- Separate embedding server **11434** still lists the original 0.6B and 4B
+  digests, so the current serving rollback was not removed. No other model
+  store, corpus data or experiment outputs were deleted. Replaying that model
+  specifically on 11435 requires restoring the model there.
+- Available disk nevertheless measured about 5.1 GiB after the operation;
+  no claim is made that logical model removal yielded immediate physical
+  reclaim. APFS/runtime effects were not established. Inference remains gated.
