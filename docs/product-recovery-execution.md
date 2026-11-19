@@ -195,3 +195,29 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   operator-provided facet is a limitation; automatic question interpretation,
   wider query classes and held-out evaluation are still required.
 - Local result: data/evaluation/recovery-her-walle-facet-packing-v1.json.
+
+## Fixed-evidence local 4B generation diagnostic: failed
+
+- Started project-local Ollama 11435 from existing cached models (cloud off;
+  server handle 89269), after unloading the embedding runner. No downloads.
+- Added an explicit offline draft runner using existing grounded-answer schema
+  and citation validator, pinned digest, fixed original evidence, bounded
+  context/output, temperature zero, seed 42 and think=false.
+- Generated with qwen3:4b, exact digest
+  359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7.
+  Request handle 94504 completed. Prompt 2,353 tokens, output 745 tokens,
+  61.80 seconds including cold overhead; 16,384 configured context.
+- Structural validation failed: first reading ended mid-sentence. Manual
+  source inspection also found material attribution reversals: the blind
+  date's insult was attributed to Samantha; EVE's suspicion about the missing
+  plant was reversed into WALL-E suspecting EVE. Comparison support cites only
+  Her, not both films. Some quoted strings exist but do not support the claim.
+- **Do not enable this draft in the site.** Proper source references and JSON
+  do not rescue unsupported analysis. Nine existing grounded-trial policy
+  checks passed, but this real model output failed usefulness/grounding.
+- Local artifact: data/evaluation/recovery-her-walle-draft4b-v1.json.
+- Free disk crossed below 6 GiB during generation; no further inference should
+  be queued until remeasured. No 8B comparison was attempted. Before next
+  inference, measure memory, choose a token-counted smaller context and use
+  source observations/citation-first construction rather than merely longer
+  output or another unmeasured model sweep.
