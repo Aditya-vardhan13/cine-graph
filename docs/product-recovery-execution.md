@@ -441,3 +441,20 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - Result remains local at data/evaluation/recovery-lexical-development-v1.json.
   It establishes a reproducible baseline for identical-input comparisons,
   not a model selection, release gate pass, or live site improvement.
+
+## Full-pilot pinned 4B development run started
+
+- Remeasured free disk at ~6.8 GiB, above the reserve; no new model download.
+- Added opt-in fullparent representation to the existing dense-trial runner.
+  It retains complete passage text and is versioned separately from fixed/
+  aligned windows; four existing dense-trial policy tests passed.
+- Started one resumable job over the frozen 487 passages and thirty
+  development questions, Qwen3 embedding 4B at the previously pinned digest,
+  1,024 dimensions, batch size two. This is not the held-out evaluation.
+- Retained unified exec session: 8953. Cache:
+  data/evaluation/recovery-ten-qwen4b-cache. Expected completed result:
+  data/evaluation/recovery-ten-qwen4b-fullparent-v1.json.
+- Initial progress reached 14/487 with disk holding near 6.8 GiB. These are
+  live progress observations, not completion or throughput estimates.
+- No serving switch or production index creation. Continue polling this same
+  job; a quiet or expired observation does not justify another worker.

@@ -111,7 +111,7 @@ def main() -> None:
     parser.add_argument("--device", choices=("cpu", "mps"), default="cpu")
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--window-policy", choices=("fixed128", "aligned400"), default="fixed128")
+    parser.add_argument("--window-policy", choices=("fixed128", "aligned400", "fullparent"), default="fixed128")
     args = parser.parse_args()
     if args.output.exists():
         raise FileExistsError("Refusing to overwrite an existing experiment result")
@@ -128,8 +128,9 @@ def main() -> None:
     expected = corpus.pop("fingerprint")
     if digest(corpus) != expected:
         raise ValueError("Frozen corpus fingerprint failed.")
-    representation = ("source-window-128w-overlap32-v1" if args.window_policy == "fixed128"
-                      else "source-aligned400-nooverlap-v1")
+    representation = {"fixed128":"source-window-128w-overlap32-v1",
+                      "aligned400":"source-aligned400-nooverlap-v1",
+                      "fullparent":"source-full-parent-v1"}[args.window_policy]
     contract = {"provider": args.provider, "model": args.model, "revision": args.revision,
                 "dimension": args.dimensions, "representation": representation,
                 "pooling": {"ollama": "model-native", "e5": "masked-mean-l2", "bge": "cls-l2"}[args.provider],
@@ -143,7 +144,8 @@ def main() -> None:
                   "input": f"Film: {doc['film_title']}\nSection: {doc['section_title']}\nEvidence: {span['text']}"}
                  for doc in corpus["documents"] for span in (
                      source_windows(doc["content"]) if args.window_policy == "fixed128"
-                     else aligned_windows(doc["content"]))]
+                     else aligned_windows(doc["content"]) if args.window_policy == "aligned400"
+                     else [{"start":0,"end":len(doc["content"]),"text":doc["content"]}])]
     load_start = perf_counter()
     if args.provider == "ollama":
         import httpx
