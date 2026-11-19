@@ -80,3 +80,24 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - Two policy tests passed for stable mapping, extra-row accounting, CSV drift
   and manifest tampering. This is a queue for review; it does not establish
   independent identity correctness, all required sources, or usable retrieval.
+
+## Pilot review: first source admission
+
+- Read exact current leads and snapshot descriptors for nine pilot titles,
+  resolving WALL-E's stored spelling separately as WALL·E, Q104905.
+- Reviewed Wikipedia's copyright policy and CC BY-SA 4.0 terms for the intended
+  attributed local text experiment. Linked sources/images are not inherited
+  permissions, and this is not a paid-release legal determination.
+- Her (2013), Q788822, snapshot
+  335aa8a4-9b6f-4735-9249-b719b6a15c17, revision 1382870252:
+  retained lead identifies the director and central relationship consistently.
+  Snapshot and passage hashes were bound by the current build manifest.
+- Recorded one explicit snapshot-specific semantic-use approval through the
+  existing local operator API (HTTP 200, decision version 1). Notes retain the
+  exact hash, source basis, attribution/derivative obligations and limitations.
+  This is a persistent decision, not a bulk approval or canonical fact write.
+- Important: local intent in the notes is documentary, not an additional
+  machine-enforced use-case scope. Public deployment still requires the
+  separate release gates. No film was published or indexed by this decision.
+- Remaining pilot sources require their own recorded review before admission;
+  this does not establish source content correctness or answer usefulness.
