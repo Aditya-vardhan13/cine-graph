@@ -108,6 +108,8 @@ def main() -> None:
     parser.add_argument("--revision", required=True, help="HF commit SHA or exact local Ollama model digest")
     parser.add_argument("--dimensions", type=int, required=True)
     parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--candidate-limit", type=int, default=10)
+    parser.add_argument("--cache-only", action="store_true", help="Replay complete retained vectors without model access or inference")
     parser.add_argument("--device", choices=("cpu", "mps"), default="cpu")
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -122,8 +124,8 @@ def main() -> None:
     root = Path(__file__).resolve().parents[3] / "data" / "evaluation"
     if any(not path.resolve().is_relative_to(root) for path in (args.corpus, args.cache_dir, args.output)):
         raise ValueError("All experiment artifacts must remain under project data/evaluation.")
-    if args.batch_size < 1 or args.dimensions < 1:
-        raise ValueError("Batch size and dimensions must be positive.")
+    if args.batch_size < 1 or args.dimensions < 1 or args.candidate_limit < 1:
+        raise ValueError("Batch size, dimensions and candidate limit must be positive.")
     corpus = json.loads(args.corpus.read_text())
     expected = corpus.pop("fingerprint")
     if digest(corpus) != expected:
@@ -147,7 +149,10 @@ def main() -> None:
                      else aligned_windows(doc["content"]) if args.window_policy == "aligned400"
                      else [{"start":0,"end":len(doc["content"]),"text":doc["content"]}])]
     load_start = perf_counter()
-    if args.provider == "ollama":
+    if args.cache_only:
+        def embed(values, query=False):
+            raise RuntimeError("Cache-only replay cannot generate missing vectors")
+    elif args.provider == "ollama":
         import httpx
         from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
         tags = httpx.get("http://127.0.0.1:11434/api/tags").json()["models"]
@@ -195,12 +200,14 @@ def main() -> None:
     def cached_vectors(values, *, query=False):
         vectors = []
         for offset in range(0, len(values), args.batch_size):
-            if shutil.disk_usage(root).free < 6 * 1024**3:
-                raise RuntimeError("Embedding trial stopped below the 6 GiB disk reserve; retain cache and resume")
             batch = values[offset:offset + args.batch_size]
             paths = [cache / f"{digest({'query': query, 'text': value})}.json" for value in batch]
             missing = [i for i, path in enumerate(paths) if not path.exists()]
             if missing:
+                if args.cache_only:
+                    raise RuntimeError("Cache-only replay found missing vectors; no inference attempted")
+                if shutil.disk_usage(root).free < 6 * 1024**3:
+                    raise RuntimeError("Embedding trial stopped below the 6 GiB disk reserve; retain cache and resume")
                 start = perf_counter()
                 generated = embed([batch[i] for i in missing], query=query)
                 timings.append({"query": query, "count": len(missing), "ms": (perf_counter() - start) * 1000})
@@ -213,16 +220,23 @@ def main() -> None:
                     temporary = paths[i].with_suffix(".tmp")
                     temporary.write_text(json.dumps(vector))
                     temporary.replace(paths[i])
-            vectors.extend(json.loads(path.read_text()) for path in paths)
+            retained = [json.loads(path.read_text()) for path in paths]
+            for vector in retained:
+                array = np.asarray(vector)
+                if (array.shape != (args.dimensions,) or not np.isfinite(array).all()
+                    or np.linalg.norm(array) == 0):
+                    raise ValueError("Invalid retained embedding shape or values.")
+            vectors.extend(retained)
             print(f"{'queries' if query else 'documents'} {min(offset + len(batch), len(values))}/{len(values)}", flush=True)
         return np.asarray(vectors, dtype=np.float32)
     matrix = cached_vectors([row["input"] for row in documents])
     queries = cached_vectors([row["question"] for row in corpus["cases"]], query=True)
-    cases = [{**case, "sides": [{"film_qid": qid, "ranked": rank_windows(documents, matrix, vector, film_qid=qid)}
+    cases = [{**case, "sides": [{"film_qid": qid, "ranked": rank_windows(documents, matrix, vector, film_qid=qid, limit=args.candidate_limit)}
                                 for qid in case["film_qids"]]}
              for case, vector in zip(corpus["cases"], queries, strict=True)]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps({"contract": contract, "model_load_ms": load_ms,
+                                      "cache_only": args.cache_only,"candidate_limit": args.candidate_limit,
                                       "embedding_batches": timings, "cases": cases}, indent=2))
 
 

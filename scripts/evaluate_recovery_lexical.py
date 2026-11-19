@@ -98,10 +98,12 @@ def main():
     for name in ("corpus","review","output"):
         p.add_argument("--"+name,type=Path,required=True)
     p.add_argument("--ranking",type=Path)
+    p.add_argument("--cutoff",type=int,default=5)
     args=p.parse_args()
     if args.output.exists():
         raise FileExistsError(args.output)
     result=evaluate(json.loads(args.corpus.read_text()),json.loads(args.review.read_text()),
+                    cutoff=args.cutoff,
                     retained_ranking=json.loads(args.ranking.read_text()) if args.ranking else None)
     with args.output.open("x") as h:
         json.dump(result,h,ensure_ascii=False,indent=2)

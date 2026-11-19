@@ -6,6 +6,41 @@ from pathlib import Path
 from app.services.rag_dense_trial import digest
 
 
+def prepare_dense_pool(corpus: dict, trial: dict, *, limit: int = 20) -> dict:
+    """Adapt a full-parent dense replay to the existing reranker input contract."""
+    if trial["contract"]["corpus"] != corpus["fingerprint"]:
+        raise ValueError("Dense ranking corpus differs from frozen corpus.")
+    if trial["contract"]["representation"] != "source-full-parent-v1":
+        raise ValueError("Dense pool requires full-parent source spans.")
+    documents = {row["chunk_id"]: row for row in corpus["documents"]}
+    cases = []
+    for row in trial["cases"]:
+        qids = [side["film_qid"] for side in row["sides"]]
+        if len(qids) != 2 or len(set(qids)) != 2:
+            raise ValueError("Dense pool requires two distinct film sides.")
+        case = {"case_id":row["case_id"],"question":row["question"],
+                "film_qids":qids,"titles":[]}
+        for name, side in zip(("first","second"),row["sides"],strict=True):
+            pool = []
+            for item in side["ranked"][:limit]:
+                doc = documents[item["chunk_id"]]
+                if (item["film_qid"] != side["film_qid"] or doc["film_qid"] != side["film_qid"]
+                    or item["text"] != doc["content"] or item["start"] != 0
+                    or item["end"] != len(doc["content"])
+                    or item["source_snapshot_id"] != doc["source_snapshot_id"]):
+                    raise ValueError("Dense candidate source span differs from frozen corpus.")
+                pool.append(dict(doc))
+            if not pool:
+                raise ValueError("Dense side has no candidates.")
+            case["titles"].append(pool[0]["film_title"])
+            case[f"{name}_pool"] = pool
+        cases.append(case)
+    result = prepare_pool(corpus,{"cases":cases},limit=limit)
+    result["dense_ranking_sha256"] = digest(trial)
+    result["pool_policy"] = "dense-full-parent-fixed-pool-v1"
+    return result
+
+
 def prepare_pool(corpus: dict, trial: dict, *, limit: int = 10) -> dict:
     if not 1 <= limit <= 50:
         raise ValueError("Pool limit must be between one and fifty.")
@@ -43,11 +78,13 @@ def main():
     parser.add_argument("trial", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--dense-full-parent",action="store_true")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3] / "data" / "evaluation"
     if any(not p.resolve().is_relative_to(root) for p in (args.corpus, args.trial, args.output)):
         raise ValueError("Reranker artifacts must remain under project data/evaluation.")
-    result = prepare_pool(json.loads(args.corpus.read_text()), json.loads(args.trial.read_text()), limit=args.limit)
+    prepare = prepare_dense_pool if args.dense_full_parent else prepare_pool
+    result = prepare(json.loads(args.corpus.read_text()), json.loads(args.trial.read_text()), limit=args.limit)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2))
     print(json.dumps({"cases": len(result["cases"]), "fingerprint": digest(result)}))

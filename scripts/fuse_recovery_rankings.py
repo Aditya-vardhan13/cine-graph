@@ -59,8 +59,9 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ("corpus","dense","output"):
         parser.add_argument("--"+name,type=Path,required=True)
+    parser.add_argument("--depth",type=int,default=10)
     args=parser.parse_args()
-    result=fuse(json.loads(args.corpus.read_text()),json.loads(args.dense.read_text()))
+    result=fuse(json.loads(args.corpus.read_text()),json.loads(args.dense.read_text()),depth=args.depth)
     with args.output.open("x") as handle:
         json.dump(result,handle,ensure_ascii=False,indent=2)
         handle.write("\n")

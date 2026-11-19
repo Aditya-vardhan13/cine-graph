@@ -498,3 +498,39 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   below the six-GiB reserve; no source data or useful candidate models deleted
   to force a run. Held-out twenty questions remain unscored; live serving still
   has not switched to this candidate index. Goal remains incomplete.
+
+## Cache-only candidate-depth diagnostic
+
+- Added explicit `--cache-only` and `--candidate-limit` to the existing dense
+  runner. Replay skips provider/model initialization and refuses missing cache
+  entries rather than invoking inference. Retained vectors are checked for
+  shape, finite values and nonzero norm. Candidate depth does not change the
+  embedding contract/cache key. Disk reserve remains enforced before any new
+  embedding batch; replay does not allocate model memory or download weights.
+- Completed a depth-twenty replay from the same 487 parent vectors and thirty
+  question vectors, with **zero new embedding batches**. Local artifact:
+  recovery-ten-qwen4b-fullparent-depth20-v1.json.
+- At twenty candidates per film, inclusion is **47/47** annotated spans on
+  complete cases, **31/33** partial and **11/13** negative. This is development
+  candidate coverage, not 100% retrieval relevance, answer correctness, precise
+  evidence selection or held-out performance. Twenty is a large fraction of
+  some film sources: Her has 23 parents, 12 Angry Men 24; Jurassic Park has 93.
+  Do not advertise this as production quality or infer that all films have
+  sufficient raw evidence. It supports testing a second-stage selector on
+  this fixed pool rather than immediately reacquiring the same pilot sources.
+- A twenty-deep weighted RRF control reduced top-five inclusion to **26/47**
+  complete and **19/33** partial (negative unchanged 7/13). This control is not
+  a candidate for promotion over dense-only. No weights were swept afterward.
+- Adapted the existing source-bound reranker pool preparer to accept retained
+  full-parent dense rankings. It validates exact source spans, snapshots,
+  question/film identities and corpus fingerprint, then reuses the existing
+  pool contract instead of introducing a parallel reranking engine. Prepared
+  all thirty cases with twenty parents per side at
+  recovery-ten-qwen4b-depth20-reranker-pool-v1.json; fingerprint
+  b63275bd9661539d057cbf4194b37cb3b49307a380d469eef099227368ac44e6.
+- Fifteen relevant pure-policy checks passed. No reranker/generator model was
+  started, no serving configuration changed, and no held-out query was run.
+  Next inference is the retained quantized 4B reranker on this fixed pool,
+  once disk reserve is restored; report both useful selection and runtime,
+  not merely schema success. More model downloads remain unjustified at the
+  current headroom. Offline source-label and index-activation work can proceed.
