@@ -362,3 +362,21 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - Available disk nevertheless measured about 5.1 GiB after the operation;
   no claim is made that logical model removal yielded immediate physical
   reclaim. APFS/runtime effects were not established. Inference remains gated.
+
+### Her/WALL·E craft, reception and premise review
+
+- Read retained critical-response passages and production passages about voice,
+  sound and animation for this pair. R01.craft is partial: WALL·E has concrete
+  sound/animation methods; the inspected Her production material documents a
+  recast and broad rationale, not equally specific voice-direction methods.
+- R01.reception is provisionally complete: relationship credibility is
+  explicitly debated for Her, and WALL·E's romance praised by an attributed
+  critic. Other WALL·E objections concern humans/ecology; do not mislabel
+  them as objections to the robot romance.
+- R01.premise_check is negative: the plots distinguish a human/OS relationship
+  from a robot/robot relationship. Both contain AI-related themes without
+  sharing the question's assumed participant identities.
+- Combined local review v3 has nineteen cases. Eleven development cases are
+  pending, all held-out cases untouched. Binding checked all exact quotes
+  against the frozen source text; these remain single-reviewer observations.
+- No model run, live-serving change or new data acquisition was necessary.
