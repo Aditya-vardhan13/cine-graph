@@ -293,3 +293,25 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - No database writes or source facts produced. One split contract test passed.
   Full-source answerability labels are still pending; none of these artifacts
   is independent gold, a production index, or evidence of passing retrieval.
+
+## Source-oracle development review started
+
+- Read complete current plot passages for Her, WALL·E, Endgame and Godfather
+  before binding four choice/consequence development reviews. No new retrieval
+  scores or model answers were used as labels for these questions.
+- R01.choice partial: connection actions exist, but risk/motive comparison needs
+  interpretation. R01.consequence provisionally complete: text identifies the
+  surrogate encounter/tension and EVE's accusation plus reconciliation.
+- R02.choice partial: Michael's protection motive is explicit, while the
+  selected Endgame plot does not prove a symmetric family-vs-justice dilemma.
+  R02.consequence partial: sacrifice and relationship cost are present, but
+  loyalty/motive and causal interpretation require qualification.
+- Added binder that validates the frozen corpus and passage hash, source/film
+  scope, unique exact quoted substrings and offsets. It marks single-reviewer
+  observations as non-independent and not release gold. One policy test passed.
+- Local annotations/output are recovery-oracle-review-input-v1.json and
+  recovery-oracle-review-v1.json under data/evaluation. They are physically
+  separate from model inputs. Four of thirty development cases reviewed;
+  twenty held-out questions remain unlabelled and unscored.
+- These judgments are provisional, not a claim that all other passages in
+  the corpus lack support or that a percent of the product is accurate.
