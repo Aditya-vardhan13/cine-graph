@@ -380,3 +380,22 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   pending, all held-out cases untouched. Binding checked all exact quotes
   against the frozen source text; these remain single-reviewer observations.
 - No model run, live-serving change or new data acquisition was necessary.
+
+### Twenty-five development cases reviewed
+
+- Added six source-bound craft/reception reviews for R03, R04 and R05.
+  Provisional complete: R03.reception, R04.craft/reception, R05.reception.
+  Partial: R03.craft and R05.craft because technical/adaptation details do not
+  alone establish the requested suspense or comedy mechanism for both films.
+- Important source distinction: Shawshank's initial box-office disappointment
+  is not critical rejection; 12 Angry Men's contemporary acclaim is separate
+  from later canonization. Historical aggregator values are not release-era
+  surveys. Social-impact commentary about education retains tentative wording;
+  it is not proven policy causality.
+- Inspecting headings revealed useful social-response material outside the
+  earlier narrow legacy-heading inventory: 3 Idiots' Cultural impact and legacy
+  sections and PK's Controversies. Heading-count audits must not suppress
+  these source types when forming the research corpus.
+- Combined local review v4 now covers twenty-five of thirty development cases;
+  five remain. The twenty question-holdout inputs remain unreviewed/unscored.
+  No inference, corpus mutations or independent-gold claim in this step.
