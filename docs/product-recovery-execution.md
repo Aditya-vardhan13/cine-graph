@@ -63,3 +63,20 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   retrieval relevance, 8B comparison, production profile activation and
   generation remain unverified. Disk fell from about 8.6 to 6.6 GiB during
   the check; cause not established, so heavier jobs must recheck reserve.
+
+## Phase 5: target-to-build reconciliation
+
+- Reused the frozen CSV and historical candidate mapping instead of inventing
+  fresh title joins. Input fingerprints, row order/year and current manifest
+  hash must agree; malformed rank sets or source drift fail closed.
+- Supplied CSV has 1,001 data rows. The established target is its first 1,000;
+  the extra row is accounted for, not silently included in coverage.
+- Result: 968 target rows have one historical-QID candidate in the current
+  collection; 32 are unresolved or outside it. Two have an eligible candidate.
+  Zero identity approvals are implied or written.
+- Report stays local: data/reports/recovery-target-reconciliation-v1.json,
+  canonical payload SHA-256
+  d905dabb39887c558e895ba83459dbeee293ad098f5bd596a216f5f2cfc6fa17.
+- Two policy tests passed for stable mapping, extra-row accounting, CSV drift
+  and manifest tampering. This is a queue for review; it does not establish
+  independent identity correctness, all required sources, or usable retrieval.
