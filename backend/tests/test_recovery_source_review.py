@@ -28,3 +28,23 @@ def test_review_binds_exact_spans_and_refuses_wrong_film():
     notes[0]["evidence"][0]["quote"]="not in source"
     with pytest.raises(ValueError,match="quote"):
         module.bind_review(corpus,notes)
+
+
+def test_holdout_review_binds_separate_questions_without_replacing_source_fingerprint():
+    corpus={"documents":[],"cases":[{"case_id":"development","film_qids":["Q1","Q2"]}]}
+    corpus["fingerprint"]=canonical_digest(corpus)
+    questions={"cases":[{"case_id":"holdout","film_qids":["Q1","Q2"]}],
+        "source_corpus_fingerprint":corpus["fingerprint"]}
+    questions["fingerprint"]=canonical_digest(questions)
+    notes=[{"case_id":"holdout","answerability":"missing","evidence":[]}]
+    result=module.bind_review(corpus,notes,questions)
+    assert result["source_corpus_fingerprint"]==corpus["fingerprint"]
+    assert result["question_set_fingerprint"]==questions["fingerprint"]
+    assert result["pending_case_ids"]==[]
+    questions["cases"][0]["case_id"]="development"
+    questions["fingerprint"]=canonical_digest({k:v for k,v in questions.items() if k!="fingerprint"})
+    with pytest.raises(ValueError,match="question_split_overlap"):
+        module.bind_review(corpus,notes,questions)
+    questions["source_corpus_fingerprint"]="wrong"
+    with pytest.raises(ValueError,match="question_set_fingerprint_mismatch"):
+        module.bind_review(corpus,notes,questions)

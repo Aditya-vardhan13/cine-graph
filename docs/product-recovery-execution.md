@@ -534,3 +534,48 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   once disk reserve is restored; report both useful selection and runtime,
   not merely schema success. More model downloads remain unjustified at the
   current headroom. Offline source-label and index-activation work can proceed.
+
+## Source review for all twenty held-out question inputs
+
+- Disk recheck remained about 5.0 GiB, below the inference reserve. No new
+  model worker was launched and no useful model/source asset was removed.
+- Extended the existing source-review binder with an explicit separately
+  fingerprinted question packet. It validates source-corpus binding, packet
+  hash, duplicate cases and development/holdout case-ID disjointness while
+  preserving the original evidence-corpus fingerprint. Two policy checks pass,
+  including split overlap and modified question packet rejection.
+- Reviewed the retained plot, production, criticism and social/legal response
+  prose for all twenty R07-R10 questions, without generating held-out model
+  predictions. Local input batches recovery-oracle-heldout-input-v1 through v4
+  bind at recovery-oracle-heldout-review-complete-v1.json: **13 complete,
+  4 partial, 3 negative**, **56 exact source spans**, zero pending cases.
+- These are provisional single-reviewer judgments, not independently
+  adjudicated gold. The reviewer knows development results and films overlap
+  the development set. Do not describe this as a blind or film-disjoint test.
+  No question/evidence annotations were added to the retrievable corpus.
+- Important limitations: Endgame/PK has no sufficiently documented symmetric
+  writing-method comparison in the frozen source packet, and PK's loss of
+  witnesses does not itself prove a changed protective strategy. Her/Shawshank
+  supports letters as a motif, but a motif is not evidence of equally detailed
+  voice/narration production methods. 3 Idiots' general satire/casting account
+  is less specific about staging debate than Lumet's camera/lens explanation.
+- Counterexamples reject an absolute anti-technology reading of WALL-E and
+  Jurassic Park. A jury's acquittal is not omniscient proof, and shared motifs
+  do not establish direct creative influence. Negative labels require a
+  qualified response, not simply suppressing all sources.
+- Source inspection also found reasons for further fact-level review outside
+  this retrieval benchmark: 3 Idiots passage 9e77bc00-97b8-4880-97bb-11324584e42c
+  describes Kai Po Che as a second Five Point Someone adaptation, whereas the
+  author's own filmography associates it with The 3 Mistakes of My Life:
+  https://www.chetanbhagat.com/other-works/films/ . Treat that as a flagged
+  lineage discrepancy requiring review, not a silent correction to raw prose
+  or a new operational Assertion. No canonical records were changed.
+- Separately checked an unfamiliar 2026 Endgame rerelease reference against
+  Disney's own dated account, which confirms the rerelease exists:
+  https://thewaltdisneycompany.com/news/russo-brothers-avengers-endgame-doomsday/ .
+  Do not reject current source material merely because prior model knowledge
+  is older. That check does not independently validate every cumulative gross
+  or rewrite the frozen evaluation evidence.
+- Remaining: held-out model retrieval/scoring, reranker selection/generation
+  quality, explicit candidate-index activation, current API/UI verification,
+  broader 1,000-film reconciliation and final product go/no-go are not done.
