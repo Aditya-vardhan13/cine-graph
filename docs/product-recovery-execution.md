@@ -101,3 +101,57 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   separate release gates. No film was published or indexed by this decision.
 - Remaining pilot sources require their own recorded review before admission;
   this does not establish source content correctness or answer usefulness.
+
+- WALL·E (2008), Q104905: snapshot a3ffc9dd-5348-4d4f-b264-e6c68802bb30,
+  revision 1380240647, SHA-256
+  6ebcb396a361eb890b0863834471efb5bc6f6214067f36e1bd4c93ea1864adba:
+  retained lead identifies Pixar/Stanton and the WALL-E/EVE relationship.
+  Recorded its own explicit approval via local API, HTTP 200, version 1.
+
+## Resource cleanup for the >=4B experiment
+
+- Free disk fell below the 6 GiB reserve before the two-film diagnostic.
+- Removed only the retired BGE-M3 checkpoint blob under the project-local
+  rag-v2/encoders/weights cache: 2,271,145,830 bytes, SHA-256
+  b5e0ce3470abf5ef3831aa1bd5553b486803e83251590ab7ff35a117cf6aad38.
+  Hash matched its cache identity; it was ignored, not a symlink, with no
+  open handle or running BGE evaluation observed. New model selection excludes
+  this sub-4B model. Kept old scores, vectors, annotations and raw captures.
+- Not recoverable from Git or Trash; old BGE experiments require re-acquiring
+  this exact pinned checkpoint to replay inference. Cached model metadata may
+  now point to an absent blob; no ordinary tests auto-download it.
+
+## Current-source 4B diagnostic started
+
+- Exported 79 current, approved and hash-verified passages for Her/WALL·E into
+  an ignored local packet. Corpus fingerprint:
+  924b797a1e96e716243c7990cb16526a8e615337471fd9f985069666509e341d.
+- Reused the existing 128-word overlapping-window diagnostic runner, not a
+  new production chunker: 158 source windows and one known development query.
+- Added immutable output protection, per-batch 6 GiB reserve checks and
+  digest verification through the adapter on every uncached inference batch.
+- Three existing dense-trial policy tests passed. No quality score is implied.
+- Live job handle for this turn: unified exec 13255. Resumable artifacts:
+  data/evaluation/recovery-qwen4b-cache and
+  data/evaluation/recovery-her-walle-qwen4b-v1.json (final report when complete).
+
+### Completed diagnostic, not a release score
+
+- Job 13255 exited successfully: 158 document windows and one query; measured
+  embedding batch time total 132.93 seconds. This excludes some orchestration
+  overhead and is not representative 1,000-film throughput or user latency.
+- Her top lead is its opening plot passage, directly establishing Theodore's
+  loneliness and connection to Samantha. Second is the plot's separation/
+  acceptance passage, relevant to how the relationship changes. Third is a
+  production passage, useful background but not the characters' choice itself.
+- WALL·E top lead is an attributed thematic discussion about habit and
+  relationships, followed by an animation discussion and then the plot's
+  arrival of EVE/care for EVE. This is pertinent context but direct dramatic
+  action should not be displaced by thematic exposition in the final answer.
+- Several windows begin or end mid-sentence. Parent-context expansion and
+  sentence/paragraph-aligned chunking need evaluation before production.
+- Result demonstrates access to useful current evidence outside the old
+  plot-only route, not superiority of 4B over another model. It is one known
+  development query, without independent labels, reranking or synthesis.
+- Next: improve evidence packing, expand to the reviewed ten-film pilot and
+  frozen questions, then compare model arms on the same complete corpus.

@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 from time import perf_counter
 
 import numpy as np
@@ -84,6 +85,8 @@ def main() -> None:
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if args.output.exists():
+        raise FileExistsError("Refusing to overwrite an existing experiment result")
     allowed = {"ollama": {"qwen3-embedding:0.6b", "qwen3-embedding:4b"},
                "e5": {"intfloat/multilingual-e5-base"}, "bge": {"BAAI/bge-m3"}}
     if args.model not in allowed[args.provider]:
@@ -117,7 +120,8 @@ def main() -> None:
         if not any(row["name"] == args.model and row["digest"] == args.revision for row in tags):
             raise ValueError("Local Ollama model does not match pinned digest.")
         client = OllamaEmbeddingClient(timeout_seconds=300)
-        profile = OllamaEmbeddingProfile(model=args.model, dimensions=args.dimensions)
+        profile = OllamaEmbeddingProfile(model=args.model, dimensions=args.dimensions,
+                                        expected_model_digest=args.revision)
         def embed(values, query=False):
             return client.embed([profile.query_input(v) if query else v for v in values], profile=profile)
     else:
@@ -157,6 +161,8 @@ def main() -> None:
     def cached_vectors(values, *, query=False):
         vectors = []
         for offset in range(0, len(values), args.batch_size):
+            if shutil.disk_usage(root).free < 6 * 1024**3:
+                raise RuntimeError("Embedding trial stopped below the 6 GiB disk reserve; retain cache and resume")
             batch = values[offset:offset + args.batch_size]
             paths = [cache / f"{digest({'query': query, 'text': value})}.json" for value in batch]
             missing = [i for i, path in enumerate(paths) if not path.exists()]
