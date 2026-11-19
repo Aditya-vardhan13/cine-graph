@@ -18,3 +18,14 @@
 
 Next: finish mapped-source verification with runtime and isolated-DB checks,
 then prepare reconciled source manifests and the pinned >=4B model profile.
+
+## Phase 2: application namespace for retained sources
+
+- Added explicit validated snapshot root mappings to application configuration.
+- All default snapshot verification callers now use this namespace, including
+  rights and publication checks; explicit audit mappings remain independent.
+- Missing/mismatched bytes still fail. Stored descriptors are unchanged.
+- Added a real subprocess environment check, without mock frameworks, proving
+  that a mapped capture verifies and an out-of-scope source stays unmapped.
+- Deployment configuration is documented in snapshot-root-mapping.md; this
+  commit does not silently mount a host directory or change the running API.

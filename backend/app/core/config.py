@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, model_validator
@@ -18,6 +19,9 @@ class Settings(BaseSettings):
     api_cors_origins: str = "http://localhost:3000"
     wikidata_user_agent: str = "CineGraphExplorer/0.1 (https://github.com/Aditya-vardhan13/cine-graph)"
     raw_snapshot_root: str = "./data/raw-snapshots"
+    # JSON pairs of persisted absolute roots and their explicitly mounted roots.
+    # Empty preserves native host paths; configured maps fail closed outside them.
+    snapshot_root_mappings: list[tuple[str, str]] = Field(default_factory=list)
     source_request_interval_seconds: float = 1.0
     openalex_request_interval_seconds: float = 2.0
     crossref_request_interval_seconds: float = 2.0
@@ -44,6 +48,14 @@ class Settings(BaseSettings):
     def enforce_noncommercial_scope(self) -> "Settings":
         if self.serve_noncommercial_sources and self.environment not in {"development", "local"}:
             raise ValueError("Non-commercial source display is restricted to local development")
+        roots = set()
+        for source, target in self.snapshot_root_mappings:
+            if any(not Path(root).is_absolute() or Path(root).resolve() == Path("/")
+                   for root in (source, target)):
+                raise ValueError("Snapshot root maps require non-root absolute paths")
+            if source in roots:
+                raise ValueError("Duplicate snapshot source root")
+            roots.add(source)
         return self
 
     @property

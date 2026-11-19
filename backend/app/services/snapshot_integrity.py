@@ -19,6 +19,14 @@ from sqlalchemy.orm import Session
 from app.models import Assertion, AssertionEvidence, DataSource, SourceAssertion, SourceObject, SourceSnapshot
 
 
+def _configured_root_mappings() -> tuple[tuple[Path, Path], ...]:
+    """Read the validated application namespace without changing descriptors."""
+    from app.core.config import get_settings
+    mappings = tuple((Path(source), Path(target))
+                     for source, target in get_settings().snapshot_root_mappings)
+    return mappings
+
+
 def _path_for_audit(
     storage_uri: str,
     root_mappings: tuple[tuple[Path, Path], ...],
@@ -53,7 +61,7 @@ def verify_snapshot_file(
     expected_hash: str,
     expected_size: int | None,
     *,
-    root_mappings: tuple[tuple[Path, Path], ...] = (),
+    root_mappings: tuple[tuple[Path, Path], ...] | None = None,
 ) -> str:
     """Return a precise status; never trust file presence without its digest."""
     if not storage_uri:
@@ -61,7 +69,7 @@ def verify_snapshot_file(
     parsed = urlparse(storage_uri)
     if parsed.scheme != "file" or parsed.netloc not in ("", "localhost"):
         return "unsupported_uri"
-    path = _path_for_audit(storage_uri, root_mappings)
+    path = _path_for_audit(storage_uri, _configured_root_mappings() if root_mappings is None else root_mappings)
     if path is None:
         return "unmapped"
     if not path.is_file():
