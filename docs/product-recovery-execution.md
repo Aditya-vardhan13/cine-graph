@@ -603,3 +603,22 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   integrity, quality/latency review and API/UI verification remain required
   before setting the activation variable. No 4B promotion is claimed.
 - Disk is now about 4.8 GiB. No inference was started below the reserve.
+
+## Unresolved target identity proposals
+
+- Read-only local IMDb discovery and retained reviewed cross-ID lookup produced
+  proposals for 25 of 32 unresolved/outside target rows; 19 rows have at least
+  one candidate with a retained cross-ID. These are **not approved identities**
+  or proof the matched film belongs to the target collection. Seven rows had
+  no title/year candidate under this search policy.
+- A key warning: `Yip Man` also returned Iron Man, and `Kung fu` returned
+  several equally scored candidates. The CSV's `Uri` year differs from the
+  local IMDb year. Cross-IDs validate candidate identity only, not whether that
+  candidate is the intended CSV row; title, year and source review remain
+  necessary. Duplicate assertions/aliases are preserved, not treated as votes.
+- Local report: data/reports/recovery-target-identity-proposals-v1.json.
+  It includes reviewed assertion IDs and the sparse-index source hash. The
+  derived title SQLite index is not independently fingerprint-bound to that
+  hash by this diagnostic; treat all search results as review leads.
+- IMDb TSVs remain uncompressed: their sparse index uses uncompressed byte
+  offsets and plain gzip would break efficient random access. No data deleted.
