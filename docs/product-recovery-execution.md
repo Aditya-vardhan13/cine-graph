@@ -221,3 +221,37 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   inference, measure memory, choose a token-counted smaller context and use
   source observations/citation-first construction rather than merely longer
   output or another unmeasured model sweep.
+
+## Ten-film diagnostic source admission
+
+- Recorded eight additional individually reviewed current Wikipedia snapshots
+  through the local operator API. Each decision note binds the exact snapshot,
+  revision, SHA-256, film/edition, recognizable lead identity, source basis,
+  attribution/change obligations and local-experiment limitations. This is
+  not an approval rule for other catalog titles or future source revisions.
+- Source decisions persisted (QID / exact snapshot / latest version):
+
+| Film QID | Snapshot | Version |
+| --- | --- | --- |
+| Q2345 | fa096951-cff7-465e-a7d9-959ab2c428af | 1 |
+| Q229633 | e835e7c7-09d3-4893-812b-a1c684dccf6a | 1 |
+| Q23781155 | 2278450f-8125-4dcd-a7d3-94b48877db27 | 2 |
+| Q167726 | 7a0579fa-169f-4b0a-9425-ffa95014985b | 1 |
+| Q7117022 | ddad809a-afbc-45ce-80c1-091e52104a44 | 1 |
+| Q189505 | eac2d9f9-5f25-4431-af30-4d0a99eeeb6d | 1 |
+| Q47703 | a2c2124d-2482-40f7-b2eb-939ad26d1939 | 2 |
+| Q172241 | e6890241-da9e-48bf-b733-b607faa40960 | 1 |
+
+- Her and WALL·E were admitted in the previous checkpoints. Re-read the current
+  source selection, latest decisions, purpose policy and retained-file hashes
+  in the API namespace after these operations. All ten selected films have
+  at least one eligible current source; this does not make other sources
+  attached to those films eligible or establish all factual correctness.
+- Endgame/Godfather already had a decision on these snapshots, so their new
+  source-specific reviews are version 2 rather than version 1; no history
+  was overwritten.
+- Raw local response log: data/reports/recovery-pilot-source-decisions-v1.json.
+  No facts or collection memberships changed. No full pilot index, serving
+  switch, held-out evaluation, or quality certification is implied.
+- Generator is now unloaded (local /api/ps returned no models), but free disk
+  is about 5.4 GiB. New inference/download work remains capacity-gated.
