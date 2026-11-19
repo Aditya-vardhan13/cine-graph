@@ -45,3 +45,21 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - Pure admission and manifest stability checks: two passed. Existing full
   catalog was read, not changed. Target CSV identity reconciliation and model
   index construction remain separate unfinished gates.
+
+## Phase 4: pinned 4B adapter contract, no new weights
+
+- Local Ollama 11434 already has Qwen3-Embedding 4B Q4_K_M, about 2.5 GB.
+  Exact digest: df5bd2e3c74cd8d069d21dc038f1b359fcdc9458fce1c99bd43c9eb1518ff907.
+  The dedicated story server on 11435 did not return a model inventory.
+- Added an explicit local-only candidate check restricted to >=4B candidates:
+  pins registry digest before/after inference and checks vector shape,
+  finiteness, nonzero norms and query/document adapter compatibility.
+- Observed 1,024-dimensional vectors with norms near one; three original
+  diagnostic sentences took 4.95 seconds including any load overhead;
+  a query took 0.41 seconds. Not full-corpus throughput or quality evidence.
+- One pure vector-contract test passed. Result remains local at
+  data/reports/embedding-candidate-qwen4b-contract-v1.json.
+- No download, index build, source approval or serving switch. Long inputs,
+  retrieval relevance, 8B comparison, production profile activation and
+  generation remain unverified. Disk fell from about 8.6 to 6.6 GiB during
+  the check; cause not established, so heavier jobs must recheck reserve.
