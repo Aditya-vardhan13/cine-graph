@@ -717,3 +717,16 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   question-holdout remains unused for tuning. Local retained capture:
   `recovery-ten-qwen4b-depth10-reranker-pool-v1.json`; single-question result:
   `recovery-rerank4b-depth10-r03-choice-v1.json`.
+
+### Bounded MLX allocation-cache check
+
+- Repeated that same depth-10 question with the 128 MiB MLX allocation cache
+  retained until the end of each film instead of explicitly cleared after each
+  passage. Single-run measured scoring was **43.95 s** versus **43.16 s** with
+  per-passage clearing; reported peak MLX memory was **2.59 GiB** in both.
+  Rankings were identical on both sides. This one-pair observation does not
+  establish general performance equivalence, but provides no evidence to keep
+  the added runtime option. The temporary code change was removed.
+- Local result: `recovery-rerank4b-depth10-r03-cached-v1.json`. This experiment
+  does not address batching, prefix sharing, different model architecture or
+  user-facing end-to-end latency; those remain separate options to evaluate.
