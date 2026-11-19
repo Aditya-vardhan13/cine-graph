@@ -399,3 +399,25 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - Combined local review v4 now covers twenty-five of thirty development cases;
   five remain. The twenty question-holdout inputs remain unreviewed/unscored.
   No inference, corpus mutations or independent-gold claim in this step.
+
+## Development source-oracle checkpoint: all thirty cases
+
+- Completed the remaining R02 and R06 source-support observations, retaining
+  R02 craft/reception as partial rather than promoting general production
+  metadata or emotional praise to specific family-staging/sacrifice evidence.
+- R02.premise_check marked missing: no established source-bound exact viewer
+  behavior percentage; do not invent a survey or claim worldwide absence.
+  R06 craft/reception have provisional source support with attribution limits.
+- Thirty reviewed development cases: thirteen complete, eleven partial, five
+  negative/premise corrections and one missing. Ninety-three exact quoted
+  spans are bound to frozen source hashes/offsets. No development cases remain
+  pending in this packet; these counts are annotations, not model scores.
+- Local artifact: recovery-oracle-review-development-complete-v1.json under
+  data/evaluation. Single reviewer, no independent adjudication or release
+  gold. Complete here means review coverage, not certainty of every judgment
+  or exhaustive independent verification of all 487 retained passages.
+- The untouched twenty question-holdout cases still require their own
+  source-support labels before final scoring. Do not reuse development
+  figures as held-out quality or train models on these evidence annotations.
+- Requested user-side additional free disk, while continuing non-inference
+  work. Last measurement ~5.9 GiB still below the model-job reserve.
