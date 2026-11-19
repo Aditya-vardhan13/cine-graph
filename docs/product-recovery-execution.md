@@ -421,3 +421,23 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   figures as held-out quality or train models on these evidence annotations.
 - Requested user-side additional free disk, while continuing non-inference
   work. Last measurement ~5.9 GiB still below the model-job reserve.
+
+## Lexical reference over all thirty development questions
+
+- Reused the existing BM25 policy with per-film full-parent passages and
+  section titles, preserving the frozen question text and source corpus.
+  No model, network, source acquisition or database mutation.
+- Evaluator verifies corpus fingerprint, review binding, exact case coverage,
+  quoted spans and film scope. It does not return an answer-accuracy field
+  other than null. One pure policy test passed.
+- On thirteen provisionally complete cases, top five full passages per film
+  contain 15/47 annotated source spans; top twenty contain 36/47.
+  Partial cases: 13/33 at five, 23/33 at twenty. Negative cases: 2/13 and
+  9/13 respectively; these last figures are not correct-abstention scores.
+- Counts are annotated-span inclusion only, not all relevant evidence recall:
+  annotations may omit alternatives or include multiple optional supports,
+  and retrieving a whole parent makes coverage easier than a short window.
+  These numbers cannot be compared directly to old window/MRR scores.
+- Result remains local at data/evaluation/recovery-lexical-development-v1.json.
+  It establishes a reproducible baseline for identical-input comparisons,
+  not a model selection, release gate pass, or live site improvement.
