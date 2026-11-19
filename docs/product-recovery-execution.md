@@ -579,3 +579,27 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - Remaining: held-out model retrieval/scoring, reranker selection/generation
   quality, explicit candidate-index activation, current API/UI verification,
   broader 1,000-film reconciliation and final product go/no-go are not done.
+
+## Explicit serving-index selection, not activated
+
+- Added optional `ACTIVE_RETRIEVAL_INDEX_RUN_ID` configuration and explicit
+  resolver `index_run_id`. Normal retrieval callers inherit the configured
+  run; explicit offline model comparisons remain independent. Removed the
+  implicit 0.6B argument from shared hybrid entry points so they do not bypass
+  that pin. Unset configuration preserves legacy rollback behavior.
+- A pin must select a complete index and preprocessing run in the requested
+  collection/language, with an Ollama manifest-digest model contract, 1,024
+  dimensions, nonzero matching completion counters and no reported failures.
+  Wrong collection/language/model, failed/missing run or invalid revision
+  fails closed, rather than selecting the latest candidate or another corpus.
+- Verified against real isolated PostgreSQL `cinegraph_test`: a newer complete
+  run does not displace a pin; invalid pins fail even with another complete run
+  available. Twenty relevant activation/retrieval/comparison/config checks
+  passed. These checks exercise selection metadata, not vector-row coverage
+  or model accuracy. No working corpus tables or deployment settings changed.
+- Cutover/rollback instructions and limitations are in
+  docs/retrieval-index-activation.md. The offline 4B JSON/cache is not yet an
+  admitted persisted serving index. Source/chunk parity, actual vector-row
+  integrity, quality/latency review and API/UI verification remain required
+  before setting the activation variable. No 4B promotion is claimed.
+- Disk is now about 4.8 GiB. No inference was started below the reserve.

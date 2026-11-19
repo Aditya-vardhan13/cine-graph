@@ -80,7 +80,7 @@ def embed_narrative_queries(
     *,
     question_texts: list[str],
     client: OllamaEmbeddingClient | None = None,
-    model_name: str = "qwen3-embedding:0.6b",
+    model_name: str | None = None,
     scope: RetrievalScope | None = None,
 ) -> tuple[list[float], ...]:
     """Embed several retrieval questions once so film scopes can share vectors."""
@@ -206,7 +206,7 @@ def retrieve_narrative_candidates(
     limit: int = 10,
     candidate_limit: int = 50,
     client: OllamaEmbeddingClient | None = None,
-    model_name: str = "qwen3-embedding:0.6b",
+    model_name: str | None = None,
     query_vector: list[float] | None = None,
     scope: RetrievalScope | None = None,
     restrict_sections: bool = True,

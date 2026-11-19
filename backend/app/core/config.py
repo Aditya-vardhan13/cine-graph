@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from uuid import UUID
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, model_validator
@@ -37,6 +38,9 @@ class Settings(BaseSettings):
     # Opt in only after the writer collection has an eligible, complete index.
     # Evaluation tooling continues to use research_collection_code explicitly.
     active_writer_collection_code: str | None = None
+    # Explicit serving activation; unset preserves the legacy selection until
+    # a candidate passes quality review. A bad pin must never select another run.
+    active_retrieval_index_run_id: UUID | None = None
     admin_intake_email: str = "adityavk1310@gmail.com"
     imdb_data_dir: str = "/imports/imdb"
     imdb_index_dir: str = "data/imdb_index"
