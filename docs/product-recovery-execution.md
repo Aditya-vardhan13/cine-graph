@@ -670,3 +670,32 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   access Metal and exited before output; the GPU-enabled retry is running.
   No quality result or live-site change is claimed until it completes and
   its selected passages are evaluated against the source-bound review.
+
+## Completed 4B reranker development comparison
+
+- Session 44487 completed all 30 questions successfully. The source-bound
+  converter verified the exact capture, candidate sets, film identities and
+  retained full-parent text before scoring. On 13 provisionally complete
+  cases, top-five inclusion improved to **42/47** annotated spans versus
+  **28/47** for the same Qwen 4B embedding ranking alone. Partial cases were
+  **23/33** versus **21/33**; negative cases **11/13** versus **7/13**.
+  Negative-case inclusion is not an abstention score. These labels are
+  single-reviewer development annotations, not exhaustive relevance or
+  writer-answer accuracy; held-out evaluation remains unrun.
+- Four complete cases still missed at least one annotated span: R01.reception
+  3/4, R03.choice 3/4, R03.reception 3/4, R04.craft 1/3. More passages may
+  also be relevant than were annotated. Inspect sources before declaring
+  factual correctness or treating retrieved prose as a finished answer.
+- Summing measured sequential per-film reranking gives a median **121.4 s**
+  per two-film question, maximum **143.1 s**, and total **3,614.1 s** across
+  30 questions, excluding embedding and generation. This fails interactive
+  latency needs. Do not deploy the 20-parent-per-side reranker as-is.
+- Local files: recovery-reranker4b-development-ranking-v1.json and
+  recovery-reranker4b-development-score-v1.json. The model weight observed
+  SHA-256 after launch was `8003a82d273cfbf540f3dd96775dd9065d438a9d91ca4983e7a9c4d0dd9e1448`;
+  the checkpoint itself records a model path rather than that hash, so this
+  is an observed file hash, not a fully pinned run contract.
+- Next: investigate faster candidate selection/batching and compare against
+  the same development evidence without tuning on the held-out questions;
+  separately fix grounded generation. Neither serving nor user-facing answers
+  have been changed by this offline experiment.
