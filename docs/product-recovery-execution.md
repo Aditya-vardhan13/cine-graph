@@ -274,3 +274,22 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   pairs, ten film IDs, correct split counts and required provenance fields.
 - File: backend/tests/fixtures/recovery-question-design-v1.json. This is a
   small question-only fixture, not raw film data or a test-label corpus.
+
+## Frozen ten-film source export
+
+- Added read-only exporter that binds the question design hash, film QIDs,
+  current extraction selection, exact snapshot/contents hashes, source URL,
+  revision, licence/attribution and latest decision version.
+- Rejects missing/ambiguous film profiles, any approved source whose retained
+  bytes fail verification, corrupt derived text and films with no eligible
+  current text. Non-approved sources are explicitly excluded, not copied.
+- Real container-namespace export: ten films, 487 retained passages, thirty
+  development cases. Full local corpus:
+  data/evaluation/recovery-ten-film-current-v1.json; fingerprint
+  f368a110e693ef4438449113a93d522802275e75acc1ceafeb0b0c56ed1629de.
+- Twenty held-out question inputs are stored separately, without duplicating
+  the source prose: data/evaluation/recovery-ten-film-questions-heldout-v1.json;
+  fingerprint c49000f4e04c074b52c482eb11f59a695bb0ef94205a47105fb975a666dd10a8.
+- No database writes or source facts produced. One split contract test passed.
+  Full-source answerability labels are still pending; none of these artifacts
+  is independent gold, a production index, or evidence of passing retrieval.
