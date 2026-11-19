@@ -644,3 +644,12 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   the CSV's other fields corroborate the intended work.
 - No identity approval, canonical merge, snapshot acquisition or corpus
   membership change occurred in these checks.
+- Follow-up against the frozen CSV's own director/cast columns narrows the
+  earlier ambiguity: rank 777 records Stephen Chow as both director and lead,
+  matching Sony's Kung Fu Hustle description; rank 352 records Wilson Yip
+  and Donnie Yen, matching the Hong Kong Film Archive entry. Rank 83 records
+  Billy Wilder and William Holden, matching AFI/Paramount. Rank 130 records
+  Aditya Dhar and Vicky Kaushal, consistent with the identified Uri film but
+  retains the 2018/2019 year discrepancy. These independent fields support
+  the proposed matches; they do not mutate the frozen CSV or themselves prove
+  the retained QID assertion chain and collection admission.
