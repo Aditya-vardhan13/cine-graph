@@ -832,3 +832,27 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   human/OS versus robot/robot distinction and concrete relationship choices.
   Therefore exact quotes and staged prompting alone did not produce a useful
   or reliably supported writer's answer. No live feature was enabled.
+
+### Participant/action prompt and source-label correction
+
+- A revised staged prompt requested named participants, concrete source-stated
+  actions and source type. Its first run (local `recovery-her-walle-staged8b-v2.json`)
+  labeled two plot excerpts as filmmaker statements. Inspection found that the
+  experiment's input omitted section headings; the result cannot fairly test
+  whether the model can classify source type when that information is present.
+- The diagnostic now takes the original selected-evidence packet, verifies
+  text, film and snapshot identity against the baseline pack, and supplies the
+  corresponding section title. It records the selected-packet hash and prompt
+  version. No source text or operational assertions were changed.
+- In the corrected v3 local run, both quotations matched and both source types
+  were identified as plot. The synthesis cautiously said its two selected
+  observations could not answer the question. That limitation is appropriate
+  for those two observations, but the choice of observations omitted relevant
+  relationship material elsewhere in the provided packet. It still did not
+  name the robot/robot contrast, and its phrasing about what the *film* does
+  not provide goes beyond the narrower evidence-selection gap. Thus this is
+  not a useful complete answer and is not a release-quality pass.
+- Three model calls totaled **68.6 s** on this local run. Local output:
+  `recovery-her-walle-staged8b-v3.json`. This is a single development example;
+  next experiments need query-specific evidence selection and source-bound
+  claim verification, plus a separate held-out assessment and latency work.
