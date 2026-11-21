@@ -730,3 +730,20 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - Local result: `recovery-rerank4b-depth10-r03-cached-v1.json`. This experiment
   does not address batching, prefix sharing, different model architecture or
   user-facing end-to-end latency; those remain separate options to evaluate.
+
+### Two-passage batch diagnostic
+
+- Measured single-passage versus right-padded two-passage inference on the
+  same depth-10 R03.choice pool and locally installed 4B model. Per-passage
+  scoring took **42.73 s**, batch-of-two **86.36 s**, on 20 total passages.
+  The first five IDs matched for both films; maximum yes/no logit-difference
+  delta was **0.0625**. Peak MLX memory across both stages was 2.71 GiB.
+- This single-case result rejects this particular naive batching attempt as a
+  performance improvement; it does not prove batching is universally slower.
+  Variable-length padding, launch order, thermal and memory conditions could
+  affect timing, and were not separately isolated. It does not validate model
+  relevance, held-out quality or end-to-end latency. Do not enable in serving.
+- Local raw scores stay in `recovery-reranker-batch2-r03-v1.json`; the optional
+  diagnostic script is `scripts/benchmark_reranker_batch.py`. Further options
+  include shorter source-preserving windows and prefix reuse, each requiring
+  measured score/relevance and memory comparisons.
