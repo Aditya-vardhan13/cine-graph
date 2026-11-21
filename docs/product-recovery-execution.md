@@ -812,3 +812,23 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   It shows that model size alone has not resolved grounding or interactive
   latency in this setup. More reliable citation selection, claim review,
   prompt/context design and broader independent evaluation remain necessary.
+
+### Staged 8B observation/comparison diagnostic
+
+- Reused the exact Her/WALL-E packet from the matched 8B draft; asked for one
+  per-film observation, exact quote and limitation in separate calls, then
+  compared the observations in a third call. The diagnostic, not a serving
+  path, is `scripts/staged_recovery_draft.py`; output remains local at
+  `recovery-her-walle-staged8b-v1.json`.
+- All three calls ended normally and the two quotes matched visible source
+  substrings. The summed local request times were **62.5 s** (24.1 + 22.6 +
+  15.8), versus **101.1 s** for the previous one-call draft. These timings
+  include different model loading/keep-alive and output lengths; they are not
+  a controlled end-to-end latency comparison.
+- Semantic review **failed**. Each observation generalizes about artificial
+  companions despite evidence for particular characters; the WALL-E statement
+  converts a filmmaker's intended theme into a general behavioral claim without
+  attribution. The synthesis repeats the generalization and still misses the
+  human/OS versus robot/robot distinction and concrete relationship choices.
+  Therefore exact quotes and staged prompting alone did not produce a useful
+  or reliably supported writer's answer. No live feature was enabled.
