@@ -1027,3 +1027,26 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   the latency of this additional current-passage lookup, or improve generation.
   The running API image was not rebuilt in this step and still runs its prior
   code until explicitly rebuilt/restarted.
+
+### Target identity review enriched with credits
+
+- Built an append-only local review report by joining the 32 unresolved target
+  rows and their retained IMDb candidate IDs to the frozen CSV's director and
+  four credited names. It uses the existing sparse IMDb indexes and validates
+  the CSV, reconciliation and proposal hashes before reading candidate credits.
+  Exact normalized-name matches are evidence for review, not automatic merges;
+  absent principal credits or alternative spellings are not proof of a mismatch.
+- On this historical proposal set, **17/32 rows** have a candidate with a
+  director-name match and **20/32** have a candidate with at least one cast
+  match. The sets overlap and do not represent resolved films. For example,
+  `Kung fu` matches Stephen Chow and all four listed performers to the candidate
+  *Kung Fu Hustle*; `Uri` matches Aditya Dhar and all four performers but the
+  CSV's 2018 and candidate's 2019 remain a visible conflict. The report also
+  retains all candidate cross-ID assertions, including duplicate assertions,
+  and does not treat them as independent votes.
+- Artifact: `data/reports/recovery-target-identity-credit-review-v2.json`,
+  report SHA-256 `96ca03a14539fccf4c0ecfdf127af18775167210dd0176a3ad4b8e87c6fbf535`.
+  IMDb source hashes are carried from sparse-index metadata and the adapter
+  checks source size and modification time; it does not rehash the large dumps
+  on each run. This is based on the earlier frozen proposal report, not a new
+  live search, and does not approve identity or create collection membership.
