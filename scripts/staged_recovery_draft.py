@@ -17,6 +17,7 @@ def main():
     p.add_argument("--model",choices=("qwen3:4b","qwen3:8b"),required=True)
     p.add_argument("--digest",required=True)
     p.add_argument("--selected",type=Path,required=True,help="Original selected evidence with section labels")
+    p.add_argument("--observations-per-film",type=int,choices=(1,2),default=1)
     args=p.parse_args()
     root=Path(__file__).resolve().parents[1]/"data"/"evaluation"
     if any(not x.resolve().is_relative_to(root) for x in (args.baseline,args.selected,args.output)) or args.output.exists():
@@ -44,7 +45,7 @@ def main():
         response=httpx.post(url+"/api/chat",timeout=300,json={"model":args.model,"stream":False,
             "think":False,"format":format_schema,"keep_alive":"5m",
             "messages":[{"role":"system","content":system},{"role":"user","content":json.dumps(user,ensure_ascii=False)}],
-            "options":{"temperature":0,"seed":42,"num_ctx":8192,"num_predict":400}})
+            "options":{"temperature":0,"seed":42,"num_ctx":8192,"num_predict":700}})
         response.raise_for_status(); payload=response.json()
         calls.append({"seconds":time.monotonic()-start,"prompt_tokens":payload.get("prompt_eval_count"),
             "output_tokens":payload.get("eval_count"),"done_reason":payload.get("done_reason")})
@@ -52,20 +53,27 @@ def main():
     observations=[]; errors=[]
     for prefix in ("A","B"):
         entries=[e for e in pack["entries"] if e["ref"].startswith(prefix)]
-        result=chat("Consider only this film and only the supplied evidence. Name the specific participants and their types if stated, such as human, operating system, robot, or unknown. Describe one concrete action by named participants that the quote directly states. Prefer plot evidence for actions. Do not generalize from characters to all companions, invent motivations, or claim a directorial statement is a plot event. Copy one exact contiguous quotation and identify its source type. If a requested detail is not in evidence, state that in limit.",
-            {"question":pack["question"],"evidence":entries},schema)
+        prompt="Consider only this film and only the supplied evidence. Choose the evidence most directly responsive to the specific question, not just a passage mentioning its subject. Name the specific participants and their types if stated, such as human, operating system, robot, or unknown. Describe a concrete action by named participants that the quote directly states. Prefer plot evidence for actions. Do not generalize from characters to all companions, invent motivations, or claim a directorial statement is a plot event. Copy one exact contiguous quotation and identify its source type. If a requested detail is not in evidence, state that in limit."
+        request={"question":pack["question"],"evidence":entries}
+        if args.observations_per_film == 2:
+            format_schema={"type":"object","properties":{"observations":{"type":"array","items":schema,"minItems":2,"maxItems":2}},"required":["observations"],"additionalProperties":False}
+            results=chat(prompt+" Select two distinct, complementary observations when possible; do not repeat the same action.",request,format_schema)["observations"]
+        else:
+            results=[chat(prompt,request,schema)]
         refs={e["ref"]:e["content"] for e in entries}
-        if result.get("ref") not in refs or not result.get("quote") or result["quote"] not in refs[result["ref"]]:
-            errors.append(prefix+":invalid_quote")
-        observations.append(result)
+        if len(results)!=args.observations_per_film: errors.append(prefix+":observation_count")
+        for result in results:
+            if result.get("ref") not in refs or not result.get("quote") or result["quote"] not in refs[result["ref"]]:
+                errors.append(prefix+":invalid_quote")
+            observations.append({"film":prefix,**result})
     synthesis=None
     if not errors:
         compare_schema={"type":"object","properties":{"comparison":{"type":"string"},"limit":{"type":"string"}},
             "required":["comparison","limit"],"additionalProperties":False}
-        synthesis=chat("Compare only the two observations. Name each film's participants and types if stated, and the actual action in each. Explain a difference only if the observations support it. Do not generalize about all companions, confuse a filmmaker statement with an event, infer motives, or force the same premise. If observations cannot answer part of the question, state the gap.",
+        synthesis=chat("Compare only the supplied observations. Name each film's participants and types if stated, and the actual action in each. Explain a difference only if the observations support it. Do not generalize about all companions, confuse a filmmaker statement with an event, infer motives, or force the same premise. If observations cannot answer part of the question, state the gap in the supplied observations, not a claim about the whole film.",
             {"question":pack["question"],"observations":observations},compare_schema)
     if local_model_digest(url,args.model)!=args.digest: errors.append("model_changed_during_run")
-    result={"model":args.model,"digest":args.digest,"prompt_version":"participant-action-v3-section-labels",
+    result={"model":args.model,"digest":args.digest,"prompt_version":"participant-action-v4-multiple-observations","observations_per_film":args.observations_per_film,
         "selected_sha256":canonical_digest(selected),"pack_sha256":canonical_digest(pack),"pack":pack,
         "observations":observations,"synthesis":synthesis,"structural_errors":errors,"calls":calls,
         "semantic_review":"pending","caution":"Exact quote checks do not establish entailment. Offline only."}

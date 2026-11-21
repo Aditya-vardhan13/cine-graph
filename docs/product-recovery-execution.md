@@ -856,3 +856,25 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   `recovery-her-walle-staged8b-v3.json`. This is a single development example;
   next experiments need query-specific evidence selection and source-bound
   claim verification, plus a separate held-out assessment and latency work.
+
+### Two-observation selection experiment
+
+- On the same development question and source pack, the offline diagnostic
+  requested two distinct, question-relevant source-quoted observations per
+  film rather than one, with explicit film identifiers. The model and source
+  hashes remained pinned; the optional setting does not change live serving.
+- The four quotes all matched their source passages. The selected observations
+  included Samantha's surrogate attempt and WALL-E and EVE's reconciliation,
+  but also a blind date and a plant rescue whose relevance to the question is
+  less direct. The model then declined to make any meaningful comparison,
+  even though the more relevant observations support a limited comparison.
+  It also repeated unjustified claims about what the film does not provide.
+- Result: **not a useful answer and not a release pass**. The model's cautious
+  response is preferable to invented evidence but is still an incorrect product
+  outcome. Four exact quotes are not four verified interpretations, nor is a
+  single development case a benchmark. Total measured model-call time was
+  **96.8 s**, excluding orchestration. Local output:
+  `data/evaluation/recovery-her-walle-staged8b-v4.json`.
+- More observations alone did not solve question interpretation or entailment;
+  retrieval, claim selection and model reliability require evaluation on
+  multiple frozen examples before any serving integration.
