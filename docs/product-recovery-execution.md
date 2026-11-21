@@ -878,3 +878,50 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - More observations alone did not solve question interpretation or entailment;
   retrieval, claim selection and model reliability require evaluation on
   multiple frozen examples before any serving integration.
+
+### Freeze for the previously unranked question set
+
+- Before generating predictions for the 20 held-out questions, freeze the
+  development-selected control: Qwen3-Embedding 4B Q4_K_M at digest
+  `df5bd2e3c74cd8d069d21dc038f1b359fcdc9458fce1c99bd43c9eb1518ff907`,
+  1,024 dimensions, full-parent passages, original question, exact cosine,
+  per-film scope, 20 candidates. Report top-five and top-twenty span inclusion
+  against the separately retained review; compare a same-input BM25 control.
+- No reranker is selected for interactive serving: the development depth-20
+  reranker took a median 121.4 seconds per question and the faster depth-10
+  single-question test took 43.2 seconds. Neither met the proposed latency
+  budget. The dense configuration is a diagnostic control, not a declaration
+  that retrieval or end-to-end answers are ready.
+- The 20 questions and source annotations were inspected during source review
+  by a single reviewer, with films overlapping the development set. This is a
+  previously unranked question set, not an independent or film-disjoint blind
+  test. Freeze this protocol before inspecting its rankings; do not tune on its
+  results or silently revise the existing annotations after scoring.
+
+### Frozen question-set retrieval result
+
+- The local 4B run completed all 20 questions using the original 487 cached
+  full-parent document vectors and 20 newly computed query vectors. The
+  separate question packet was fingerprint-checked and bound to the original
+  source corpus; it was not used as evidence or to alter the cache contract.
+  Ten two-query batches took approximately 21.3 seconds total, including a
+  15.2-second first batch; this is not request p95 or end-to-end latency.
+- On the 13 cases provisionally marked complete, the fixed 4B configuration
+  included **27/40 annotated spans at five** and **40/40 at twenty**, versus
+  lexical **8/40** and **25/40**, respectively. All annotated spans were in
+  the top five on both sides for **6/13** complete cases. This stricter number
+  is not necessarily facet coverage: annotations can include alternative or
+  extra supporting spans, while unlabelled alternatives can also be valid.
+- The four partial cases included **4/10** spans at five and **8/10** at
+  twenty; the three negative cases included **1/6** and **4/6**. These are
+  evidence visibility numbers, not premise-correction or abstention scores.
+  This result does not demonstrate useful generated answers or justify a
+  serving switch. The known slow 4B reranker remains outside this frozen arm.
+- Raw rankings and scoring artifacts remain local under `data/evaluation/`:
+  `recovery-qwen4b-heldout-depth20-v1.json`,
+  `recovery-qwen4b-heldout-score5-v1.json`,
+  `recovery-qwen4b-heldout-score20-v1.json`, and
+  `recovery-lexical-heldout-v1.json`. The explicit question-packet adapter
+  checks fingerprints, case overlap, film scope and review/ranking binding;
+  twelve focused integrity and ranking tests passed. No operational corpus,
+  live index or site behavior changed.

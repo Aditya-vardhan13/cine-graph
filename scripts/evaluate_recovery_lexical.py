@@ -10,18 +10,32 @@ from app.services.corpus_build_manifest import canonical_digest
 from app.services.lexical_retrieval import Bm25Index
 
 
-def evaluate(corpus, review, cutoff=5, retained_ranking=None):
+def evaluate(corpus, review, cutoff=5, retained_ranking=None, question_packet=None):
     if cutoff < 1:
         raise ValueError("positive_cutoff_required")
     if canonical_digest({k:v for k,v in corpus.items() if k!="fingerprint"}) != corpus["fingerprint"]:
         raise ValueError("corpus_fingerprint_mismatch")
     if review["source_corpus_fingerprint"] != corpus["fingerprint"]:
         raise ValueError("review_corpus_mismatch")
+    cases = corpus["cases"]
+    if question_packet is not None:
+        fingerprint = question_packet.get("fingerprint")
+        if canonical_digest({k:v for k,v in question_packet.items() if k!="fingerprint"}) != fingerprint:
+            raise ValueError("question_packet_fingerprint_mismatch")
+        if (question_packet.get("source_corpus_fingerprint") != corpus["fingerprint"]
+            or review.get("question_set_fingerprint") != fingerprint):
+            raise ValueError("question_packet_binding_mismatch")
+        cases = question_packet["cases"]
+        ids=[c["case_id"] for c in cases]
+        if len(set(ids))!=len(ids) or set(ids) & {c["case_id"] for c in corpus["cases"]}:
+            raise ValueError("question_packet_overlap")
+        if retained_ranking is not None and retained_ranking.get("question_packet_fingerprint") != fingerprint:
+            raise ValueError("ranking_question_packet_mismatch")
     documents = {d["chunk_id"]:d for d in corpus["documents"]}
     labels = {r["case_id"]:r for r in review["cases"]}
     if len(labels) != len(review["cases"]):
         raise ValueError("duplicate_review_case")
-    if set(labels) != {c["case_id"] for c in corpus["cases"]}:
+    if set(labels) != {c["case_id"] for c in cases}:
         raise ValueError("exact_case_coverage_required")
     cutoffs=(cutoff,) if retained_ranking is not None else (cutoff,20)
     retained={}
@@ -29,9 +43,9 @@ def evaluate(corpus, review, cutoff=5, retained_ranking=None):
         if retained_ranking["contract"]["corpus"]!=corpus["fingerprint"]:
             raise ValueError("ranking_corpus_mismatch")
         rows=retained_ranking["cases"]
-        if [r["case_id"] for r in rows]!=[c["case_id"] for c in corpus["cases"]]:
+        if [r["case_id"] for r in rows]!=[c["case_id"] for c in cases]:
             raise ValueError("ranking_case_sequence_mismatch")
-        for case,row in zip(corpus["cases"],rows,strict=True):
+        for case,row in zip(cases,rows,strict=True):
             if row["question"]!=case["question"] or [s["film_qid"] for s in row["sides"]]!=case["film_qids"]:
                 raise ValueError("ranking_question_or_film_mismatch")
             for side in row["sides"]:
@@ -51,7 +65,7 @@ def evaluate(corpus, review, cutoff=5, retained_ranking=None):
     indexes = {qid:Bm25Index.build(d["section_title"]+" "+d["content"] for d in docs)
                for qid,docs in grouped.items()}
     results=[]
-    for case in corpus["cases"]:
+    for case in cases:
         annotation=labels[case["case_id"]]
         sides=[]
         for qid in case["film_qids"]:
@@ -98,13 +112,15 @@ def main():
     for name in ("corpus","review","output"):
         p.add_argument("--"+name,type=Path,required=True)
     p.add_argument("--ranking",type=Path)
+    p.add_argument("--question-packet",type=Path)
     p.add_argument("--cutoff",type=int,default=5)
     args=p.parse_args()
     if args.output.exists():
         raise FileExistsError(args.output)
     result=evaluate(json.loads(args.corpus.read_text()),json.loads(args.review.read_text()),
                     cutoff=args.cutoff,
-                    retained_ranking=json.loads(args.ranking.read_text()) if args.ranking else None)
+                    retained_ranking=json.loads(args.ranking.read_text()) if args.ranking else None,
+                    question_packet=json.loads(args.question_packet.read_text()) if args.question_packet else None)
     with args.output.open("x") as h:
         json.dump(result,h,ensure_ascii=False,indent=2)
         h.write("\n")

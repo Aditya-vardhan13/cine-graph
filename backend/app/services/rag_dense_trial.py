@@ -110,6 +110,7 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--candidate-limit", type=int, default=10)
     parser.add_argument("--cache-only", action="store_true", help="Replay complete retained vectors without model access or inference")
+    parser.add_argument("--question-packet", type=Path, help="Separate fingerprinted question packet against the same frozen source corpus")
     parser.add_argument("--device", choices=("cpu", "mps"), default="cpu")
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -122,7 +123,10 @@ def main() -> None:
     if args.model not in allowed[args.provider]:
         raise ValueError("Model is not supported by this provider's verified input/pooling contract.")
     root = Path(__file__).resolve().parents[3] / "data" / "evaluation"
-    if any(not path.resolve().is_relative_to(root) for path in (args.corpus, args.cache_dir, args.output)):
+    paths = [args.corpus, args.cache_dir, args.output]
+    if args.question_packet is not None:
+        paths.append(args.question_packet)
+    if any(not path.resolve().is_relative_to(root) for path in paths):
         raise ValueError("All experiment artifacts must remain under project data/evaluation.")
     if args.batch_size < 1 or args.dimensions < 1 or args.candidate_limit < 1:
         raise ValueError("Batch size, dimensions and candidate limit must be positive.")
@@ -130,6 +134,22 @@ def main() -> None:
     expected = corpus.pop("fingerprint")
     if digest(corpus) != expected:
         raise ValueError("Frozen corpus fingerprint failed.")
+    cases = corpus["cases"]
+    question_fingerprint = None
+    if args.question_packet is not None:
+        packet = json.loads(args.question_packet.read_text())
+        question_fingerprint = packet.get("fingerprint")
+        if digest({k: v for k, v in packet.items() if k != "fingerprint"}) != question_fingerprint:
+            raise ValueError("Question packet fingerprint failed.")
+        if packet.get("source_corpus_fingerprint") != expected:
+            raise ValueError("Question packet source corpus mismatch.")
+        cases = packet["cases"]
+        ids = [row["case_id"] for row in cases]
+        if len(set(ids)) != len(ids) or set(ids) & {row["case_id"] for row in corpus["cases"]}:
+            raise ValueError("Duplicate or overlapping question IDs.")
+        film_ids = {row["film_qid"] for row in corpus["documents"]}
+        if any(len(row["film_qids"]) != 2 or not set(row["film_qids"]) <= film_ids for row in cases):
+            raise ValueError("Question film scope is not in the frozen corpus.")
     representation = {"fixed128":"source-window-128w-overlap32-v1",
                       "aligned400":"source-aligned400-nooverlap-v1",
                       "fullparent":"source-full-parent-v1"}[args.window_policy]
@@ -230,13 +250,14 @@ def main() -> None:
             print(f"{'queries' if query else 'documents'} {min(offset + len(batch), len(values))}/{len(values)}", flush=True)
         return np.asarray(vectors, dtype=np.float32)
     matrix = cached_vectors([row["input"] for row in documents])
-    queries = cached_vectors([row["question"] for row in corpus["cases"]], query=True)
+    queries = cached_vectors([row["question"] for row in cases], query=True)
     cases = [{**case, "sides": [{"film_qid": qid, "ranked": rank_windows(documents, matrix, vector, film_qid=qid, limit=args.candidate_limit)}
                                 for qid in case["film_qids"]]}
-             for case, vector in zip(corpus["cases"], queries, strict=True)]
+             for case, vector in zip(cases, queries, strict=True)]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps({"contract": contract, "model_load_ms": load_ms,
                                       "cache_only": args.cache_only,"candidate_limit": args.candidate_limit,
+                                      "question_packet_fingerprint": question_fingerprint,
                                       "embedding_batches": timings, "cases": cases}, indent=2))
 
 

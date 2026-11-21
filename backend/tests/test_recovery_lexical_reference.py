@@ -68,3 +68,22 @@ def test_retained_ranking_rejects_mismatched_inputs(change,error):
     elif change=="score": row["sides"][0]["ranked"][0]["score"]=float("nan")
     with pytest.raises(ValueError,match=error):
         module.evaluate(corpus,review,retained_ranking=ranking)
+
+
+def test_separate_question_packet_requires_bound_review_and_ranking():
+    corpus,review,ranking=retained_inputs()
+    case={**corpus["cases"][0],"case_id":"heldout"}
+    packet={"source_corpus_fingerprint":corpus["fingerprint"],"cases":[case]}
+    packet["fingerprint"]=canonical_digest(packet)
+    review["cases"][0]["case_id"]="heldout"
+    review["question_set_fingerprint"]=packet["fingerprint"]
+    ranking["cases"][0]["case_id"]="heldout"
+    ranking["question_packet_fingerprint"]=packet["fingerprint"]
+    result=module.evaluate(corpus,review,retained_ranking=ranking,question_packet=packet)
+    assert result["summary"]["complete"]["included_annotated_spans"]=={"5":2}
+    ranking["question_packet_fingerprint"]="wrong"
+    with pytest.raises(ValueError,match="ranking_question_packet_mismatch"):
+        module.evaluate(corpus,review,retained_ranking=ranking,question_packet=packet)
+    packet["cases"][0]["question"]="tampered"
+    with pytest.raises(ValueError,match="question_packet_fingerprint_mismatch"):
+        module.evaluate(corpus,review,question_packet=packet)
