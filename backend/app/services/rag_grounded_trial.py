@@ -283,6 +283,18 @@ def collect_generation(responses, *, check_space) -> tuple[str, dict]:
                              "prompt_tokens_per_second": last.prompt_tps}
 
 
+def adapt_full_parent_rankings(rankings: dict) -> dict:
+    """Adapt the source-bound reranker export without changing its provenance."""
+    if "contract" not in rankings or "cases" not in rankings or "policies" in rankings:
+        return rankings
+    if rankings["contract"].get("representation") != "source-full-parent-v1":
+        raise ValueError("Grounded comparison requires full-parent ranking candidates.")
+    return {"corpus_fingerprint": rankings["contract"]["corpus"],
+            "source_ranking_digest": digest(rankings),
+            "policies": {"original": [{**case, "film_qids": [side["film_qid"] for side in case["sides"]]}
+                                      for case in rankings["cases"]]}}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("corpus", type=Path)
@@ -311,6 +323,7 @@ def main():
            (args.corpus, args.rankings, args.output)) or not args.model.resolve().is_relative_to(root / "data" / "models"):
         raise ValueError("Use only local project experiment files and weights.")
     corpus, rankings = json.loads(args.corpus.read_text()), json.loads(args.rankings.read_text())
+    rankings = adapt_full_parent_rankings(rankings)
     if args.sentence_index and not args.sentence_index.resolve().is_relative_to(root / "data" / "evaluation"):
         raise ValueError("Sentence index must remain project-local.")
     sentence_index = json.loads(args.sentence_index.read_text()) if args.sentence_index else None

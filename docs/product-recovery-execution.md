@@ -747,3 +747,26 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   diagnostic script is `scripts/benchmark_reranker_batch.py`. Further options
   include shorter source-preserving windows and prefix reuse, each requiring
   measured score/relevance and memory comparisons.
+
+### Reranked evidence to grounded answer: negative result
+
+- Ran the local pinned 4-bit Qwen3 4B instruction model against the reranked
+  R02.choice Endgame/Godfather source pool, using the existing constrained,
+  citation-first span-ID trial. A shape adapter now accepts the validated
+  full-parent reranker export while recording its digest; no UI route changed.
+- The output passed its citation-format validator, but source-aware inspection
+  **failed semantic quality**. It claims Natasha prioritizes allies over a
+  wider justice and casts her sacrifice as opposing justice; the cited cast
+  passage does not establish that conflict. It claims Michael's assassination
+  protects family, but its chosen short citation stops before that event and
+  does not establish the claim. Its comparison falsely forces symmetry and
+  misframes both films as fighting a systemic injustice. Valid span IDs do not
+  prove entailment. Do not show or deploy this output as a grounded answer.
+- The single generation took **94.5 s** with 4,336 input tokens, excluding
+  retrieval/reranking. This is not an interactive end-to-end latency. The
+  retained local output is `recovery-reranked-4b-answer-r02-v1.json`.
+  Ten grounded-trial policy checks passed; they do not validate interpretation.
+- Next work must separate evidence observations from comparative inference,
+  verify claims and citations semantically, and measure a smaller grounded
+  context. Do not infer that a larger candidate pool or valid JSON fixes
+  generation. Held-out source questions remain unused for tuning.

@@ -164,3 +164,16 @@ def test_span_ids_preserve_every_source_character_and_resolve_without_model_copy
     draft["first"]["support"][0]["ref"] = "A1.W999"
     with pytest.raises(ValueError, match="available"):
         resolve_span_answer(json.dumps(draft), pack)
+
+
+def test_recovery_ranking_adapter_preserves_contract_and_rejects_windows():
+    from app.services.rag_grounded_trial import adapt_full_parent_rankings, digest
+    import pytest
+    ranking={"contract":{"corpus":"hash","representation":"source-full-parent-v1"},
+             "cases":[{"case_id":"c","question":"why","sides":[{"film_qid":"A"},{"film_qid":"B"}]}]}
+    result=adapt_full_parent_rankings(ranking)
+    assert result["source_ranking_digest"]==digest(ranking)
+    assert result["policies"]["original"][0]["film_qids"]==["A","B"]
+    ranking["contract"]["representation"]="short-window"
+    with pytest.raises(ValueError,match="full-parent"):
+        adapt_full_parent_rankings(ranking)
