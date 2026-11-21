@@ -770,3 +770,21 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   verify claims and citations semantically, and measure a smaller grounded
   context. Do not infer that a larger candidate pool or valid JSON fixes
   generation. Held-out source questions remain unused for tuning.
+
+### Second grounded-answer diagnostic: Her and WALL·E
+
+- Reused the same ranked-passage, constrained citation-first setup on
+  R01.choice, asking which actions turn isolation into connection and what is
+  at risk. It consumed 3,459 prompt tokens and took **86.3 s** for generation
+  alone. The local output is `recovery-reranked-4b-answer-r01-v1.json`.
+- The validator rejected the unfinished scene experiment; the model exhausted
+  its output budget mid-sentence. Its proposed scene also reused WALL-E and
+  EVE instead of making an original writing exercise. The answer describes
+  Theodore's failed surrogate encounter as physical intimacy with Isabella,
+  and asserts the seedling risks EVE's function without establishing that
+  causal claim. These are unsuitable user-facing interpretations, irrespective
+  of formatting. Narrative support must be checked against the source passages,
+  and episode descriptions must not assign actions to the wrong participant.
+- Alongside the previous Endgame/Godfather failure, this is evidence of a
+  repeated answer-generation problem, not proof every question will fail.
+  No live generator or site configuration was changed.
