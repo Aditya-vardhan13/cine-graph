@@ -9,7 +9,7 @@ from uuid import UUID
 
 from app.core.config import get_settings
 from app.db import Base
-from app.models import (CanonicalEntity, DataSource, LanguageEdition, NarrativePassage,
+from app.models import (CanonicalEntity, DataSource, EvidenceEmbedding, LanguageEdition, NarrativePassage,
                         NarrativeUseDecision, ReferenceCollection, ReferenceCollectionMembership,
                         SourceObject, SourceSnapshot)
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
@@ -18,6 +18,7 @@ from app.services.retrieval_scope import resolve_retrieval_scope
 from app.services.writer_catalog_index import index_writer_catalog, recovery_profile, verify_writer_inputs_unchanged, writer_passage_fingerprints
 from app.services.current_narrative_passages import current_passage_rows
 from app.services.embedding_index import _candidate_run, import_embedding_cache
+from app.services.embedding_index_audit import audit_index
 from app.services.evidence_preprocessing import CHUNKER_VERSION, ChunkConfiguration, build_evidence_chunks
 from app.services.ollama_embeddings import MANIFEST_REVISION_PREFIX
 from tests.postgres_test_db import isolated_postgres_engine
@@ -89,6 +90,23 @@ def test_reviewed_writer_index_builds_and_retrieves_with_real_ollama(tmp_path):
                                       ollama_url=ollama_url, batch_size=2, profile=profile)
         assert result["status"] == "complete"
         assert result["films"] == 2 and result["chunks_completed"] == 2
+        audit = audit_index(db, UUID(result["index_run_id"]))
+        assert audit["integrity_pass"] and audit["vector_rows"] == 2
+        vector = db.scalar(select(EvidenceEmbedding).where(
+            EvidenceEmbedding.index_run_id == UUID(result["index_run_id"])))
+        original_hash = vector.content_hash
+        vector.content_hash = "0" * 64
+        db.flush()
+        assert audit_index(db, UUID(result["index_run_id"]))["errors"]["chunk_or_vector_hash_mismatch"] == 1
+        vector.content_hash = original_hash
+        db.flush()
+        with db.begin_nested() as savepoint:
+            db.delete(vector)
+            db.flush()
+            missing_audit = audit_index(db, UUID(result["index_run_id"]))
+            assert missing_audit["errors"]["missing_vectors"] == 1
+            assert not missing_audit["integrity_pass"]
+            savepoint.rollback()
         expected_entities = set(subject_ids)
         expected_passages = writer_passage_fingerprints(current_passage_rows(db, expected_entities))
         verify_writer_inputs_unchanged(db, code, expected_entities, expected_passages)

@@ -976,3 +976,31 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   `7d0a1f57de92400699843530b8cc6fc770c25faf6b4c0829955b23a64996bf20`).
   Four focused admission/reconciliation checks passed. Older v1 inventories
   remain retained but are not equivalent to the corrected policy.
+
+### Vector-row and source-lineage audit
+
+- Added a read-only index audit that checks actual vector membership against
+  currently approved eligible chunks, run counters, pinned model and cache
+  contracts, chunk/parent/vector hashes, finite nonzero vectors, current
+  passage selection, and retained snapshot bytes. It does not activate an
+  index, verify model inference, establish relevance, or grant publication
+  rights. The checker streams vector rows but retains chunk identities and
+  current passage records in memory; its scalability beyond this catalog has
+  not been measured.
+- A real 4B fixture index in isolated `cinegraph_test` passed. The same test
+  deliberately changed a vector's content hash and separately removed a
+  vector while keeping the run's counters intact; both failures were detected.
+  No working-database mutations were used in these tests.
+- A read-only check of the existing legacy index
+  `0adc1904-7788-4f65-8622-1e449b1f612e` found 24,194 vector rows against
+  111 chunks currently approved within that original chunk run. The other
+  24,083 rows were outside current semantic approval; those 111 approved
+  chunks referenced passages no longer selected as current. Counters and the
+  current document-cache key did not match the approved set, and the old
+  model-revision format did not satisfy the new pinned-manifest contract.
+  All 1,000 snapshot files checked by this command passed byte verification.
+  These are current observations, not proof that a source's contents are true.
+- The live hybrid retrieval query filters by semantic-use approval, but this
+  audit does not establish that it also excludes superseded passage revisions.
+  Inspect and fix that read path before treating stale evidence as safe to show.
+  No model or index was activated or deleted.
