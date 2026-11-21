@@ -788,3 +788,27 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
 - Alongside the previous Endgame/Godfather failure, this is evidence of a
   repeated answer-generation problem, not proof every question will fail.
   No live generator or site configuration was changed.
+
+### Matched-packet 8B generation comparison
+
+- Restored project-local `qwen3:8b` after confirming sufficient disk space;
+  its digest matched the previously recorded
+  `500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41`.
+  Using the existing Ollama draft experiment, the Her/WALL-E 8B packet was
+  verified byte-equivalent after parsing to the earlier `qwen3:4b` packet.
+  Same prompt/schema and generation settings; this is not the separate MLX
+  4B instruction checkpoint trial described above.
+- The 8B draft finished in **101.1 s** with `done_reason=stop`, compared with
+  approximately **61.8 s** for 4B on that earlier run. It failed the exact
+  quotation validator: B1 changes source text by ending a quote after
+  `designated` with a full stop that is absent at that location. A valid JSON
+  response or completed output is not evidence of factual support.
+- The source-aware review also found an important omission: its generic
+  comparison does not clearly distinguish a human/AI relationship from the
+  robot/robot relationship. It makes broad claims about motivations and
+  isolation that need stronger support. The result is **not approved for
+  serving**. The local artifact is `recovery-her-walle-draft8b-v1.json`.
+- This is one matched-packet example, not a general 4B/8B model benchmark.
+  It shows that model size alone has not resolved grounding or interactive
+  latency in this setup. More reliable citation selection, claim review,
+  prompt/context design and broader independent evaluation remain necessary.
