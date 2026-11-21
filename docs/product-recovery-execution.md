@@ -946,3 +946,33 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   eligible. The builder uses a different chunk representation from the frozen
   full-parent experiment. Review collection admission, row-level lineage and
   retrieval/answer quality before any working-corpus build or activation.
+
+### Current 1,000-film readiness, with capture-status correction
+
+- Re-ran the source inventory against the working corpus using a read-only
+  repeatable-read database transaction and read-only snapshot-volume mount.
+  The older inventory policy did not check snapshot fetch status, unlike the
+  writer index builder. Manifest v2 now requires `fetch_status=success` and
+  records it explicitly; unsuccessful or unknown statuses fail closed.
+- Under that corrected rule, **10 of 1,000 collection films** have at least
+  one currently approved, byte-verified source with intact passages. The
+  remaining **990** have current sources whose listed exclusion is semantic
+  use not approved. This is source-build eligibility, not identity accuracy,
+  independent content validation, a release-rights grant or a serving index.
+- Reconciled the new manifest with the unchanged supplied CSV and historical
+  target mapping: **968** rows have one current historical-QID candidate,
+  **32** remain unresolved or outside the collection, and **10** target rows
+  have an eligible candidate. The reconciliation did not perform or write
+  target identity approvals. The CSV has an additional row outside the frozen
+  1,000-row target.
+- The configured `writer-catalog-v1` collection does not currently exist in
+  the working database. The ten source decisions were documented for local
+  experimentation; they must not be silently treated as permission to publish
+  them or as approval for the other 990 sources. No bulk approval, collection
+  creation, index build or activation was performed.
+- Local artifacts: `data/reports/corpus-build-input-2026-11-21-v2.json`
+  (manifest SHA-256 `43ecc82ebf56665e7d83a20d718b978195c49b6b6a81441b1c0e4f07264fe14c`)
+  and `data/reports/recovery-target-reconciliation-v3.json` (report SHA-256
+  `7d0a1f57de92400699843530b8cc6fc770c25faf6b4c0829955b23a64996bf20`).
+  Four focused admission/reconciliation checks passed. Older v1 inventories
+  remain retained but are not equivalent to the corrected policy.

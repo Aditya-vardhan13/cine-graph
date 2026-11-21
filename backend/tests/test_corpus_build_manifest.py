@@ -5,14 +5,15 @@ from app.services.corpus_build_manifest import finalize_manifest, manifest_sourc
 
 def source(**changes):
     data = dict(snapshot_id="s", snapshot_hash="a"*64, source_url="https://example.org/film",
-        revision="1", integrity="verified", semantic_approved=True,
+        revision="1", fetch_status="success", integrity="verified", semantic_approved=True,
         passages=[{"id": "p", "section": "plot", "ordinal": 0, "hash_verified": True}])
     return manifest_source(**{**data, **changes})
 
 
 def test_admission_requires_bytes_permission_and_passage_integrity():
     assert source()["build_eligible"]
-    for changes in ({"integrity": "missing"}, {"semantic_approved": False},
+    for changes in ({"integrity": "missing"}, {"fetch_status": "failed"},
+                    {"fetch_status": None}, {"semantic_approved": False},
                     {"passages": []}, {"passages": [{"id": "p", "section": "plot",
                      "ordinal": 0, "hash_verified": False}]}):
         assert not source(**changes)["build_eligible"]

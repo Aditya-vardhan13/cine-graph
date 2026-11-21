@@ -14,6 +14,10 @@ One eligible source makes the film eligible for that source, not all its text.
 Downstream builders must still select the eligible source rows, not import
 every source attached to an eligible film.
 
+Version 2 also records and requires `fetch_status=success`, matching the
+writer-index builder's capture requirement. Older version 1 inventories did
+not check this field and must not be treated as equivalent readiness evidence.
+
 This is **not** approval, full target-CSV reconciliation, an index, or a
 film-level accuracy guarantee. Identity review is explicitly marked unperformed.
 Missing profiles and source gaps need separate target reconciliation.

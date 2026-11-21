@@ -65,7 +65,8 @@ def main():
                     attribution_url=s.attribution_url)
                 source = manifest_source(snapshot_id=str(sid), snapshot_hash=s.content_hash,
                     source_url=s.canonical_url, revision=s.source_revision,
-                    integrity=integrity[sid], semantic_approved=approved, passages=passages)
+                    fetch_status=s.fetch_status, integrity=integrity[sid],
+                    semantic_approved=approved, passages=passages)
                 source.update({"license": s.license, "attribution_url": s.attribution_url,
                                "decision_version": d.decision_version if d else None})
                 sources.append(source)
