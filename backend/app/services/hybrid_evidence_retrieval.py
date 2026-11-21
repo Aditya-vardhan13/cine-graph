@@ -15,7 +15,8 @@ from uuid import UUID
 from sqlalchemy import func, literal_column, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding
+from app.models import EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding, NarrativePassage
+from app.services.current_narrative_passages import current_passage_rows
 from app.services.lexical_retrieval import weighted_reciprocal_rank_fusion
 from app.services.ollama_embeddings import MANIFEST_REVISION_PREFIX, OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_routing import RetrievalLane, narrative_section_candidates, route_research_question
@@ -129,14 +130,21 @@ def _lexical_rows(
     candidate_limit: int,
     preprocessing_run_id: UUID,
     restrict_sections: bool,
+    current_passage_ids: set[UUID],
     program_only: bool = False,
 ) -> list[tuple[EvidenceChunk, float]]:
     english = literal_column("'english'::regconfig")
     query = func.to_tsquery(english, lexical_tsquery(question_text))
     document = func.to_tsvector(english, EvidenceChunk.section_title + " " + EvidenceChunk.content)
     score = func.ts_rank_cd(document, query)
-    statement = select(EvidenceChunk, score.label("lexical_score")).where(
+    statement = select(EvidenceChunk, score.label("lexical_score")).join(
+        NarrativePassage, NarrativePassage.id == EvidenceChunk.narrative_passage_id,
+    ).where(
         EvidenceChunk.subject_entity_id == subject_entity_id,
+        EvidenceChunk.narrative_passage_id.in_(current_passage_ids),
+        EvidenceChunk.source_snapshot_id == NarrativePassage.source_snapshot_id,
+        EvidenceChunk.subject_entity_id == NarrativePassage.subject_entity_id,
+        EvidenceChunk.language_code == NarrativePassage.language_code,
         EvidenceChunk.quality_status == "eligible",
         EvidenceChunk.preprocessing_run_id == preprocessing_run_id,
         EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
@@ -161,15 +169,21 @@ def _semantic_rows(
     evidence_class: str,
     candidate_limit: int,
     restrict_sections: bool,
+    current_passage_ids: set[UUID],
 ) -> list[tuple[EvidenceChunk, float]]:
     distance = EvidenceEmbedding.embedding.cosine_distance(query_vector)
     statement = (
         select(EvidenceChunk, distance.label("distance"))
         .join(EvidenceEmbedding, EvidenceEmbedding.evidence_chunk_id == EvidenceChunk.id)
+        .join(NarrativePassage, NarrativePassage.id == EvidenceChunk.narrative_passage_id)
         .where(
             EvidenceEmbedding.index_run_id == index_run.id,
             EvidenceChunk.preprocessing_run_id == index_run.evidence_chunk_run_id,
             EvidenceChunk.subject_entity_id == subject_entity_id,
+            EvidenceChunk.narrative_passage_id.in_(current_passage_ids),
+            EvidenceChunk.source_snapshot_id == NarrativePassage.source_snapshot_id,
+            EvidenceChunk.subject_entity_id == NarrativePassage.subject_entity_id,
+            EvidenceChunk.language_code == NarrativePassage.language_code,
             EvidenceChunk.quality_status == "eligible",
             EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
         )
@@ -252,6 +266,7 @@ def retrieve_narrative_candidates(
             )
 
     ranking_started = perf_counter()
+    current_passage_ids = {p.id for p, _ in current_passage_rows(db, {subject_entity_id})}
     lexical_rows = _lexical_rows(
         db,
         subject_entity_id=subject_entity_id,
@@ -261,6 +276,7 @@ def retrieve_narrative_candidates(
         candidate_limit=candidate_limit,
         preprocessing_run_id=scope.preprocessing_run_id,
         restrict_sections=restrict_sections,
+        current_passage_ids=current_passage_ids,
     ) if method in {NarrativeRetrievalMethod.LEXICAL, NarrativeRetrievalMethod.HYBRID} else []
     semantic_rows = _semantic_rows(
         db,
@@ -271,6 +287,7 @@ def retrieve_narrative_candidates(
         evidence_class=evidence_class,
         candidate_limit=candidate_limit,
         restrict_sections=restrict_sections,
+        current_passage_ids=current_passage_ids,
     ) if index_run is not None and query_vector is not None else []
 
     # An anthology can describe its content under "program" instead of a plot.
@@ -281,10 +298,16 @@ def retrieve_narrative_candidates(
             and evidence_class == "narrative_extraction" and not lexical_rows and not semantic_rows
             and method in {NarrativeRetrievalMethod.LEXICAL, NarrativeRetrievalMethod.HYBRID}):
         conditions = _section_conditions(question_id=question_id, evidence_class=evidence_class)
-        has_story = db.scalar(select(EvidenceChunk.id).where(
+        has_story = db.scalar(select(EvidenceChunk.id).join(
+            NarrativePassage, NarrativePassage.id == EvidenceChunk.narrative_passage_id,
+        ).where(
             EvidenceChunk.subject_entity_id == subject_entity_id,
             EvidenceChunk.preprocessing_run_id == scope.preprocessing_run_id,
             EvidenceChunk.quality_status == "eligible",
+            EvidenceChunk.narrative_passage_id.in_(current_passage_ids),
+            EvidenceChunk.source_snapshot_id == NarrativePassage.source_snapshot_id,
+            EvidenceChunk.subject_entity_id == NarrativePassage.subject_entity_id,
+            EvidenceChunk.language_code == NarrativePassage.language_code,
             EvidenceChunk.id.in_(semantically_approved_chunk_ids()), or_(*conditions),
         ).limit(1)) if conditions else None
         terms = [term for term in lexical_tsquery(question_text).split(" | ")
@@ -292,7 +315,8 @@ def retrieve_narrative_candidates(
         if not has_story and terms:
             lexical_rows = _lexical_rows(db, subject_entity_id=subject_entity_id, question_id=question_id,
                 question_text=" ".join(terms), evidence_class=evidence_class, candidate_limit=candidate_limit,
-                preprocessing_run_id=scope.preprocessing_run_id, restrict_sections=True, program_only=True)
+                preprocessing_run_id=scope.preprocessing_run_id, restrict_sections=True, program_only=True,
+                current_passage_ids=current_passage_ids)
             used_program_fallback = bool(lexical_rows)
 
     lexical_ids = [str(chunk.id) for chunk, _ in lexical_rows]

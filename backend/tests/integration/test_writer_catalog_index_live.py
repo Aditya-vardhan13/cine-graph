@@ -1,6 +1,7 @@
 """Explicit local integration test: PostgreSQL/pgvector and real Ollama."""
 import hashlib
 import os
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import select
@@ -19,6 +20,7 @@ from app.services.writer_catalog_index import index_writer_catalog, recovery_pro
 from app.services.current_narrative_passages import current_passage_rows
 from app.services.embedding_index import _candidate_run, import_embedding_cache
 from app.services.embedding_index_audit import audit_index
+from app.services.evidence_retrieval import retrieve_narrative_evidence
 from app.services.evidence_preprocessing import CHUNKER_VERSION, ChunkConfiguration, build_evidence_chunks
 from app.services.ollama_embeddings import MANIFEST_REVISION_PREFIX
 from tests.postgres_test_db import isolated_postgres_engine
@@ -169,6 +171,31 @@ def test_reviewed_writer_index_builds_and_retrieves_with_real_ollama(tmp_path):
                         question_id="story.plot_character_structure", question_text="How does family loyalty conflict with justice?",
                         method=NarrativeRetrievalMethod.SEMANTIC, scope=scope, client=OllamaEmbeddingClient(base_url=ollama_url))
             assert found.evidence and found.evidence[0].subject_entity_id == str(entity_id)
+        legacy = retrieve_narrative_evidence(db, subject_entity_id=subject_ids[0],
+            question_id="story.plot_character_structure", question_text="family justice",
+            model_name=profile.model, client=OllamaEmbeddingClient(base_url=ollama_url))
+        assert legacy.evidence
+        with db.begin_nested() as savepoint:
+            old_snapshot = db.get(SourceSnapshot, original_passage.source_snapshot_id)
+            newer = SourceSnapshot(source_object_id=old_snapshot.source_object_id,
+                source_revision="newer-fixture-revision", canonical_url=old_snapshot.canonical_url,
+                attribution_url=old_snapshot.attribution_url, parser_version=old_snapshot.parser_version,
+                content_hash=old_snapshot.content_hash, byte_size=old_snapshot.byte_size,
+                storage_uri=old_snapshot.storage_uri, license=old_snapshot.license,
+                fetch_status="success", retrieved_at=old_snapshot.retrieved_at + timedelta(seconds=1))
+            db.add(newer)
+            db.flush()
+            for method in (NarrativeRetrievalMethod.LEXICAL, NarrativeRetrievalMethod.SEMANTIC,
+                           NarrativeRetrievalMethod.HYBRID):
+                stale = retrieve_narrative_candidates(db, subject_entity_id=subject_ids[0],
+                    question_id="story.plot_character_structure", question_text="How does family loyalty conflict with justice?",
+                    method=method, scope=scope, query_vector=[0.1] * 1024)
+                assert not stale.evidence
+            legacy_stale = retrieve_narrative_evidence(db, subject_entity_id=subject_ids[0],
+                question_id="story.plot_character_structure", question_text="family justice",
+                model_name=profile.model, client=OllamaEmbeddingClient(base_url=ollama_url))
+            assert not legacy_stale.evidence
+            savepoint.rollback()
         passage = db.scalar(select(NarrativePassage).where(NarrativePassage.subject_entity_id == subject_ids[0]))
         original_content = passage.content
         passage.content = original_content + " Altered after extraction."

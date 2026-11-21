@@ -1004,3 +1004,26 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   audit does not establish that it also excludes superseded passage revisions.
   Inspect and fix that read path before treating stale evidence as safe to show.
   No model or index was activated or deleted.
+
+### Current-revision retrieval guard
+
+- Inspection confirmed that both hybrid/lexical retrieval and the standalone
+  semantic retrieval path filtered by rights but did not require the selected
+  current passage. They could therefore return an approved older revision.
+- Both paths now restrict candidates to `current_passage_rows` for the film
+  and require the chunk's snapshot, film and language to match its parent.
+  The anthology fallback uses the same current-passage restriction. The
+  standalone semantic path now also checks pinned Ollama manifest digests
+  when the model record has one, matching the hybrid path.
+- An isolated `cinegraph_test` run with real 4B vectors first retrieved current
+  evidence, then inserted a newer successful capture and verified that the
+  lexical, semantic, hybrid and standalone paths returned no stale evidence.
+  The check passed; 14 existing research-read integration checks also passed
+  in the separate integration container. The initial host-side attempt at that
+  wider suite could not collect because `mwparserfromhell` was absent in the
+  Conda environment; no package installation was needed in the test image.
+- This change intentionally yields no old evidence when the newer source has
+  not yet been extracted/indexed. It does not create a current index, measure
+  the latency of this additional current-passage lookup, or improve generation.
+  The running API image was not rebuilt in this step and still runs its prior
+  code until explicitly rebuilt/restarted.

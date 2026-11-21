@@ -11,8 +11,9 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding
-from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
+from app.models import EmbeddingIndexRun, EmbeddingModel, EvidenceChunk, EvidenceEmbedding, NarrativePassage
+from app.services.current_narrative_passages import current_passage_rows
+from app.services.ollama_embeddings import MANIFEST_REVISION_PREFIX, OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_routing import (
     RetrievalLane,
     narrative_section_candidates,
@@ -80,6 +81,8 @@ def retrieve_narrative_evidence(
         model=model.model_name,
         dimensions=model.dimension,
         query_instruction=model.query_instruction,
+        expected_model_digest=(model.model_revision.removeprefix(MANIFEST_REVISION_PREFIX)
+                               if model.model_revision.startswith(MANIFEST_REVISION_PREFIX) else None),
     )
     adapter = client or OllamaEmbeddingClient()
     embedding_started = perf_counter()
@@ -87,12 +90,19 @@ def retrieve_narrative_evidence(
     embedding_milliseconds = (perf_counter() - embedding_started) * 1000
 
     distance = EvidenceEmbedding.embedding.cosine_distance(query_vector)
+    current_passage_ids = {p.id for p, _ in current_passage_rows(db, {subject_entity_id})}
     statement = (
         select(EvidenceChunk, distance.label("distance"))
         .join(EvidenceEmbedding, EvidenceEmbedding.evidence_chunk_id == EvidenceChunk.id)
+        .join(NarrativePassage, NarrativePassage.id == EvidenceChunk.narrative_passage_id)
         .where(
             EvidenceEmbedding.index_run_id == index_run.id,
             EvidenceChunk.subject_entity_id == subject_entity_id,
+            EvidenceChunk.preprocessing_run_id == index_run.evidence_chunk_run_id,
+            EvidenceChunk.narrative_passage_id.in_(current_passage_ids),
+            EvidenceChunk.source_snapshot_id == NarrativePassage.source_snapshot_id,
+            EvidenceChunk.subject_entity_id == NarrativePassage.subject_entity_id,
+            EvidenceChunk.language_code == NarrativePassage.language_code,
             EvidenceChunk.quality_status == "eligible",
             EvidenceChunk.id.in_(semantically_approved_chunk_ids()),
         )
