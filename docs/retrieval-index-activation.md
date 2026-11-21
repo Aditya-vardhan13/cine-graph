@@ -31,6 +31,24 @@ pin. They may instead pass `index_run_id` explicitly; if both are provided,
 the selected model must match. This allows model comparisons without changing
 the live application's selection.
 
+The explicit writer-catalog builder now accepts a recovery profile:
+
+```sh
+PYTHONPATH=backend python -m app.services.writer_catalog_index --apply \
+  --model qwen3-embedding:4b \
+  --model-digest df5bd2e3c74cd8d069d21dc038f1b359fcdc9458fce1c99bd43c9eb1518ff907
+```
+
+The command writes chunks and vectors to the configured writer collection;
+do not run it until the intended collection and eligible snapshots have been
+reviewed. It rejects a different local model digest before chunk creation,
+checks the pin during embedding and again before import, and does not set the
+serving index. The 8B tag is also selectable with its own exact digest. This
+builder's existing chunk configuration is not the full-parent representation
+used in the 487-passage diagnostic: a successful build is not evidence that
+the diagnostic scores apply to the resulting index. Existing programmatic
+callers that omit a profile retain the legacy behavior for compatibility.
+
 ## Cutover and rollback
 
 1. Finish source eligibility, representation/model contract checks, real

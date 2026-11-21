@@ -5,6 +5,7 @@ import argparse
 from dataclasses import replace
 import hashlib
 import json
+import re
 from pathlib import Path
 from uuid import UUID
 
@@ -86,7 +87,8 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
                          ollama_url: str, batch_size: int = 8,
                          source_parser_version: str | None = None,
                          extraction_version: str | None = None,
-                         chunk_config: ChunkConfiguration | None = None) -> dict:
+                         chunk_config: ChunkConfiguration | None = None,
+                         profile: OllamaEmbeddingProfile | None = None) -> dict:
     settings = get_settings()
     if collection_code != settings.writer_catalog_collection_code or collection_code == settings.research_collection_code:
         raise ValueError("Only the distinct configured writer catalog may be indexed by this job.")
@@ -107,8 +109,12 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
          and (not current_per_snapshot or passage.id in current_ids)]
     if any(passage.id not in current_ids for passage, _ in selected):
         raise ValueError("Selected passages include a non-current extraction; choose the current extraction version.")
-    profile = OllamaEmbeddingProfile()
+    profile = profile or OllamaEmbeddingProfile()
     digest = local_model_digest(ollama_url, profile.model)
+    if profile.expected_model_digest is not None and digest != profile.expected_model_digest:
+        raise ValueError("The local embedding model does not match the requested pinned digest.")
+    if profile.dimensions != 1024:
+        raise ValueError("The writer catalog index requires 1,024-dimensional vectors.")
     cache_dir = cache_dir / digest
     cache_dir.mkdir(parents=True, exist_ok=True)
     minimum_free_bytes = 6 * 1024**3
@@ -145,6 +151,15 @@ def index_writer_catalog(db: Session, *, collection_code: str, cache_dir: Path,
             "cache_reused": reused, **index_status(db, str(index.id))}
 
 
+def recovery_profile(model: str, digest: str) -> OllamaEmbeddingProfile:
+    """Construct an explicit >=4B candidate, without changing legacy callers."""
+    if model not in {"qwen3-embedding:4b", "qwen3-embedding:8b"}:
+        raise ValueError("Recovery indexing requires an explicitly selected Qwen 4B or 8B embedding model.")
+    if not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise ValueError("Recovery indexing requires an exact Ollama SHA-256 model digest.")
+    return OllamaEmbeddingProfile(model=model, expected_model_digest=digest)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="Explicitly build and import writer catalog vectors.")
@@ -153,6 +168,8 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--source-parser-version")
     parser.add_argument("--extraction-version")
+    parser.add_argument("--model", required=True, choices=("qwen3-embedding:4b", "qwen3-embedding:8b"))
+    parser.add_argument("--model-digest", required=True, help="Exact local Ollama manifest SHA-256")
     args = parser.parse_args()
     if not args.apply:
         parser.error("--apply is required to write writer catalog chunks and vectors")
@@ -160,7 +177,8 @@ def main() -> None:
         result = index_writer_catalog(db, collection_code=get_settings().writer_catalog_collection_code,
                                       cache_dir=args.cache_dir, ollama_url=args.ollama_url,
                                       batch_size=args.batch_size, source_parser_version=args.source_parser_version,
-                                      extraction_version=args.extraction_version)
+                                      extraction_version=args.extraction_version,
+                                      profile=recovery_profile(args.model, args.model_digest))
     print(json.dumps(result, indent=2))
 
 

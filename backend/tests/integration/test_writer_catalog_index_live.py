@@ -15,7 +15,7 @@ from app.models import (CanonicalEntity, DataSource, LanguageEdition, NarrativeP
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.ollama_embeddings import OllamaEmbeddingClient, OllamaEmbeddingProfile
 from app.services.retrieval_scope import resolve_retrieval_scope
-from app.services.writer_catalog_index import index_writer_catalog, verify_writer_inputs_unchanged, writer_passage_fingerprints
+from app.services.writer_catalog_index import index_writer_catalog, recovery_profile, verify_writer_inputs_unchanged, writer_passage_fingerprints
 from app.services.current_narrative_passages import current_passage_rows
 from app.services.embedding_index import _candidate_run, import_embedding_cache
 from app.services.evidence_preprocessing import CHUNKER_VERSION, ChunkConfiguration, build_evidence_chunks
@@ -33,6 +33,9 @@ def test_reviewed_writer_index_builds_and_retrieves_with_real_ollama(tmp_path):
     Base.metadata.create_all(engine)
     code = get_settings().writer_catalog_collection_code
     ollama_url = os.environ.get("CINEGRAPH_TEST_OLLAMA_URL", "http://127.0.0.1:11434")
+    model = os.environ.get("CINEGRAPH_TEST_EMBEDDING_MODEL")
+    profile = (recovery_profile(model, os.environ["CINEGRAPH_TEST_EMBEDDING_DIGEST"])
+               if model else OllamaEmbeddingProfile())
     subject_ids = []
     with Session(engine) as db:
         db.add(LanguageEdition(code="en", display_name="English", script="Latin", enabled=True, status="active"))
@@ -78,8 +81,12 @@ def test_reviewed_writer_index_builds_and_retrieves_with_real_ollama(tmp_path):
                                     content_hash=hashlib.sha256(content.encode()).hexdigest(),
                                     citation_markers=[], extraction_version="fixture-v1"))
         db.commit()
+        if model:
+            with pytest.raises(ValueError, match="requested pinned digest"):
+                index_writer_catalog(db, collection_code=code, cache_dir=tmp_path / "vectors",
+                                     ollama_url=ollama_url, profile=recovery_profile(model, "0" * 64))
         result = index_writer_catalog(db, collection_code=code, cache_dir=tmp_path / "vectors",
-                                      ollama_url=ollama_url, batch_size=2)
+                                      ollama_url=ollama_url, batch_size=2, profile=profile)
         assert result["status"] == "complete"
         assert result["films"] == 2 and result["chunks_completed"] == 2
         expected_entities = set(subject_ids)
@@ -129,7 +136,6 @@ def test_reviewed_writer_index_builds_and_retrieves_with_real_ollama(tmp_path):
         with pytest.raises(ValueError, match="No completed evidence chunk run"):
             _candidate_run(db, collection_code="other-collection", chunker_version=CHUNKER_VERSION, run_id=original_run)
         cache_path = next((tmp_path / "vectors").rglob("*.npy"))
-        profile = OllamaEmbeddingProfile()
         import_args = dict(cache_path=cache_path, collection_code=code, chunker_version=CHUNKER_VERSION,
                            model_name=profile.model, model_revision=MANIFEST_REVISION_PREFIX + result["model_digest"],
                            dimension=profile.dimensions, query_instruction=profile.query_instruction)
@@ -137,9 +143,9 @@ def test_reviewed_writer_index_builds_and_retrieves_with_real_ollama(tmp_path):
             import_embedding_cache(db, **import_args)
         assert str(import_embedding_cache(db, chunk_run_id=original_run, **import_args).id) == result["index_run_id"]
         second = index_writer_catalog(db, collection_code=code, cache_dir=tmp_path / "vectors",
-                                      ollama_url=ollama_url, batch_size=2)
+                                      ollama_url=ollama_url, batch_size=2, profile=profile)
         assert second["cache_reused"] and second["index_run_id"] == result["index_run_id"]
-        scope = resolve_retrieval_scope(db, collection_code=code)
+        scope = resolve_retrieval_scope(db, collection_code=code, index_run_id=UUID(result["index_run_id"]))
         for entity_id in subject_ids:
             found = retrieve_narrative_candidates(db, subject_entity_id=entity_id,
                         question_id="story.plot_character_structure", question_text="How does family loyalty conflict with justice?",

@@ -925,3 +925,24 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   checks fingerprints, case overlap, film scope and review/ranking binding;
   twelve focused integrity and ranking tests passed. No operational corpus,
   live index or site behavior changed.
+
+### Explicit 4B writer-index build path
+
+- The writer-catalog builder previously always constructed the legacy 0.6B
+  profile. It now accepts an explicit pinned profile; its CLI requires a 4B
+  or 8B tag and a full model digest. The digest is checked before chunk
+  creation, during model calls and before import. Programmatic callers that
+  omit the profile retain the previous behavior for compatibility.
+- An explicit 4B run against isolated `cinegraph_test` and real local Ollama
+  built two fixture-film vectors, imported them into pgvector, resolved the
+  exact new index and retrieved evidence for both films. A deliberately wrong
+  digest was rejected. The isolated test also exercised cache reuse and source
+  integrity checks. No working-corpus records or serving variables changed.
+  Thirteen focused policy tests and the isolated integration test passed;
+  the environment emitted a PyTorch/NumPy compatibility warning and a Click
+  deprecation warning, neither of which was investigated in this milestone.
+- This establishes a path to build an inactive 4B writer index, **not** that
+  the ten-film diagnostic vectors were imported or that 1,000 films are
+  eligible. The builder uses a different chunk representation from the frozen
+  full-parent experiment. Review collection admission, row-level lineage and
+  retrieval/answer quality before any working-corpus build or activation.
