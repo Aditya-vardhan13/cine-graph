@@ -13,9 +13,9 @@ from app.services.corpus_build_manifest import canonical_digest
 from evaluate_question_section_reserve import requested_section
 
 
-def reserve_sections(ranked: list[dict], question: str) -> list[dict]:
+def reserve_sections(ranked: list[dict], question: str, *, default_plot: bool = False) -> list[dict]:
     """Apply the previously inspected question-only development policy."""
-    section = requested_section(question)
+    section = requested_section(question) or ("plot" if default_plot else None)
     if section is None:
         return list(ranked)
     def matches(item: dict) -> bool:
@@ -30,6 +30,25 @@ def reserve_sections(ranked: list[dict], question: str) -> list[dict]:
                 selected[replace] = item
     selected_ids = {item["chunk_id"] for item in selected}
     return selected + [item for item in ranked if item["chunk_id"] not in selected_ids]
+
+
+def reciprocal_rank_fusion(semantic: list[dict], lexical: list[dict]) -> list[dict]:
+    """Equal-weight RRF over the two retained, film-scoped top-20 lists."""
+    items = {}
+    scores = {}
+    for ranking in (semantic, lexical):
+        seen = set()
+        for rank, item in enumerate(ranking, 1):
+            chunk = item["chunk_id"]
+            if chunk in seen:
+                raise ValueError("duplicate_ranked_chunk")
+            seen.add(chunk)
+            if chunk in items and any(items[chunk][key] != item[key] for key in
+                    ("content", "subject_entity_id", "source_snapshot_id")):
+                raise ValueError("conflicting_fusion_candidate")
+            items[chunk] = item
+            scores[chunk] = scores.get(chunk, 0.0) + 1.0 / (60 + rank)
+    return [items[chunk] for chunk in sorted(items, key=lambda chunk: (-scores[chunk], chunk))]
 
 
 def score(corpus: dict, review: dict, canary: dict, mapping: dict) -> dict:
@@ -66,6 +85,8 @@ def score(corpus: dict, review: dict, canary: dict, mapping: dict) -> dict:
             methods = {}
             rankings = {method: side["methods"][method]["evidence"] for method in ("semantic", "lexical")}
             rankings["semantic_section_reserve"] = reserve_sections(rankings["semantic"], case["question"])
+            rankings["semantic_default_plot_reserve"] = reserve_sections(rankings["semantic"], case["question"], default_plot=True)
+            rankings["hybrid_rrf60"] = reciprocal_rank_fusion(rankings["semantic"], rankings["lexical"])
             for method, ranked in rankings.items():
                 for item in ranked:
                     row = rows[item["chunk_id"]]
@@ -85,15 +106,15 @@ def score(corpus: dict, review: dict, canary: dict, mapping: dict) -> dict:
         sides = [side for case in cases for side in case["sides"]]
         summary[status] = {"cases": len(cases), "annotated_spans": sum(s["annotated_spans"] for s in sides),
             "included": {method: {str(k): sum(s["included"][method][str(k)] for s in sides)
-                for k in (1, 5, 20)} for method in ("semantic", "lexical", "semantic_section_reserve")},
+                for k in (1, 5, 20)} for method in ("semantic", "lexical", "semantic_section_reserve", "semantic_default_plot_reserve", "hybrid_rrf60")},
             "both_films_all_annotated_spans": {method: {str(k): sum(
                 all(s["annotated_spans"] > 0 and s["included"][method][str(k)] == s["annotated_spans"]
                     for s in case["sides"]) for case in cases) for k in (1, 5, 20)}
-                for method in ("semantic", "lexical", "semantic_section_reserve")}}
+                for method in ("semantic", "lexical", "semantic_section_reserve", "semantic_default_plot_reserve", "hybrid_rrf60")}}
     return {"schema": "cinegraph.recovery-pgvector-source-span-score/v1", "corpus_fingerprint": fingerprint,
         "mapping_fingerprint": mapping["fingerprint"], "canary_sha256": canonical_digest(canary),
         "review_sha256": canonical_digest(review), "summary": summary, "cases": results,
-        "caution": "Single-reviewer development annotations, not answer accuracy or an independent quality score. The section-reserve policy was already inspected on these questions. Exact quote inclusion may miss equivalent support or whitespace-normalized matches."}
+        "caution": "Single-reviewer development annotations, not answer accuracy or an independent quality score. The section-reserve policy was already inspected on these questions; the default-plot variant is a further development ablation. RRF uses only the retained top-20 inputs and is not necessarily the live hybrid policy. Exact quote inclusion may miss equivalent support or whitespace-normalized matches."}
 
 
 def main() -> None:

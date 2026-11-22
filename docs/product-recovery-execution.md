@@ -1237,3 +1237,31 @@ source hashes before the temporary index is removed.
   `3ee3cffbc7297c5c33d2a3b8b3f1d67e2fbbb536186f9e7cdef06169ca938a2a`),
   all under `data/evaluation/`. The 4B model, source data and vectors remain
   local and the working corpus and active index were not changed.
+
+### Cache-only fusion and default-plot ablations
+
+- Reused the exact same 31-query pgvector result, without model calls or
+  changing serving. Equal-weight reciprocal-rank fusion (constant 60) of the
+  retained semantic and lexical top-20 lists showed all annotated spans from
+  both films in the top five for **3/13** complete development cases, versus
+  **4/13** for semantic alone. This bounded offline RRF is not necessarily the
+  live hybrid configuration. On the user's case it moved a Barton cast passage
+  to first but kept broad critical reviews in the first five; it does not fix
+  the question. Do not infer that any hybrid configuration must regress.
+- A separate experimental variant reserves two plot passages when the
+  existing question-only router finds no explicit plot/craft/reception cue.
+  For the user's question this places the plot account of Romanoff's sacrifice
+  fourth, but leaves a generic lead and two generic reviews in the first three,
+  and displaces the previously fourth-ranked cast/filmmaker account. On the
+  same 13 complete cases, strict both-film top-five selected-span coverage was
+  **6/13**, with **35/47** individual annotated spans present. The original
+  dense ordering scored 4/13 and 29/47. Other valid spans are not exhaustively
+  labelled; these questions have already driven development decisions, so this
+  is an exploratory ablation, not generalization or answer quality. It may
+  incorrectly prioritize plot for other kinds of unrecognized questions.
+- Neither variant is activated. Next investigate removing irrelevant lead and
+  reception results without discarding useful cast/creator evidence, and test
+  against new independently reviewed questions. The observed 6/13 result is
+  below the product gate even before generation. Local v4 scoring report:
+  `data/evaluation/recovery-ten-film-pgvector-4b-score-v4.json`, SHA-256
+  `ec3fc169965bf5e0dc90aecc83ee0009a81731ee867faf16f0322255a302153e`.
