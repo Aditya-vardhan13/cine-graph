@@ -1299,3 +1299,62 @@ source hashes before the temporary index is removed.
   remain local. This provides cheap further experiments on ten films, **not**
   a substitute for admitting, indexing and evaluating the broader 1,000-film
   target.
+
+- A second exploratory query asked how *12 Angry Men* and *The Shawshank
+  Redemption* distinguish a verdict from proof of guilt. The 4B ranker placed
+  the first film's reasonable-doubt plot passage first, but the second film's
+  plot passage describing Tommy's report of another person's confession and
+  Norton's refusal to act appeared sixth, after an unrelated analysis, a broad
+  review, the film lead, a cast list and a general review. This is another
+  concrete ranking miss for a writer-like question, not an assertion that the
+  retained evidence is exhaustive or that a legal conclusion follows from one
+  passage. It is an exploratory development query, not a blinded quality test.
+  Local result: `data/evaluation/recovery-reconstructed-verdict-query-v1.json`,
+  SHA-256 `dad797866083b5bd5565405194c60b00a6adb0692ec4077d2910127fb94dadad`.
+
+- As a one-question diagnostic, queried the exact original phrase “conflicts
+  between family or close people” separately. Endgame's plot account of
+  Romanoff's sacrifice moved from rank eight for the full question to rank
+  three for this fragment. However, the fragment drops the injustice condition;
+  equal-weight RRF with the full-question results still placed a generic lead
+  and two reviews first, with that plot account fourth. This is not a safe
+  substitute for the question, a broad experiment, or a serving improvement.
+  The branch result is `data/evaluation/recovery-reconstructed-family-branch-v1.json`,
+  SHA-256 `75893c181e9fff04c5defb8eebfd79141c314b2d2b43e256b082752f7987bc67`.
+
+### Real retrieved-evidence-to-draft check: verdict question
+
+- Prepared a local, fingerprint-bound draft packet from the first five
+  retrieved chunks per film for the exploratory *12 Angry Men* / *Shawshank*
+  verdict question, without substituting manually selected answers. The
+  adapter checks each selected chunk against the reconstructed source-bound
+  corpus and rejects a modified chunk. The existing packer selected at most
+  three chunks per film, prioritizing plot among those five. The relevant
+  Shawshank passage with Tommy's account ranked sixth and therefore was not in
+  this packet.
+- Ran the existing local `qwen3:4b` Q4_K_M generator once. It took **59.85 s**
+  for 2,568 input tokens and 735 output tokens, returned a normal stop, and
+  failed the existing structural validator because its first reading ended
+  mid-sentence. Manual inspection found **four of six generated quotations
+  were not exact substrings**, including several truncated mid-word; the
+  validator stops at its first failure, so this count is a separate check.
+  The comparison cited a general review that did not support its specific
+  claim. More seriously, the draft claimed *Shawshank* does not depict a
+  legal verdict, a film-level assertion not justified by the selected evidence;
+  the retained lead does report Andy's sentencing. This result
+  is **not safe or useful to serve**; valid JSON did not repair it.
+- A separate packet including the first ten retrieved candidates has been
+  prepared for a controlled context-depth follow-up; its plot-prioritized
+  packer would then be able to include the sixth-ranked source. It has not
+  been generated. Free disk fell from roughly 9.7 GiB before model loading to
+  approximately 6.5 GiB after the run, near the existing 6 GiB reserve, so
+  another local generation is deferred until headroom recovers. The precise
+  cause of the space change has not been established.
+- Local packet SHA-256
+  `3d2cd944358f2d1491fc3805757d1b74d2178c8f8d83a0d9a9a7072bb73372c5`;
+  draft SHA-256
+  `d6abc5e7691742974bda58c369f98afc0a9fe387cc60f479c21e6a87fa35a320`;
+  depth-ten packet SHA-256
+  `3d3ef73ec0fbba15b169563f03d6bb79f9f3d7bb3ef434472297cfc76907e2d2`.
+  All are ignored local artifacts. This is one exploratory example, not a
+  success-rate estimate, and no production route or active index changed.
