@@ -1143,3 +1143,36 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   Local files: `data/reports/corpus-build-input-2026-11-22-v1.json` and
   `data/reports/recovery-target-reconciliation-v4.json`. The source decisions
   are database-local and are not included in Git.
+
+### Seven additional source-level checks
+
+The retained leads were individually inspected for film identity and the
+operator endpoint rechecked each snapshot's file integrity. These are
+AI-assisted decisions for local semantic experiments, not a review of every
+claim in each article or independent approval of the catalog identities.
+
+| Film | Snapshot | Revision | Decision version |
+| --- | --- | --- | ---: |
+| Pulp Fiction (1994), Q104123 | `99251813-64ff-47aa-ae62-3af6e392fbd3` | `1385190039` | 1 |
+| Schindler's List (1993), Q483941 | `c46e103e-212a-43d6-a762-06ed79e27804` | `1383963801` | 1 |
+| Inception (2010), Q25188 | `2faa24ab-6748-4468-96da-961b550ba45b` | `1385246876` | 1 |
+| Fight Club (1999), Q190050 | `c134fb5e-c566-4790-bab6-c26e4b7af49e` | `1385277614` | 1 |
+| The Fellowship of the Ring (2001), Q127367 | `a384c501-0695-414d-84c8-85ac6426ee9a` | `1385779646` | 1 |
+| Forrest Gump (1994), Q134773 | `38c82488-3459-431e-b051-3b28ce121d95` | `1384754400` | 1 |
+| The Matrix (1999), Q83495 | `a56c1c87-f0ef-4eee-b434-5f3827a16929` | `1385789437` | 1 |
+
+The local inventory now reports **20/1,000 films** with an eligible source,
+and the frozen-target reconciliation reports **20 target rows with an eligible
+candidate**, 968 candidates overall, 32 unresolved/outside rows and zero
+approved identities. Inventory and reconciliation are stored locally at
+`data/reports/corpus-build-input-2026-11-22-v2.json` and
+`data/reports/recovery-target-reconciliation-v5.json`. As above, the operator
+API records the configured operator email; the decisions were made by the AI
+assistant and are explicitly identified as such in their notes. The existing
+schema does not technically constrain approval to local use. No vectors or
+live retrieval settings changed.
+
+The 504-vector canary's saved matrix lacks a complete durable chunk-to-row
+mapping; it must not be reused as a serving index based on assumed order.
+A future build must persist and validate that mapping, model fingerprint and
+source hashes before the temporary index is removed.
