@@ -1483,3 +1483,26 @@ source hashes before the temporary index is removed.
   This is an AI-assisted identity cross-check of the ten pilot films, not an
   independent human review, an operational identity approval, or evidence
   about the remaining 990 target rows. No catalog records changed.
+
+### Inactive ten-film build prepared; disk guard stopped the real build
+
+- Added an explicit inactive-pilot builder that rechecks the saved corpus,
+  ten-film identity cross-check, current source decisions and snapshot bytes,
+  film/QID pairs, unused pilot collection and chunker namespace, and available
+  disk. It creates a separate collection marked inactive and uses the saved
+  4B matrix only after exact source/input rebinding. It never activates the
+  resulting index. A repeat attempt refuses to overwrite an existing pilot.
+- With the retained sources and vectors in `cinegraph_test`, the complete
+  workflow created and audited **504 vector rows**, left its collection
+  inactive and rejected a duplicate build. One initial test identified a
+  unique-constraint collision when the same chunks were built first in a
+  different collection; the pilot now refuses existing v6 pilot passage
+  chunks before attempting a build. The separate isolated run then passed.
+- A read-only working-database preflight matched all ten films and 487 current
+  approved passages. The subsequent real `--apply` attempt stopped at its
+  disk-reserve guard **before writing**, after the filesystem's reported free
+  space fell to about 5.4 GiB. A read-only database check found zero pilot
+  collections and zero pilot chunk runs. No active index or site setting was
+  changed. The reason for the free-space change has not been established.
+  The inactive index has therefore **not** been built in the working database;
+  do not retry until disk headroom is restored and the preflight is rerun.

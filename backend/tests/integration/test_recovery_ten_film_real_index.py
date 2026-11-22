@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db import Base
-from app.models import (CanonicalEntity, DataSource, EvidenceEmbedding, LanguageEdition, NarrativePassage,
+from app.models import (CanonicalEntity, DataSource, EvidenceEmbedding, Film, LanguageEdition, NarrativePassage,
     NarrativeUseDecision, ReferenceCollection, ReferenceCollectionMembership, SourceObject, SourceSnapshot)
 from app.services.corpus_build_manifest import canonical_digest
 from app.services.embedding_index_audit import audit_index
@@ -98,7 +98,19 @@ def test_ten_retained_films_into_pinned_4b_index(tmp_path):
                 section_title=d["section_title"],ordinal=d["passage_ordinal"],language_code="en",
                 content=d["content"],content_hash=d["content_sha256"],citation_markers=[],
                 extraction_version=d["extraction_version"]))
+        if reuse:
+            for qid, (entity_id, title) in films.items():
+                db.add(Film(canonical_title=title, entity_id=UUID(entity_id), wikidata_id=qid,
+                            original_language_code="en"))
         db.commit()
+        if reuse and os.environ.get("CINEGRAPH_PILOT_BUILDER") == "1":
+            from build_inactive_recovery_pilot import COLLECTION, run as build_pilot
+            result = build_pilot(db, Path.cwd(), apply=True, cache_dir=tmp_path / "pilot")
+            assert result["vectors"] == 504 and result["integrity_pass"] and not result["activated"]
+            assert db.get(ReferenceCollection, COLLECTION).status == "inactive"
+            with pytest.raises(ValueError, match="already_exists"):
+                build_pilot(db, Path.cwd(), apply=True, cache_dir=tmp_path / "pilot")
+            return
         if reuse:
             saved_mapping = json.loads(mapping_path.read_text())
             chunk_report = build_evidence_chunks(db, collection_code=code, config=ChunkConfiguration(
