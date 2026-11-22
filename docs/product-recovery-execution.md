@@ -1191,7 +1191,49 @@ source hashes before the temporary index is removed.
   This does not validate film answer relevance and cannot recover the old
   unmapped ten-film matrix. It does not yet implement a standalone importer
   that reconstructs an index after the original schema is removed.
-- The new ten-film canary itself has not been rerun. Avoid repeating its 504
+- At this checkpoint the new ten-film canary had not been rerun. Avoid repeating its 504
   embeddings solely to demonstrate the mapping; use the next substantive
   corpus/retrieval experiment to validate it at full size, with disk headroom
   and explicit source coverage recorded first.
+
+### Real pgvector development retrieval: 31 questions
+
+- Rebuilt the ten-film, 504-chunk 4B canary once in the separate test database,
+  using the retained ten-source corpus and pinned Q4_K_M model. The job ran
+  736.34 seconds including setup, indexing, 31 question embeddings, semantic
+  and lexical retrieval for both films, and cleanup. Its source and vector-row
+  audit passed. The run retained its 504-row source mapping and cache locally;
+  the mapping is not yet a supported standalone index-restoration workflow.
+- Besides the user's exact Endgame/Godfather question, this covered the same
+  30 previously inspected development questions, not a fresh holdout. It
+  retained 20 candidate chunks per film per method, with unrestricted sections.
+  One question embedding was shared between both film-scoped searches. A new
+  offline scorer verifies the question, film, source and chunk hashes before
+  checking exact annotated-quote inclusion in the returned chunks.
+- For the 13 development cases marked complete by a single reviewer, all
+  selected annotated spans for both films were visible for **4/13** cases at
+  semantic top five and **13/13** at semantic top 20. Lexical top five was
+  **2/13**. Replaying the already-inspected question-only section reservation
+  raised semantic top-five coverage to **5/13**. The complete set contains
+  47 selected spans; semantic top five included 29, the reservation included
+  33, and lexical included 17. These are strict selected-span inclusion counts,
+  not answer accuracy, complete recall, independent gold, or a release score;
+  equivalent unannotated evidence and quote normalization can change counts.
+- In the user's exact question, Endgame's first semantic result was a generic
+  lead, its next two were broad critical reviews, and a relevant account of
+  Natasha's sacrifice appeared fourth. The Godfather's early results included
+  family protection and Michael's violent response. The system must not infer
+  that both films portray the same kind of injustice; neither the passage ranks
+  nor a valid citation alone establish an adequate comparison. The question
+  lacks the policy's routing terms, so the section-reserve experiment does not
+  repair its initial ranking. No generated answer or user-facing change was
+  made. The observed result confirms a ranking/selection problem for this case;
+  it does not rule out source gaps or generation failures in other cases.
+- Local files: `recovery-ten-film-pgvector-4b-canary-v2.json` (SHA-256
+  `4b55ec7a4bc8f1192d29c129db69506d62f0a309e240caac900a62174b805966`),
+  `recovery-ten-film-vector-mapping-v2.json` (SHA-256
+  `1faa673269c255cba9b19d5f59b8987b1e1e1e567967f15931e7e484c57eea18`),
+  and `recovery-ten-film-pgvector-4b-score-v2.json` (SHA-256
+  `3ee3cffbc7297c5c33d2a3b8b3f1d67e2fbbb536186f9e7cdef06169ca938a2a`),
+  all under `data/evaluation/`. The 4B model, source data and vectors remain
+  local and the working corpus and active index were not changed.

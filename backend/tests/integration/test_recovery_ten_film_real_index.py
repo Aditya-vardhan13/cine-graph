@@ -103,18 +103,27 @@ def test_ten_retained_films_into_pinned_4b_index():
             output=mapping_path, corpus_fingerprint=corpus["fingerprint"])
         scope=resolve_retrieval_scope(db,collection_code=code,index_run_id=UUID(build["index_run_id"]))
         client=OllamaEmbeddingClient(base_url=ollama_url)
-        probes=[("Q23781155","Q47703","how do these follow the conflicts between family or close people when fighting injustice"),
-                ("Q788822","Q104905","Which actions turn isolation into a relationship, and what does each character risk?")]
+        probes=[{"case_id":"user-endgame-godfather", "film_qids":["Q23781155","Q47703"],
+                 "question":"how do these follow the conflicts between family or close people when fighting injustice"},
+                *corpus["cases"]]
         results=[]
-        for a,b,question in probes:
+        for probe in probes:
+            question = probe["question"]
+            # One embedding per question, shared across the two scoped film searches.
+            query_vector = client.embed([model.query_input(question)], profile=model)[0]
             sides=[]
-            for qid in (a,b):
-                response=retrieve_narrative_candidates(db,subject_entity_id=UUID(films[qid][0]),
-                    question_id="story.plot_character_structure",question_text=question,
-                    method=NarrativeRetrievalMethod.SEMANTIC,scope=scope,client=client,
-                    restrict_sections=False,limit=5)
-                sides.append({"film_qid":qid,"result":asdict(response)})
-            results.append({"question":question,"sides":sides})
+            for qid in probe["film_qids"]:
+                methods = {}
+                for method in (NarrativeRetrievalMethod.SEMANTIC, NarrativeRetrievalMethod.LEXICAL):
+                    response=retrieve_narrative_candidates(db,subject_entity_id=UUID(films[qid][0]),
+                        question_id="story.plot_character_structure",question_text=question,
+                        method=method,scope=scope,client=client,
+                        query_vector=query_vector if method == NarrativeRetrievalMethod.SEMANTIC else None,
+                        restrict_sections=False,limit=20)
+                    methods[method.value] = asdict(response)
+                sides.append({"film_qid":qid,"methods":methods})
+            results.append({"case_id":probe["case_id"],"question":question,"sides":sides})
+            print(f"Completed {probe['case_id']} ({len(results)}/{len(probes)})", flush=True)
         report={"corpus_fingerprint":corpus["fingerprint"],"descriptor_fingerprint":descriptors["fingerprint"],
             "build":build,"audit":audit,"probes":results,"quality_review":"pending",
             "vector_mapping":str(mapping_path),"vector_mapping_fingerprint":mapping["fingerprint"],
