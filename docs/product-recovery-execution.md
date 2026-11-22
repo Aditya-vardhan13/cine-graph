@@ -1466,3 +1466,20 @@ source hashes before the temporary index is removed.
   source preflight: it did not approve identities, create a collection, build
   an operational index, or establish sufficient retrieval quality. Source
   decisions and bytes must still be rechecked when an actual build runs.
+
+### Ten-film pilot identity cross-check
+
+- Compared the ten pilot film titles, release years and directors in the
+  supplied CSV with the retained Wikipedia lead passages. The titles, years
+  and listed directors matched; the Endgame lead names both Russo directors
+  while the CSV lists Anthony Russo. WALL·E's interpunct/hyphen variant was
+  treated as an explicit title-format difference, not a different film.
+- Made one bounded, identified Wikidata Action API request for the ten QIDs.
+  All **10/10** current English Wikipedia sitelinks matched the exact article
+  URLs retained for their pilot passages, including the disambiguated *Her*,
+  *Jaws* and *PK* articles. The response, its hash and the comparison are
+  retained locally in `data/reports/recovery-pilot-sitelinks-2026-11-23-v1.json`
+  (report fingerprint `7c10a0e634b2f9922844ef28b36e303f17a7a7263976d66cea4285ad7eb3e069`).
+  This is an AI-assisted identity cross-check of the ten pilot films, not an
+  independent human review, an operational identity approval, or evidence
+  about the remaining 990 target rows. No catalog records changed.
