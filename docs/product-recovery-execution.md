@@ -1358,3 +1358,21 @@ source hashes before the temporary index is removed.
   `3d3ef73ec0fbba15b169563f03d6bb79f9f3d7bb3ef434472297cfc76907e2d2`.
   All are ignored local artifacts. This is one exploratory example, not a
   success-rate estimate, and no production route or active index changed.
+
+### Project-local 8B removal under the user's storage instruction
+
+- The user authorized using 4B first and deleting the 8B weight when needed.
+  Verified that the local generation server on port 11435 used the project's
+  `data/ollama-models` directory, that `qwen3:8b` was not loaded, and that the
+  distinct 4B model was present. Removed only the `qwen3:8b` tag via the
+  model manager. Its 5,225,374,496-byte model blob is no longer present; the
+  `qwen3:4b` tag remains with digest
+  `359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7`.
+  The removed model's recorded prior digest was
+  `500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41`;
+  restoring it requires downloading it again. Shared layers were left to the
+  model manager, not manually removed.
+- The filesystem still reported approximately 6.5 GiB available immediately
+  after removal; the reason has not been established. Do not claim 5.2 GB was
+  recovered or run another generation below the six-GiB reserve on the basis
+  of the nominal model size alone. Historical 8B result artifacts remain local.
