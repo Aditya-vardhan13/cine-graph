@@ -1451,3 +1451,10 @@ source hashes before the temporary index is removed.
   1,000-film coverage gap, or authorize publication. A real inactive local
   index still requires its own current-source, collection, quality and
   activation review.
+- Compared the 487 `(film ID, snapshot ID, passage ID, content hash)` tuples
+  in the retained ten-film pilot with the eligible, hash-verified tuples for
+  those same ten films in `corpus-build-input-2026-11-23-v1.json`. Both sets
+  contained 487 tuples: **zero missing and zero additional**. This is a match
+  to that dated inventory, not a fresh transactional check of the working
+  database, an identity approval, or permission to activate. Recheck source
+  decisions and snapshot bytes immediately before any real inactive build.
