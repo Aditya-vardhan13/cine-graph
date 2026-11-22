@@ -1458,3 +1458,11 @@ source hashes before the temporary index is removed.
   to that dated inventory, not a fresh transactional check of the working
   database, an identity approval, or permission to activate. Recheck source
   decisions and snapshot bytes immediately before any real inactive build.
+- A subsequent read-only transaction against the working database used
+  `scripts/audit_recovery_rebind_inputs.py` to repeat that comparison with
+  current passage selection and latest source-use decisions. It verified all
+  ten snapshot files and found **487 expected and 487 current eligible
+  passages, with zero missing or additional tuples**. This is a point-in-time
+  source preflight: it did not approve identities, create a collection, build
+  an operational index, or establish sufficient retrieval quality. Source
+  decisions and bytes must still be rechecked when an actual build runs.
