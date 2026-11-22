@@ -1411,3 +1411,15 @@ source hashes before the temporary index is removed.
   are absent. In particular, the reconstructed ten-film 4B experiment is an
   isolated research artifact, not the site's active index. These two checks
   are not an evaluation of the site's default hybrid method or overall quality.
+- Read-only diagnosis: the running site's selected preprocessing run
+  `0892ebfc-8b33-4051-95da-4a239b288e40` belongs to
+  `english-1000-retained-narrative-v1` and uses the v3 chunker. It contains
+  eligible chunks for Her and WALL-E, but they reference snapshots
+  `0d892ce1-417b-42ff-a5e6-bf0d8fbde65e` and
+  `e44ce530-877e-4871-9cff-d12ebafa18ed`, respectively, which have no recorded
+  semantic-use decision. The current source inventory's approved candidate
+  snapshots are different: `335aa8a4-9b6f-4735-9249-b719b6a15c17` and
+  `a3ffc9dd-5348-4d4f-b264-e6c68802bb30`. Approval of a newer snapshot must
+  not silently authorize the old chunks. A new source-bound chunk/index run,
+  integrity and retrieval review, and explicit activation are needed; no such
+  live rebuild or activation was performed in this check.
