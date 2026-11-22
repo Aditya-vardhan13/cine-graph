@@ -1265,3 +1265,37 @@ source hashes before the temporary index is removed.
   below the product gate even before generation. Local v4 scoring report:
   `data/evaluation/recovery-ten-film-pgvector-4b-score-v4.json`, SHA-256
   `ec3fc169965bf5e0dc90aecc83ee0009a81731ee867faf16f0322255a302153e`.
+
+### Reuse the 504-vector canary without re-embedding
+
+- Reconstructed all **504** chunk texts from the 487 retained source passages
+  with the original chunker. The reconstruction verified the ten snapshot byte
+  hashes, parent-passage hashes, chunk hashes and ordinals, exact embedding
+  input hashes, vector-file hash, row order and original document cache key.
+  It wrote an ignored local derivative; it did not change the working database,
+  admit new sources or rebuild the vectors. It is a local research artifact,
+  not an importer or a currently approved serving index.
+- A local 4B query runner checks the derivative and mapping fingerprints,
+  each reconstructed chunk hash, vector shape and hash, film scope and pinned
+  model digest. It searches the cached 1,024-dimensional vectors with exact
+  cosine. For the Endgame/Godfather question and the Her/WALL-E choice
+  question, its top-20 IDs and order matched the original pgvector results
+  on **both film sides for each question**. This is four observed rankings,
+  not a broad numerical equivalence or retrieval-quality claim. Deliberately
+  changing a chunk in memory, even after recomputing the outer fingerprint,
+  was rejected before model inference. The final warm Endgame query embedding
+  took about 0.44 seconds locally; this is not an endpoint p95.
+- Tried a new exploratory question, “How does technology affect human agency
+  in Her and WALL-E?” WALL-E's first result was an attributed themes passage
+  directly discussing technological dependence; Her's second introduced
+  Theodore's decisions and the OS, while its first was a general lead. This
+  is useful source discovery, not a verified comparison or an independently
+  graded evaluation. No generator was run and no user-facing output changed.
+- The reconstructed source derivative has SHA-256
+  `11b0b0e7572716d59c5114485e19a1f464599521bf472241dfb7b93e0ad6b610`.
+  The new-question result has SHA-256
+  `8db336e9ba708a446c15ce6bfd08792b276313351e4f50f443dca14e4d139527`.
+  Both stay under ignored `data/evaluation/`; the original matrix and snapshots
+  remain local. This provides cheap further experiments on ten films, **not**
+  a substitute for admitting, indexing and evaluating the broader 1,000-film
+  target.
