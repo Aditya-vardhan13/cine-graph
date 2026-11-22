@@ -24,12 +24,13 @@ from app.services.retrieval_scope import resolve_retrieval_scope
 from app.services.snapshot_integrity import verify_snapshot_file
 from app.services.writer_catalog_index import index_writer_catalog, recovery_profile
 from tests.postgres_test_db import isolated_postgres_engine
+from tests.vector_canary_manifest import save_canary_vector_manifest
 
 
 pytestmark = pytest.mark.integration
 
 
-def test_ten_retained_films_into_pinned_4b_index(tmp_path):
+def test_ten_retained_films_into_pinned_4b_index():
     if os.environ.get("CINEGRAPH_TEN_FILM_CANARY") != "1":
         pytest.skip("explicit local real-source 4B canary only")
     root = Path("data/evaluation")
@@ -38,9 +39,11 @@ def test_ten_retained_films_into_pinned_4b_index(tmp_path):
     for obj in (corpus, descriptors):
         assert canonical_digest({k:v for k,v in obj.items() if k != "fingerprint"}) == obj["fingerprint"]
     assert descriptors["corpus_fingerprint"] == corpus["fingerprint"]
-    output = root / "recovery-ten-film-pgvector-4b-canary-v1.json"
-    if output.exists():
-        raise FileExistsError(output)
+    output = root / "recovery-ten-film-pgvector-4b-canary-v2.json"
+    cache_dir = root / "recovery-ten-film-vector-cache-v2"
+    mapping_path = root / "recovery-ten-film-vector-mapping-v2.json"
+    if output.exists() or mapping_path.exists():
+        raise FileExistsError("Canary output or vector mapping already exists")
     docs = corpus["documents"]
     sources = {s["snapshot_id"]:s for s in descriptors["sources"]}
     assert len(docs) == 487 and len(sources) == 10
@@ -90,11 +93,14 @@ def test_ten_retained_films_into_pinned_4b_index(tmp_path):
                 content=d["content"],content_hash=d["content_sha256"],citation_markers=[],
                 extraction_version=d["extraction_version"]))
         db.commit()
-        build=index_writer_catalog(db,collection_code=code,cache_dir=tmp_path/"vectors",ollama_url=ollama_url,
+        build=index_writer_catalog(db,collection_code=code,cache_dir=cache_dir,ollama_url=ollama_url,
             batch_size=4,profile=model)
         assert build["status"] == "complete" and build["films"] == 10
         audit=audit_index(db,UUID(build["index_run_id"]))
         assert audit["integrity_pass"]
+        mapping = save_canary_vector_manifest(db, run_id=build["chunk_report"]["run_id"],
+            profile=model, model_digest=build["model_digest"], cache_dir=cache_dir,
+            output=mapping_path, corpus_fingerprint=corpus["fingerprint"])
         scope=resolve_retrieval_scope(db,collection_code=code,index_run_id=UUID(build["index_run_id"]))
         client=OllamaEmbeddingClient(base_url=ollama_url)
         probes=[("Q23781155","Q47703","how do these follow the conflicts between family or close people when fighting injustice"),
@@ -111,6 +117,7 @@ def test_ten_retained_films_into_pinned_4b_index(tmp_path):
             results.append({"question":question,"sides":sides})
         report={"corpus_fingerprint":corpus["fingerprint"],"descriptor_fingerprint":descriptors["fingerprint"],
             "build":build,"audit":audit,"probes":results,"quality_review":"pending",
+            "vector_mapping":str(mapping_path),"vector_mapping_fingerprint":mapping["fingerprint"],
             "caution":"Isolated test-schema canary; not a serving index or an answer-quality score."}
         with output.open("x") as handle:
             json.dump(report,handle,ensure_ascii=False,indent=2); handle.write("\n")

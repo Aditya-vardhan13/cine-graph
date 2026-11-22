@@ -1176,3 +1176,22 @@ The 504-vector canary's saved matrix lacks a complete durable chunk-to-row
 mapping; it must not be reused as a serving index based on assumed order.
 A future build must persist and validate that mapping, model fingerprint and
 source hashes before the temporary index is removed.
+
+### Vector mapping safeguard: small real-component check
+
+- The next ten-film canary now retains its vector cache and writes a separate
+  local mapping before the temporary database schema is removed. The mapping
+  binds each row to its chunk, parent passage, film, source snapshot/hash,
+  source location, exact model-input hash, preprocessing run, cache key and
+  pinned model digest. It also records the matrix's hash, shape and dtype.
+- The mapping writer was checked on a **two-film fixture** using the real
+  Qwen3-Embedding 4B Q4_K_M digest and isolated `cinegraph_test` PostgreSQL.
+  Both saved matrix rows exactly matched the corresponding pgvector rows;
+  the existing fixture's source-integrity, index and retrieval checks passed.
+  This does not validate film answer relevance and cannot recover the old
+  unmapped ten-film matrix. It does not yet implement a standalone importer
+  that reconstructs an index after the original schema is removed.
+- The new ten-film canary itself has not been rerun. Avoid repeating its 504
+  embeddings solely to demonstrate the mapping; use the next substantive
+  corpus/retrieval experiment to validate it at full size, with disk headroom
+  and explicit source coverage recorded first.

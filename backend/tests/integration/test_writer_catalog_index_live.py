@@ -4,6 +4,7 @@ import os
 from datetime import timedelta
 
 import pytest
+import numpy as np
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -24,6 +25,7 @@ from app.services.evidence_retrieval import retrieve_narrative_evidence
 from app.services.evidence_preprocessing import CHUNKER_VERSION, ChunkConfiguration, build_evidence_chunks
 from app.services.ollama_embeddings import MANIFEST_REVISION_PREFIX
 from tests.postgres_test_db import isolated_postgres_engine
+from tests.vector_canary_manifest import save_canary_vector_manifest
 
 
 pytestmark = pytest.mark.integration
@@ -94,6 +96,17 @@ def test_reviewed_writer_index_builds_and_retrieves_with_real_ollama(tmp_path):
         assert result["films"] == 2 and result["chunks_completed"] == 2
         audit = audit_index(db, UUID(result["index_run_id"]))
         assert audit["integrity_pass"] and audit["vector_rows"] == 2
+        mapping_path = tmp_path / "vector-mapping.json"
+        mapping = save_canary_vector_manifest(db, run_id=result["chunk_report"]["run_id"],
+            profile=profile, model_digest=result["model_digest"], cache_dir=tmp_path / "vectors",
+            output=mapping_path, corpus_fingerprint="isolated-fixture")
+        matrix = np.load(mapping["matrix_path"], allow_pickle=False)
+        for row in mapping["rows"]:
+            stored = db.scalar(select(EvidenceEmbedding).where(
+                EvidenceEmbedding.index_run_id == UUID(result["index_run_id"]),
+                EvidenceEmbedding.evidence_chunk_id == UUID(row["chunk_id"])))
+            assert stored is not None
+            np.testing.assert_array_equal(matrix[row["row"]], np.asarray(stored.embedding, dtype=np.float32))
         vector = db.scalar(select(EvidenceEmbedding).where(
             EvidenceEmbedding.index_run_id == UUID(result["index_run_id"])))
         original_hash = vector.content_hash
