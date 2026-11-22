@@ -1112,3 +1112,34 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   evaluated on a fresh independent set or on the 504-chunk pgvector index,
   and has not been integrated into the live site. Do not tune or rerun it on
   the already examined question-holdout set as though that were a fresh test.
+
+### Three further individual local source reviews
+
+- Rechecked [Wikipedia's reuse guidance](https://en.wikipedia.org/wiki/Wikipedia:Reusing_Wikipedia_content)
+  and the [CC BY-SA 4.0 deed](https://creativecommons.org/licenses/by-sa/4.0/).
+  Attribution, licence and change notices remain necessary; embedded quotations,
+  images and other third-party material may have separate restrictions. This is
+  not a determination that the application is cleared for commercial use.
+- Individually inspected retained source leads, exact current revisions and
+  snapshot hashes, then recorded AI-assisted decisions for local semantic
+  experiments only through the local operator API:
+
+| Film | Snapshot | Revision | Decision version |
+| --- | --- | --- | ---: |
+| The Dark Knight (2008), Q163872 | `225f5329-d90f-4be3-b130-f55b1147b731` | `1384066085` | 2 |
+| The Godfather Part II (1974), Q184768 | `1d54b084-82e0-40f7-926a-966f0a28cda1` | `1381447815` | 1 |
+| The Return of the King (2003), Q131074 | `3664504b-29a7-47f5-be15-5cad91eb3992` | `1385650960` | 1 |
+
+- The Dark Knight's version 2 only clarifies that the review was AI-assisted;
+  version 1 remains in the append-only history. Each API approval rechecked
+  snapshot-file integrity. These notes describe intended local scope, but the
+  existing semantic-use decision schema does not technically enforce a
+  local-only sub-scope. No index was built or activated and no publication or
+  canonical identity claim was made.
+- Fresh read-only inventory: **13/1,000 collection films** have at least one
+  source eligible under the current semantic-use policy. Reconciliation also
+  reports **13 target rows with an eligible candidate**, not 13 fully verified
+  catalog identities; 968 candidates and 32 unresolved/outside rows remain.
+  Local files: `data/reports/corpus-build-input-2026-11-22-v1.json` and
+  `data/reports/recovery-target-reconciliation-v4.json`. The source decisions
+  are database-local and are not included in Git.
