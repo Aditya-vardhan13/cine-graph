@@ -1050,3 +1050,41 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   checks source size and modification time; it does not rehash the large dumps
   on each run. This is based on the earlier frozen proposal report, not a new
   live search, and does not approve identity or create collection membership.
+
+### Ten-film real-source 4B pgvector canary
+
+- Exported snapshot descriptors in a repeatable-read, read-only transaction.
+  The verifier matched the frozen pilot's 487 passages to current passage IDs,
+  exact content, source hashes, revision, section locator/title/ordinal,
+  extraction version, attribution, licence and semantic-decision version;
+  all 10 retained source files passed their byte hashes. Descriptor fingerprint:
+  `07f24ec99fc41ca0ff3d373c256ceabd27617403be080bdc5b20c57de57a30c3`.
+  A second run after adding the metadata checks produced the same fingerprint.
+- Replayed the actual text and source descriptors into a fresh isolated schema
+  in `cinegraph_test` using the existing source/decision tables. No questions or
+  annotations were inserted as evidence, and the working corpus was not
+  changed. The replay does not copy the original passage citation markers;
+  it validates snapshot-level provenance, not reference-level citation parity.
+- The first attempt stopped before indexing because a fixture inserted a Film
+  with no required original-language value. Removed the unnecessary Film row,
+  rather than guessing a language. The second run created 511 chunks, excluded
+  seven, embedded and imported **504 vectors from ten films** using the pinned
+  Qwen3 4B model, and passed the index integrity audit. Total test wall time was
+  **737.7 seconds**, including setup, embedding, import, audit and four query
+  calls. The isolated schema was cleaned up; this is not a persistent or active
+  writer-catalog index.
+- Inspected two development questions against their returned source passages.
+  For the user's Endgame/Godfather question, the Godfather results included
+  relevant protective choices, while Endgame's direct sacrifice passage was
+  fourth after a lead and two broadly positive reviews. For Her/WALL-E, Her's
+  first three plot results were relevant, but WALL-E's top five lacked the
+  first meeting and included several less direct writing/theme passages.
+  These are not complete, independently rated answers; the result does not
+  pass the product-quality or generation gate. The reported per-film query
+  embedding timings were approximately 325–337 ms and ranking 18–181 ms for
+  these four warm calls, not a measured p95 or end-to-end answer latency.
+- Local report: `data/evaluation/recovery-ten-film-pgvector-4b-canary-v1.json`,
+  file SHA-256 `169365757c1a508295306fccc1c63520b76e0f7404d7ab398630efad5c02956e`.
+  The index was not activated. Free space after the run was about 8.6 GiB;
+  the cause of the decrease has not been established, so retain the six-GiB
+  reserve and remeasure before further model work.
