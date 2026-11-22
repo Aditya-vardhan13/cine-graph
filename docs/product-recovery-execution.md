@@ -1395,3 +1395,19 @@ source hashes before the temporary index is removed.
   reports **22 target rows with an eligible candidate**, 968 current candidates,
   32 unresolved/outside rows and zero approved identities. These counts are
   not completed, verified dossiers. No vectors or live index were changed.
+
+### Current local API: lexical-only product check
+
+- On 23 November, sent two read-only comparison requests to the running local
+  API using its explicit lexical method; no embedding model was started.
+  The user's Endgame/Godfather question returned one pair of candidate leads:
+  two Endgame plot options and three Godfather plot options. One Endgame option
+  includes Nebula and Gamora's conflict and Stark's sacrifice; the result does
+  not itself answer the full question or establish a shared injustice premise.
+- The earlier Her/WALL-E loneliness question returned
+  `insufficient_evidence`: the running API said neither film had eligible
+  reviewed evidence in its active collection. It did not run retrieval. This
+  is a current serving-coverage failure, not proof the retained offline sources
+  are absent. In particular, the reconstructed ten-film 4B experiment is an
+  isolated research artifact, not the site's active index. These two checks
+  are not an evaluation of the site's default hybrid method or overall quality.
