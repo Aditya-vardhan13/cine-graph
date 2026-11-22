@@ -1088,3 +1088,27 @@ then prepare reconciled source manifests and the pinned >=4B model profile.
   The index was not activated. Free space after the run was about 8.6 GiB;
   the cause of the decrease has not been established, so retain the six-GiB
   reserve and remeasure before further model work.
+
+### Question-only section-reserve development ablation
+
+- Tested a small offline selector on the frozen 30 development questions and
+  retained 20-deep 4B full-parent rankings. It reads only the question text:
+  obvious reception, production or plot terms request at most two matching
+  section leads in the top five; unrecognized questions retain dense order.
+  It does not read the question's preassigned facet or source-review labels
+  during ranking and never claims that a section match answers the question.
+- Against the same single-reviewer span annotations, complete-case top-five
+  inclusion rose from **28/47 to 32/47**; partial-case inclusion rose from
+  **21/33 to 25/33**, while negative-case inclusion stayed **7/13**. Five cases
+  gained annotated spans and `R06.reception` lost one. These counts are not
+  answer accuracy, exhaustive recall, abstention quality or independent
+  generalization. Routing was plot for 11 questions, reception for six,
+  production for two and unchanged for 11.
+- Both full source rankings and their scores stay local in `data/evaluation/`:
+  `recovery-section-reserve-development-ranking-v2.json` and
+  `recovery-section-reserve-development-score-v2.json`, with the original
+  dense ranking fingerprint in the new ranking. Two deterministic policy
+  checks passed. This is an exploratory development result; it has not been
+  evaluated on a fresh independent set or on the 504-chunk pgvector index,
+  and has not been integrated into the live site. Do not tune or rerun it on
+  the already examined question-holdout set as though that were a fresh test.
