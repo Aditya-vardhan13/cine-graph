@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 import hashlib
 import json
 import os
@@ -10,16 +10,21 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
+import numpy as np
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db import Base
-from app.models import (CanonicalEntity, DataSource, LanguageEdition, NarrativePassage,
+from app.models import (CanonicalEntity, DataSource, EvidenceEmbedding, LanguageEdition, NarrativePassage,
     NarrativeUseDecision, ReferenceCollection, ReferenceCollectionMembership, SourceObject, SourceSnapshot)
 from app.services.corpus_build_manifest import canonical_digest
 from app.services.embedding_index_audit import audit_index
+from app.services.embedding_cache_rebind import rebind_exact_cache
+from app.services.embedding_index import _candidate_run, _ordered_chunks_and_contents, import_embedding_cache
+from app.services.evidence_preprocessing import CHUNKER_VERSION, ChunkConfiguration, build_evidence_chunks
 from app.services.hybrid_evidence_retrieval import NarrativeRetrievalMethod, retrieve_narrative_candidates
 from app.services.ollama_embeddings import OllamaEmbeddingClient
+from app.services.ollama_embeddings import MANIFEST_REVISION_PREFIX
 from app.services.retrieval_scope import resolve_retrieval_scope
 from app.services.snapshot_integrity import verify_snapshot_file
 from app.services.writer_catalog_index import index_writer_catalog, recovery_profile
@@ -30,7 +35,7 @@ from tests.vector_canary_manifest import save_canary_vector_manifest
 pytestmark = pytest.mark.integration
 
 
-def test_ten_retained_films_into_pinned_4b_index():
+def test_ten_retained_films_into_pinned_4b_index(tmp_path):
     if os.environ.get("CINEGRAPH_TEN_FILM_CANARY") != "1":
         pytest.skip("explicit local real-source 4B canary only")
     root = Path("data/evaluation")
@@ -42,7 +47,8 @@ def test_ten_retained_films_into_pinned_4b_index():
     output = root / "recovery-ten-film-pgvector-4b-canary-v2.json"
     cache_dir = root / "recovery-ten-film-vector-cache-v2"
     mapping_path = root / "recovery-ten-film-vector-mapping-v2.json"
-    if output.exists() or mapping_path.exists():
+    reuse = os.environ.get("CINEGRAPH_TEN_FILM_REUSE") == "1"
+    if not reuse and (output.exists() or mapping_path.exists()):
         raise FileExistsError("Canary output or vector mapping already exists")
     docs = corpus["documents"]
     sources = {s["snapshot_id"]:s for s in descriptors["sources"]}
@@ -93,6 +99,54 @@ def test_ten_retained_films_into_pinned_4b_index():
                 content=d["content"],content_hash=d["content_sha256"],citation_markers=[],
                 extraction_version=d["extraction_version"]))
         db.commit()
+        if reuse:
+            saved_mapping = json.loads(mapping_path.read_text())
+            chunk_report = build_evidence_chunks(db, collection_code=code, config=ChunkConfiguration(
+                current_extractions_per_snapshot=True))
+            run = _candidate_run(db, collection_code=code, chunker_version=CHUNKER_VERSION,
+                                 run_id=UUID(chunk_report["run_id"]))
+            source_matrix = Path(saved_mapping["matrix_path"])
+            with pytest.raises(ValueError, match="unsupported_run_or_model"):
+                rebind_exact_cache(db, run=run, mapping=saved_mapping, matrix_path=source_matrix,
+                    output_dir=tmp_path / "bad-model", expected_model_digest="0" * 64)
+            with pytest.raises(ValueError, match="matrix_integrity_failed"):
+                rebind_exact_cache(db, run=run, mapping=saved_mapping, matrix_path=mapping_path,
+                    output_dir=tmp_path / "bad-matrix", expected_model_digest=model.expected_model_digest)
+            with db.begin_nested() as savepoint:
+                original = db.get(SourceSnapshot, UUID(saved_mapping["rows"][0]["snapshot_id"]))
+                db.add(SourceSnapshot(source_object_id=original.source_object_id,
+                    source_revision="newer-test-revision", canonical_url=original.canonical_url,
+                    attribution_url=original.attribution_url, retrieved_at=original.retrieved_at + timedelta(days=1),
+                    content_hash=original.content_hash, byte_size=original.byte_size, storage_uri=original.storage_uri,
+                    license=original.license, parser_version=original.parser_version, fetch_status="success"))
+                db.flush()
+                with pytest.raises(ValueError, match="non_current_source_or_extraction"):
+                    rebind_exact_cache(db, run=run, mapping=saved_mapping, matrix_path=source_matrix,
+                        output_dir=tmp_path / "stale-source", expected_model_digest=model.expected_model_digest)
+                savepoint.rollback()
+            with db.begin_nested() as savepoint:
+                parent = db.get(NarrativePassage, UUID(saved_mapping["rows"][0]["passage_id"]))
+                parent.content += " Changed evidence."
+                parent.content_hash = hashlib.sha256(parent.content.encode("utf-8")).hexdigest()
+                db.flush()
+                with pytest.raises(ValueError, match="source_or_document_input_mismatch"):
+                    rebind_exact_cache(db, run=run, mapping=saved_mapping, matrix_path=source_matrix,
+                        output_dir=tmp_path / "bad-passage", expected_model_digest=model.expected_model_digest)
+                savepoint.rollback()
+            rebound = rebind_exact_cache(db, run=run, mapping=saved_mapping, matrix_path=source_matrix,
+                output_dir=tmp_path / "rebound", expected_model_digest=model.expected_model_digest)
+            index = import_embedding_cache(db, cache_path=rebound, collection_code=code,
+                chunker_version=CHUNKER_VERSION, model_name=model.model,
+                model_revision=MANIFEST_REVISION_PREFIX + model.expected_model_digest,
+                dimension=model.dimensions, query_instruction=model.query_instruction, chunk_run_id=run.id)
+            assert audit_index(db, index.id)["integrity_pass"]
+            chunks, _ = _ordered_chunks_and_contents(db, run)
+            matrix = np.load(rebound, allow_pickle=False)
+            for ordinal, chunk in enumerate(chunks):
+                vector = db.query(EvidenceEmbedding).filter_by(index_run_id=index.id, evidence_chunk_id=chunk.id).one()
+                np.testing.assert_array_equal(matrix[ordinal], np.asarray(vector.embedding, dtype=np.float32))
+            assert len(chunks) == 504
+            return
         build=index_writer_catalog(db,collection_code=code,cache_dir=cache_dir,ollama_url=ollama_url,
             batch_size=4,profile=model)
         assert build["status"] == "complete" and build["films"] == 10

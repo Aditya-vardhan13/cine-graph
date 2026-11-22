@@ -1423,3 +1423,31 @@ source hashes before the temporary index is removed.
   not silently authorize the old chunks. A new source-bound chunk/index run,
   integrity and retrieval review, and explicit activation are needed; no such
   live rebuild or activation was performed in this check.
+
+### Restore retained 4B vectors into a fresh isolated index
+
+- Implemented an exact-cache rebind for a new chunk run: it verifies the
+  original mapping fingerprint, pinned model digest, matrix hash and shape,
+  current source and extraction, snapshot bytes, parent passage hash, chunker
+  configuration and recomputed chunk, exact film/section/input hash, and a
+  one-to-one row mapping. Only after those checks does it write an inactive
+  cache ordered for the new run. It does not itself import or activate an
+  index. Model and source inputs must not be silently substituted.
+- In a fresh schema in `cinegraph_test`, rebuilt the ten-film chunk run from
+  the same retained sources and rebound the existing **504 4B vectors** into a
+  new cache, without calling the model. Imported that cache into a new test
+  pgvector index, passed the index audit, and verified every database vector
+  against its rebound matrix row. The complete check took about **5.8 seconds**
+  locally, versus the previous approximately 12-minute build that included
+  embedding and question retrieval; the timings cover different work.
+- The same real-database check rejected a wrong model digest, a matrix with the
+  wrong hash, a changed parent passage and a newer source snapshot. An initial
+  attempt failed before importing vectors because the run configuration also
+  contains source/rights manifest hashes; the rebind was corrected and rerun.
+  No live database rows, source decisions, active index or UI were changed.
+- This removes the need to repeat the ten-film document embeddings merely
+  because a chunk run has new IDs. It does **not** by itself add these films
+  to the live site, establish retrieval or answer quality, solve the wider
+  1,000-film coverage gap, or authorize publication. A real inactive local
+  index still requires its own current-source, collection, quality and
+  activation review.
