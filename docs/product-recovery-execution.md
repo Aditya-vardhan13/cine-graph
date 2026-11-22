@@ -1376,3 +1376,22 @@ source hashes before the temporary index is removed.
   after removal; the reason has not been established. Do not claim 5.2 GB was
   recovered or run another generation below the six-GiB reserve on the basis
   of the nominal model size alone. Historical 8B result artifacts remain local.
+
+### Further individual source checks
+
+- Individually checked the retained leads for *The Two Towers* (2002,
+  Q164963, snapshot `c3507200-63b2-4b6a-95c2-77d1a890a269`, revision
+  `1385650827`) and *The Good, the Bad and the Ugly* (1966, Q41483, snapshot
+  `46c0bfa4-f5a9-463f-8a19-54589d7ebde3`, revision `1385651343`). The local
+  operator API rechecked their snapshot integrity and recorded version-1
+  AI-assisted decisions intended for local semantic research only. As before,
+  the current semantic-use schema does not technically enforce that narrower
+  scope, and the operator email identifies the configured account rather than
+  a human reviewer. Neither decision verifies every article claim or approves
+  the catalog identity for publication.
+- The fresh local inventory `data/reports/corpus-build-input-2026-11-23-v1.json`
+  finds **22/1,000** collection films with an eligible source. The separate
+  target reconciliation `data/reports/recovery-target-reconciliation-v6.json`
+  reports **22 target rows with an eligible candidate**, 968 current candidates,
+  32 unresolved/outside rows and zero approved identities. These counts are
+  not completed, verified dossiers. No vectors or live index were changed.
