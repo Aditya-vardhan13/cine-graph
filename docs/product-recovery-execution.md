@@ -1797,3 +1797,27 @@ source hashes before the temporary index is removed.
   source approvals and model selection were not changed. A next experiment
   must check claim-to-source support and premise qualification on fixed good
   evidence before treating retrieval improvements as a usable product.
+
+### 28 November: local claim-verifier control
+
+- Ran eight AI-authored development controls against the three retained fixed
+  source passages, using the same local `qwen3:4b` Q4_K_M checkpoint as both
+  generator and verifier, with expected labels excluded from its request.
+  Controls cover directly stated actions, swapped agents, and invented motives.
+  Its schema required one supported/contradicted/not-established label per ID;
+  all eight IDs appeared, with no syntax errors. Runtime was 27.60 seconds.
+- The verifier accepted the explicit Romanoff and Michael statements, rejected
+  two unsupported motive/justice claims as not established, and rejected the
+  explicitly supported Vito peace negotiation as not established. It classified
+  all three swapped-agent controls as not established rather than contradicted.
+  The latter may be defensible under open-world textual entailment: a text that
+  names one actor does not always logically rule out another acting too. The
+  provisional contradiction labels therefore need independent adjudication;
+  do not market the raw 4/8 exact-label agreement as verifier accuracy.
+- This is a small, AI-authored, single-film-pair control and the verifier is
+  not independent of the generator. It assesses supplied atomic statements,
+  not automatic decomposition, precise claim-to-citation alignment, or full
+  answer quality. The supported Vito false negative and runtime already make
+  it unsuitable as a serving gate. Raw request, labels and verdicts remain
+  local in `recovery-original-claim-verifier4b-v1.json`; code checks packet
+  and source bindings before future runs. No live policy or source facts changed.
