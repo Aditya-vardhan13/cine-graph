@@ -1557,3 +1557,54 @@ source hashes before the temporary index is removed.
   on the development packet, preserving useful cast/filmmaker explanations
   while reducing generic reviews and marketing matches. Keep the heldout
   sealed and evaluate synthesis separately on genuinely supporting passages.
+
+### 28 November: current-index selection controls; two hypotheses rejected
+
+- Ran all 30 development questions read-only against the pinned inactive
+  operational index. One original query vector and, where different, one
+  evidence-type-focused query vector were shared by both film scopes. The
+  focused wording adds only a generic requested-evidence prefix, not plot
+  knowledge or annotated answers. The heldout packet was not opened. Labels
+  were loaded by a separate scoring command only after retrieval completed.
+- On the 13 provisionally complete cases (47 annotated source spans), plain
+  semantic top-five coverage was 29/47 spans and 4/13 cases with all annotated
+  support for both films. Focused wording reached 33/47 spans but still 4/13
+  complete pairs. The existing section-reserve control also reached 33/47
+  spans and 5/13 complete pairs. Current live-style hybrid fusion reached
+  24/47 spans and 2/13 complete pairs; lexical alone 15/47 and 1/13. Semantic,
+  focused semantic and hybrid each included all annotated support in their
+  top twenty for all 13 complete cases. Thus this packet exposes a selection
+  bottleneck, not absence of its annotated support from candidates.
+- These are source-bound, single-reviewer **development span-inclusion**
+  diagnostics, not answer accuracy, exhaustive relevance, public readiness
+  or an independently adjudicated 80-percent score. The unchanged pair-level
+  result does not justify promoting focused wording; its four additional
+  included spans are nevertheless a measured, narrower improvement.
+- Compared the dedicated reranker's scoring protocol with the official
+  [Qwen 4B model card](https://huggingface.co/Qwen/Qwen3-Reranker-4B).
+  Its query/document yes/no protocol differs from asking a general generator
+  to select a list. The prior dedicated reranker result remains historical
+  and is not a new measurement on this operational index.
+- Tested a separate joint-candidate selector on `R03.choice`, using the
+  existing cached `qwen3:4b` Q4_K_M generator, digest
+  `359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7`.
+  It received the twenty semantic candidates per film and could emit only
+  existing candidate IDs or abstain. It returned empty arrays for both Jaws
+  and Jurassic Park, despite annotated support in the candidate set.
+  Measured calls were 40.21 s and 37.84 s (4,998 and 5,357 prompt tokens;
+  six output tokens each). This is a failed one-pair diagnostic, not proof
+  that every listwise method or 4B model fails. Do not expose it as a product
+  fallback or expand the experiment unchanged. No final answers were generated.
+- Added pure selection-contract checks rejecting unknown, duplicate and
+  non-string IDs while allowing explicit abstention; both tests passed in
+  the existing container without a database or model call. The actual
+  selection failure above, not these passing tests, governs product readiness.
+- New local reports: `recovery-inactive-development-query-ablation-v1.json`,
+  `recovery-inactive-development-query-score-v2.json` and
+  `recovery-inactive-listwise-r03-v1.json`. All data and weights stay local;
+  no downloads, live activation, source approvals or corpus writes occurred.
+  Disk stayed above the six-GiB reserve (about 13 GiB after model loading).
+- Next: retain the original candidates and investigate the dedicated reranker
+  with bounded context/selection cost; compare exact support and measured
+  latency. Do not tune on the heldout or mask a failed ranker by forcing
+  non-empty selections. Generation remains a separate unpassed gate.
