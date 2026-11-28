@@ -1821,3 +1821,30 @@ source hashes before the temporary index is removed.
   it unsuitable as a serving gate. Raw request, labels and verdicts remain
   local in `recovery-original-claim-verifier4b-v1.json`; code checks packet
   and source bindings before future runs. No live policy or source facts changed.
+
+### 28 November: sentence-ID citations on the same fixed evidence
+
+- Repeated the original Endgame/Godfather fixed-evidence probe with the same
+  three retained source passages, 4B Q4_K_M generator, original question,
+  sampling and output limit. The experimental variant presents exact
+  sentence-offset IDs and asks for citations first; the application resolves
+  those IDs to immutable source text. The first call was rejected with HTTP
+  400 because Ollama did not accept the `prefixItems` schema. The retry used
+  an Ollama-compatible enum and retained the separate validator that requires
+  comparison citations from both films. No invalid first-call output was saved.
+- The retry stopped normally after 44.81 s and passed the structural validator.
+  This does not mean it passed semantic review: it selected the Thor/Frigga
+  scene rather than the more relevant Romanoff sacrifice; it asserts an
+  unsupported direct confrontation with Jane; it frames Michael's actions as
+  addressing injustice without source support; and it misstates the Nebula
+  plot by saying the captured present Nebula is forced to prepare for arrival,
+  where the source says 2014-Nebula is sent forward. Comparison citations
+  do not substantiate the general moral framing. The answer is not suitable
+  for users, despite resolving to real sentences.
+- The prompt and citation encoding changed from copied quotes to sentence
+  IDs and citation-first ordering, so the timing is not a controlled decoder
+  benchmark. Sentence boundaries use a simple reproducible heuristic and may
+  merge multiple sentences. This is one oracle-packet diagnostic, not a
+  retrieval or product-quality score. The complete model output and resolved
+  spans stay local at `recovery-original-fixed-evidence-answer4b-span-v1.json`.
+  No UI, source decision, live index or serving model changed.
