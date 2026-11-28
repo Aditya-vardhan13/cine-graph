@@ -1,5 +1,6 @@
 """Offline small cross-encoder control on a frozen source-linked candidate pool."""
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -39,6 +40,7 @@ def main():
     parser.add_argument("capture", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--cache-dir", type=Path, required=True)
+    parser.add_argument("--local-model", type=Path, help="Exact retained model snapshot (no download)")
     parser.add_argument("--device", choices=("cpu", "mps"), default="mps")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--resume", action="store_true")
@@ -48,12 +50,23 @@ def main():
         raise ValueError("All artifacts must remain under project data/evaluation.")
     if args.batch_size < 1:
         raise ValueError("Batch size must be positive.")
+    if args.local_model is not None and not args.local_model.resolve().is_relative_to(
+            (Path.cwd() / "data" / "models").resolve()):
+        raise ValueError("Model snapshot must remain under project data/models.")
+    if args.local_model is not None:
+        if args.local_model.name != REVISION:
+            raise ValueError("Local snapshot must match the pinned revision.")
+        with (args.local_model / "model.safetensors").open("rb") as handle:
+            local_weight_hash = hashlib.file_digest(handle, "sha256").hexdigest()
+    else:
+        local_weight_hash = None
     capture = json.loads(args.capture.read_text())
     if capture["method"] != "candidate-union" or not 1 <= len(capture["cases"]) <= 50:
         raise ValueError("Use a frozen pool of one to fifty questions.")
     contract = {"model": MODEL, "revision": REVISION, "device": args.device,
                 "input": "film-section-source-window-128w-overlap32-v1", "aggregation": "max-window-logit",
-                "batch_size": args.batch_size, "capture_fingerprint": digest(capture)}
+                "batch_size": args.batch_size, "capture_fingerprint": digest(capture),
+                "local_weight_sha256": local_weight_hash}
     rows = []
     if args.resume and args.output.exists():
         previous = json.loads(args.output.read_text())
@@ -74,9 +87,10 @@ def main():
     started = perf_counter()
     options = dict(revision=REVISION, cache_dir=str(args.cache_dir / "weights"),
                    local_files_only=True, trust_remote_code=False)
-    tokenizer = AutoTokenizer.from_pretrained(MODEL, **options)
+    model_source = str(args.local_model) if args.local_model else MODEL
+    tokenizer = AutoTokenizer.from_pretrained(model_source, **options)
     model = AutoModelForSequenceClassification.from_pretrained(
-        MODEL, use_safetensors=True, weights_only=True, **options).to(args.device).eval()
+        model_source, use_safetensors=True, weights_only=True, **options).to(args.device).eval()
     load_ms = (perf_counter() - started) * 1000
     for case in capture["cases"][len(rows):]:
         require_disk_headroom(args.output)

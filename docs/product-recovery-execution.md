@@ -1711,3 +1711,34 @@ source hashes before the temporary index is removed.
   local `recovery-reranker-prefix-cache-r03-v1.json`. No relevance labels,
   heldout questions, source approvals, model downloads or serving changes
   were involved. Model and cache peak is recorded in the local report.
+
+### 28 November: faster reranker on the same recovery development pool
+
+- Ran the retained `cross-encoder/ms-marco-MiniLM-L6-v2` revision
+  `233902d25c440f23af6f7d6e94d2946bac0bee0a` on the same frozen depth-20
+  parent-passage candidates and 30 development questions as the previous
+  4B reranker run. It scores overlapping 128-word source windows and ranks
+  the parent by its highest window score; the 4B run scores whole passages.
+  Therefore this is a pipeline comparison, not an isolated model-size test.
+  The exact source windows and offsets were validated when scoring.
+- For 13 provisionally complete cases with 47 annotated spans, MiniLM put
+  28/47 spans in the top five and captured all annotations on both films for
+  3/13 cases. The retained 4B run captured 42/47 and 9/13, respectively.
+  Parent-passage inclusion is an optimistic measure for the small model: its
+  winning window may not itself contain the annotated span. These are
+  single-reviewer development annotations, not answer accuracy, exhaustive
+  relevance or release results. The heldout set was not used.
+- MiniLM measured 600 ms median and 893 ms nearest-rank p95 for two-film
+  reranking across the 30 questions, plus 344 ms model load separately.
+  This excludes retrieval, generation and cold-process startup. The earlier
+  4B run measured a 121.4-second median for its different full-parent input.
+  This is much faster but the observed coverage loss is too large to promote.
+- Used the existing project-local native runtime and cached model; no weights
+  were downloaded. The model weight SHA-256 observed after the run was
+  `821d1aa69520101d6e0737f78a042ae25b19e5cb9160701909d10434f4aeb0ae`;
+  the completed checkpoint did not record this hash at launch, so exact weight
+  immutability across that run is not proven. The adapter now records it for
+  future local-snapshot runs. Reports stay under local `data/evaluation`:
+  `recovery-minilm-depth20-development-v1.json` and
+  `recovery-minilm-depth20-development-score-v1.json`. No live policy,
+  source decision, model selection or index activation changed.
