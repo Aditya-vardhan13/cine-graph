@@ -1506,3 +1506,54 @@ source hashes before the temporary index is removed.
   changed. The reason for the free-space change has not been established.
   The inactive index has therefore **not** been built in the working database;
   do not retry until disk headroom is restored and the preflight is rerun.
+
+### 28 November: inactive operational 4B pilot and real-question probes
+
+- Docker API, web, worker and PostgreSQL were healthy. Host disk free space
+  was initially 9.3 GiB; the 4B embedding model was cached and not loaded.
+  The separate generation server was stopped. No downloads, image builds,
+  package installs or cleanup were needed. Host free space later measured
+  about 18 GiB; the cause of that change was not established.
+- Repeated the read-only pilot preflight in the existing API image with
+  current code mounted and the source volume read-only: all ten source files
+  verified and all 487 retained parent passages matched current eligibility.
+  A host-only attempt could not resolve the Docker-volume source locators;
+  no descriptors were rewritten to work around that namespace difference.
+- The real inactive build persisted 504 chunks, then correctly rejected the
+  saved matrix at exact document-input validation. Diagnosis found 397 exact
+  inputs and 107 title-header differences: 29 PK / PK (film), 55 WALL·E /
+  WALL-E and 23 Her / Her (2013 film). Source chunks matched, but their old
+  vectors could not be silently declared equivalent to newly headed inputs.
+- `scripts/complete_inactive_recovery_pilot.py` reused only the 397 exact
+  source-bound input vectors and generated the remaining 107 using cached
+  `qwen3-embedding:4b`, manifest digest
+  `df5bd2e3c74cd8d069d21dc038f1b359fcdc9458fce1c99bd43c9eb1518ff907`.
+  It used the existing resumable cache with one input per batch and a disk
+  reserve check, without editing canonical titles or retained mappings.
+  Local derivative caches total about 2.4 MiB, excluding PostgreSQL/WAL.
+- Imported the resulting matrix into index
+  `9fd68d68-0f8d-4bf5-ad52-c1cfeabf584b` for the separate collection
+  `recovery-pilot-10-inactive-v1`. The audit reported 504 expected chunks,
+  504 vector rows, ten verified snapshots and no integrity errors. Collection
+  status remains inactive; no live serving configuration was changed.
+- `scripts/probe_inactive_recovery_pilot.py` ran the original Endgame/Godfather
+  question and the Her/WALL-E artificial-companionship question through the
+  real database retrieval service, using one 4B query vector per question,
+  shared across both film scopes. It retained lexical, semantic and hybrid
+  top-ten results under `data/evaluation/recovery-inactive-live-db-probes-v1.json`.
+  The database transaction was read-only; this was an operational diagnostic,
+  not a test-suite run against the working corpus.
+- AI-assisted inspection of hybrid top-five results: Endgame's first two
+  results were generic critical responses, ahead of the relevant Natasha
+  filmmaker explanation at rank three. Godfather's first two plot passages
+  cover family conflict, Sonny's death, Vito's compromise and Michael's
+  involvement; a home-media result still occupied rank five. Her's lonely
+  protagonist/OS plot passage ranked third. WALL-E's first result explicitly
+  discusses technology removing effort from human relationships. These are
+  mixed development results, not a new accuracy score or evidence that the
+  user-facing product is fixed. No generator ran and no final answers were
+  evaluated. Do not activate on the strength of the integrity audit.
+- Next action: compare question-conditioned selection with this pinned index
+  on the development packet, preserving useful cast/filmmaker explanations
+  while reducing generic reviews and marketing matches. Keep the heldout
+  sealed and evaluate synthesis separately on genuinely supporting passages.
