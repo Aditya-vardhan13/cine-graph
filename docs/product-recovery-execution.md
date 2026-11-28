@@ -1608,3 +1608,49 @@ source hashes before the temporary index is removed.
   with bounded context/selection cost; compare exact support and measured
   latency. Do not tune on the heldout or mask a failed ranker by forcing
   non-empty selections. Generation remains a separate unpassed gate.
+
+### 28 November: reject destructive context reduction; native selector checked
+
+- Located the retained native runtime at `data/venvs/mlx-reranker`; the
+  x86 Conda environments and root venv are not its substitutes. It can access
+  Apple M1 Metal outside the sandbox. No packages or weights were downloaded.
+- Before rerunning the dedicated reranker, tested a cheaper-input hypothesis
+  on its retained depth-twenty development pools. For each passage, choose the
+  contiguous window with the most distinct query terms (alphabetic tokens of
+  four or more characters after generic-question stopwords), using 25-percent
+  overlap and stable first-window tie breaking. Only then compare with the
+  source annotations; annotations never choose windows.
+- On the 13 provisionally complete cases, one 128-word window retained 30/47
+  annotated spans and all support for 2/13 pairs. At 192 words it retained
+  40/47 and 8/13 pairs. At 256 it retained 47/47 and 13/13 pairs, but reduced
+  total pool text only from 90,965 to 89,436 words (about 1.7 percent).
+  These are context-preservation ceilings, not measured reranker accuracy or
+  token/runtime savings. Rejected this shortcut before inference and removed
+  the experimental windowing option: the meaningful reductions lose evidence.
+- Checked the same R03.choice joint-selection diagnostic with the retained
+  native Qwen3 4B Instruct-2507 4-bit checkpoint. Its weight SHA-256 is
+  `2a73c6c248601ab904e035548abd8e6abb65ea27dcb5f342fb0a8910eb44173f`.
+  Weight, config, tokenizer, tokenizer-config and template hashes are recorded
+  in the local report and were reverified after the completed structured run.
+- Unconstrained native output copied full production passages instead of IDs
+  and exhausted its 256-token limit. The first attempt failed without saving
+  raw output; fixed that diagnostic observability problem. A bounded one-film
+  capture took 48.08 s and retained the actual incomplete text, explicitly
+  marked failed—not silently converted to an empty selection or repaired.
+- With the retained Outlines schema decoder, native output became valid but
+  not suitable. Jaws selected input ranks 12–16 (mostly production material),
+  retaining 1/2 annotated spans; Jurassic Park returned an empty selection,
+  retaining 0/2. Calls took 34.22 s and 37.24 s after initial model loading.
+  This is 1/4 development-span inclusion on one pair, not answer accuracy.
+  The question can also be read as a production question; that ambiguity and
+  the explicit story-focused annotations must remain visible in interpretation.
+- Do not infer that native runtime alone fixes relevance, or that syntax
+  constraints establish grounding. The native checkpoint and decoder differ
+  from the previous Ollama model: this is not a clean runtime-only comparison.
+  No change to serving, active index, canonical data or source approval occurred.
+- Local evidence: `recovery-inactive-native-listwise-r03-capture-v2.json`
+  and `recovery-inactive-native-listwise-r03-structured-v1.json`. Native
+  model loading kept free disk around 15–16 GiB, above the six-GiB reserve.
+  No independent or heldout quality result is claimed. Next work must make
+  the requested evidence scope explicit and compare the dedicated reranker's
+  remaining selection failures, rather than repeat these failed shortcuts.
