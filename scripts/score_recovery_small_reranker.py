@@ -7,6 +7,15 @@ import statistics
 from app.services.corpus_build_manifest import canonical_digest
 
 
+def fuse_ranks(dense_ids, small_ids, *, dense_weight, small_weight):
+    if len(dense_ids)!=len(set(dense_ids)) or set(dense_ids)!=set(small_ids) or len(small_ids)!=len(set(small_ids)):
+        raise ValueError('ranking_mismatch')
+    scores={identifier:0.0 for identifier in dense_ids}
+    for ids,weight in ((dense_ids,dense_weight),(small_ids,small_weight)):
+        for rank,identifier in enumerate(ids,1): scores[identifier]+=weight/(60+rank)
+    return sorted(dense_ids,key=lambda identifier:(-scores[identifier],dense_ids.index(identifier)))
+
+
 def main():
     area=Path('data/evaluation')
     corpus=json.loads((area/'recovery-ten-film-current-v1.json').read_text())
@@ -14,7 +23,7 @@ def main():
     small=json.loads((area/'recovery-minilm-depth20-development-v1.json').read_text())
     large=json.loads((area/'recovery-ten-qwen4b-reranker-development-v1.json').read_text())
     review=json.loads((area/'recovery-oracle-review-development-complete-v1.json').read_text())
-    out=area/'recovery-minilm-depth20-development-score-v1.json'
+    out=area/'recovery-minilm-depth20-fusion-score-v1.json'
     if out.exists(): raise FileExistsError(out)
     if (canonical_digest({k:v for k,v in corpus.items() if k!='fingerprint'})!=corpus['fingerprint']
             or capture['corpus_fingerprint']!=corpus['fingerprint']
@@ -55,11 +64,19 @@ def main():
                         w=item['winning_window']; text=by_id[item['chunk_id']]['content']
                         if text[w['start']:w['end']]!=w['text']: raise ValueError('window_offset_mismatch')
                 counts[name]=sum(any(item['chunk_id']==e['passage_id'] and e['quote'] in by_id[item['chunk_id']]['content'] for item in ranking[:5]) for e in spans)
+            dense_ids=pool_ids
+            small_ids=[x['chunk_id'] for x in rankings['small']]
+            for name,ids in {'dense':dense_ids,
+                    'fusion_equal':fuse_ranks(dense_ids,small_ids,dense_weight=1,small_weight=1),
+                    'fusion_dense3':fuse_ranks(dense_ids,small_ids,dense_weight=3,small_weight=1)}.items():
+                counts[name]=sum(any(identifier==e['passage_id'] and e['quote'] in by_id[identifier]['content']
+                                     for identifier in ids[:5]) for e in spans)
             sides.append({'qid':qid,'spans':len(spans),'hits':counts})
         output.append({'case_id':source['case_id'],'answerability':label['answerability'],'sides':sides})
     complete=[x for x in output if x['answerability']=='complete']
     summary={name:{'spans':sum(s['hits'][name] for c in complete for s in c['sides']),
-        'both_films_all_spans':sum(all(s['spans'] and s['hits'][name]==s['spans'] for s in c['sides']) for c in complete)} for name in ('small','large')}
+        'both_films_all_spans':sum(all(s['spans'] and s['hits'][name]==s['spans'] for s in c['sides']) for c in complete)}
+        for name in ('dense','small','large','fusion_equal','fusion_dense3')}
     timings.sort(); report={'complete_cases':len(complete),'annotated_spans':sum(s['spans'] for c in complete for s in c['sides']),
         'summary':summary,'small_pair_ms_median':statistics.median(timings),'small_pair_ms_p95_nearest_rank':timings[28],
         'model_load_ms':small['model_load_ms'],'cases':output,'small_sha256':canonical_digest(small),

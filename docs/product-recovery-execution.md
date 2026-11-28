@@ -1742,3 +1742,30 @@ source hashes before the temporary index is removed.
   `recovery-minilm-depth20-development-v1.json` and
   `recovery-minilm-depth20-development-score-v1.json`. No live policy,
   source decision, model selection or index activation changed.
+
+### 28 November: fast reranker and dense-branch fusion
+
+- Replayed the same retained depth-20 development pools with two predetermined
+  reciprocal-rank-fusion controls (k=60): equal dense/small weights and 3:1
+  dense/small weights. Both consume identical candidate sets. For the 13
+  provisionally complete cases (47 annotated spans), dense alone and the
+  small reranker each captured 28 spans in their top five; equal fusion
+  captured 35 and 3:1 fusion 31. Complete both-film annotation coverage was
+  4/13, 3/13, 6/13 and 5/13 respectively; the prior 4B reranker was 42/47
+  and 9/13. These are single-reviewer parent-span development diagnostics,
+  not user-answer accuracy; neither fusion option reaches the product gate.
+- Applied the fast reranker to the user's original Endgame/Godfather question
+  using the saved inactive-index semantic top ten per film. Equal fusion put
+  Michael's killing passage fourth for Godfather, but Endgame's top five still
+  included a broad lead and two generic review passages alongside Natasha's
+  relevant creator explanation. This is not the answer requested by the user.
+  The small model took 313 ms and 182 ms per film in this one warm run;
+  retrieval, model load and generation are excluded. Do not infer end-to-end
+  latency or that the top-five packet supports the entire original question.
+- The original-question packet is a separate manual diagnostic, not heldout
+  validation. Local artifacts `recovery-minilm-depth20-fusion-score-v1.json`,
+  `recovery-original-question-small-pool-v1.json`, and
+  `recovery-original-question-minilm-v1.json` retain input fingerprints and
+  model metadata. No serving, canonical facts, source approvals or weights
+  changed; no new external model was downloaded. Do not promote fusion based
+  on a 6/13 development subset or confuse the 4B embedding with the reranker.
