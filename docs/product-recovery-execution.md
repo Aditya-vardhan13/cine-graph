@@ -1769,3 +1769,31 @@ source hashes before the temporary index is removed.
   model metadata. No serving, canonical facts, source approvals or weights
   changed; no new external model was downloaded. Do not promote fusion based
   on a 6/13 development subset or confuse the 4B embedding with the reranker.
+
+### 28 November: original question, fixed-source generation probe
+
+- To separate retrieval from synthesis, supplied three manually selected,
+  fingerprint-verified retained plot passages to the local `qwen3:4b`
+  Q4_K_M generator: Natasha's Soul Stone sacrifice; Michael's protection of
+  Vito and subsequent killings; and Vito's peace negotiation after Sonny's
+  death. This is a favorable source oracle packet, not a demonstration that
+  the live product retrieves these passages. The original user wording was
+  retained unchanged. `scripts/probe_fixed_evidence_answer.py` checks the
+  corpus fingerprint, film scope, content hashes, model digest and disk
+  reserve, and streams to a new ignored local report.
+- The call completed in 58.74 s and failed the structural validator because
+  its first reading ended mid-sentence. Source inspection also found material
+  errors: it says characters sacrifice loved ones to obtain stones, when the
+  selected passage says Romanoff sacrifices herself; it cites Thor's scene for
+  that alleged sacrifice; and its comparison forces a shared framing without
+  examining the question's justice premise. Its Godfather reading mentions
+  Vito's peace negotiation but cites only the other source passage. Several
+  quotations stop mid-sentence even though they are literal substrings.
+- This output is not safe to expose. Correct source identity, a normal model
+  stop and valid JSON do not prove citations support claims or that an answer
+  helps a writer. The output and exact packet remain local at
+  `recovery-original-fixed-evidence-answer4b-v1.json`. This is one development
+  diagnostic, not a general 4B accuracy estimate. The live index, UI,
+  source approvals and model selection were not changed. A next experiment
+  must check claim-to-source support and premise qualification on fixed good
+  evidence before treating retrieval improvements as a usable product.
