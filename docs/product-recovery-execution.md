@@ -1688,3 +1688,26 @@ source hashes before the temporary index is removed.
   No heldout labels, source records, live serving configuration or data were
   changed; local run artifacts are `recovery-rerank4b-depth20-r03-story-scope-v1.json`
   and `recovery-rerank4b-depth20-r02-story-scope-v1.json`.
+
+### 28 November: full-passage prefix-cache parity diagnostic
+
+- `scripts/benchmark_reranker_prefix_cache.py` compares full-token inference
+  and an in-memory key/value-prefix reuse path on the same depth-10 R03.choice
+  packet, 4-bit reranker weights and original instruction. It derives the
+  common prefix from actual token IDs, rather than assuming concatenated text
+  tokenizes identically, and creates fresh cache objects for each candidate.
+  Full passages, IDs, film context and source data remain unchanged.
+- On Jaws, ten candidates shared 116 prefix tokens; baseline scoring took
+  19.56 s and cached scoring including prefix prefill took 14.43 s. On Jurassic
+  Park, ten candidates shared 116 prefix tokens; baseline was 22.29 s and
+  cached 17.27 s. Both sides preserved their top-five order in this one run.
+  However maximum yes/no logit differences were 0.125 and 0.1875 respectively;
+  these are not exact parity and exceed the earlier 0.05 diagnostic tolerance.
+- Total measured scoring decreased from 41.85 s to 31.69 s in this single
+  warm, fixed-order experiment. It remains far beyond the three-second budget;
+  ordering, quantized numerical variation, thermal and memory effects were not
+  controlled. Do not activate the cached path or generalize its parity or
+  performance. The full score list, packet SHA-256 and model SHA-256 are in
+  local `recovery-reranker-prefix-cache-r03-v1.json`. No relevance labels,
+  heldout questions, source approvals, model downloads or serving changes
+  were involved. Model and cache peak is recorded in the local report.
