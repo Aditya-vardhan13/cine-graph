@@ -1654,3 +1654,37 @@ source hashes before the temporary index is removed.
   No independent or heldout quality result is claimed. Next work must make
   the requested evidence scope explicit and compare the dedicated reranker's
   remaining selection failures, rather than repeat these failed shortcuts.
+
+### 28 November: explicit fictional-story scope in the dedicated reranker
+
+- Tested the same locally retained 4-bit Qwen 4B reranker, question, title
+  context and depth-20 candidate capture as the previous development run.
+  Only the instruction changed: it explicitly requested in-story actions and
+  choices, excluding real-world production/marketing/box-office material
+  unless commentary directly explains the requested story events. The trial
+  is an operator-specified scope, not an automatic classifier or UI feature.
+  Model weight SHA-256 `8003a82d273cfbf540f3dd96775dd9065d438a9d91ca4983e7a9c4d0dd9e1448`
+  matched the previous observation after the runs; the historical checkpoint
+  did not itself bind that hash, so exact old weight identity is not proven.
+- R03.choice (Jaws / Jurassic Park): depth 10 contained only 2/4 annotated
+  spans in its candidate pools; both original and scoped instructions selected
+  those 2/4 at top five. Depth 20 contained all four: the original selected
+  3/4 and story-scoped selected 4/4, moving the Jaws beach-closure passage
+  into the top five. Two other Jaws selections still concern production.
+  Scoring took 93.4 s combined, versus 118.5 s in the historical run; this
+  uncontrolled timing difference is not evidence of a speed improvement.
+- R02.choice (Endgame / Godfather) is labeled **partial**, not complete:
+  neither source establishes a symmetric family-versus-justice dilemma.
+  Both instructions included its two annotated spans in their top-five
+  results. The scoped run took 107.7 s combined versus 110.0 s historically.
+  Candidate inclusion does not prove that an answer will avoid false moral
+  equivalence or cite those passages correctly.
+- This is a two-question, single-reviewer development diagnostic, not a
+  release metric or a comparison on the current operational vector index.
+  The frozen pools use the earlier full-parent offline representation. The
+  explicit scope helped one candidate selection and did not hurt the other,
+  but 93–108 s reranking alone remains far beyond the 3-second retrieval
+  budget. Do not promote this instruction or claim the selection gate passed.
+  No heldout labels, source records, live serving configuration or data were
+  changed; local run artifacts are `recovery-rerank4b-depth20-r03-story-scope-v1.json`
+  and `recovery-rerank4b-depth20-r02-story-scope-v1.json`.
